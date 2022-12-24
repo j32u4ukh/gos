@@ -270,7 +270,7 @@ func (a *Anser) dealWork() {
 		switch a.currWork.State {
 		// 工作已完成
 		case 0:
-			a.currWork, finished = a.relinkWork(a.currWork, finished, true)
+			finished = a.relinkWork(finished, true)
 		case 1:
 			// 對工作進行處理
 			a.workHandler(a.currWork)
@@ -278,28 +278,28 @@ func (a *Anser) dealWork() {
 			switch a.currWork.State {
 			case 0:
 				// 將完成的工作加入 finished，並更新 work 所指向的工作結構
-				a.currWork, finished = a.relinkWork(a.currWork, finished, true)
+				finished = a.relinkWork(finished, true)
 			case 1:
 				// 將工作接入待處理的區塊，下次回圈再行處理
-				a.currWork, yet = a.relinkWork(a.currWork, yet, false)
+				yet = a.relinkWork(yet, false)
 			case 2:
 				// 將向客戶端傳輸數據，寫入 writeBuffer
 				a.Write(a.currWork.Index, &a.currWork.Data, a.currWork.Length)
 
 				// 將完成的工作加入 finished，並更新 work 所指向的工作結構
-				a.currWork, finished = a.relinkWork(a.currWork, finished, true)
+				finished = a.relinkWork(finished, true)
 			}
 		case 2:
 			// 將向客戶端傳輸數據，寫入 writeBuffer
 			a.Write(a.currWork.Index, &a.currWork.Data, a.currWork.Length)
 
 			// 將完成的工作加入 finished，並更新 work 所指向的工作結構
-			a.currWork, finished = a.relinkWork(a.currWork, finished, true)
+			finished = a.relinkWork(finished, true)
 		default:
 			fmt.Printf("(a *Anser) dealWork | 連線 %d 發生異常工作 state(%d)，直接將工作結束\n", a.currWork.Index, a.currWork.State)
 
 			// 將完成的工作加入 finished，並更新 work 所指向的工作結構
-			a.currWork, finished = a.relinkWork(a.currWork, finished, true)
+			finished = a.relinkWork(finished, true)
 		}
 	}
 
@@ -356,27 +356,27 @@ func (a *Anser) getConn(cid int32) *base.Conn {
 }
 
 // 將處理後的 work 移到所屬分類的鏈式結構 destination 之下
-func (a *Anser) relinkWork(work *base.Work, destination *base.Work, done bool) (*base.Work, *base.Work) {
+func (a *Anser) relinkWork(destination *base.Work, done bool) *base.Work {
 	// 更新 works 指標位置
-	a.works = work.Next
+	a.works = a.currWork.Next
 
 	// 空做是否已完成
 	if done {
 		// 清空當前工作結構
-		work.Release()
+		a.currWork.Release()
 	} else {
 		// 從原本的鏈式結構中移除
-		work.Next = nil
+		a.currWork.Next = nil
 	}
 
 	if destination == nil {
-		destination = work
+		destination = a.currWork
 	} else {
-		destination.Add(work)
+		destination.Add(a.currWork)
 	}
 
-	work = a.works
-	return work, destination
+	a.currWork = a.works
+	return destination
 }
 
 func (a *Anser) releaseConn() {
