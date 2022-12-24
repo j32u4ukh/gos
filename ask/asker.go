@@ -245,15 +245,6 @@ func (a *Asker) Handler() {
 	}
 }
 
-func (a *Asker) checkWorks() {
-	work := a.works
-	for work != nil {
-		fmt.Printf("(a *Asker) checkWorks | %s\n", work)
-		work = work.Next
-	}
-	fmt.Println()
-}
-
 // 尋找空閒的工作結構
 func (a *Asker) getEmptyWork() *base.Work {
 	work := a.works

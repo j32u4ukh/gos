@@ -128,3 +128,12 @@ func (w *Work) Release() {
 	w.Body.Clear()
 	w.Protocol.Data = []byte{}
 }
+
+func CheckWorks(works *Work) {
+	work := works
+	for work != nil {
+		fmt.Printf("CheckWorks | %s\n", work)
+		work = work.Next
+	}
+	fmt.Println()
+}
