@@ -11,6 +11,9 @@ import (
 	"github.com/pkg/errors"
 )
 
+type IAnser interface {
+}
+
 type Anser struct {
 	// 連線位置
 	laddr *net.TCPAddr
@@ -74,7 +77,7 @@ func NewAnser(laddr *net.TCPAddr, socketType define.SocketType, nConnect int32, 
 		index:      0,
 		nConn:      0,
 		maxConn:    nConnect,
-		conns:      base.NewConn(define.BUFFER_SIZE),
+		conns:      base.NewConn(0, define.BUFFER_SIZE),
 		readBuffer: make([]byte, 64*1024),
 		order:      binary.LittleEndian,
 		connBuffer: make(chan net.Conn, nWork),
@@ -88,7 +91,7 @@ func NewAnser(laddr *net.TCPAddr, socketType define.SocketType, nConnect int32, 
 	a.lastConn = a.conns
 
 	for i = 1; i < nConnect; i++ {
-		nextConn = base.NewConn(define.BUFFER_SIZE)
+		nextConn = base.NewConn(i, define.BUFFER_SIZE)
 		a.lastConn.Next = nextConn
 		a.lastConn = nextConn
 	}
@@ -203,6 +206,8 @@ func (a *Anser) Handler() {
 
 		// 從緩存中讀取數據
 		default:
+			// TODO: read(*base.Conn, *[]byte, *base.Work)
+
 			// 可讀長度 大於 欲讀取長度
 			// fmt.Printf("readableLength: %d, readLength: %d\n", a.currConn.readableLength, a.currConn.readLength)
 			if a.currConn.ReadableLength >= a.currConn.ReadLength {

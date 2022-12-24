@@ -9,10 +9,10 @@ import (
 	"github.com/pkg/errors"
 )
 
-/* NOTE:
-1. 封包讀取時，需要累積足夠長度在一次讀出，因此需要從封包寫到讀取緩衝中，而非直接讀取封包(會不知道下一個封包的長度)
-*/
 type Conn struct {
+	// 連線物件編號
+	Id int32
+
 	// ==================================================
 	// 連線結構
 	// ==================================================
@@ -73,8 +73,9 @@ type Conn struct {
 	writeErr  error
 }
 
-func NewConn(size int32) *Conn {
+func NewConn(id int32, size int32) *Conn {
 	c := &Conn{
+		Id:             id,
 		Index:          -1,
 		NetConn:        nil,
 		State:          define.Unused,

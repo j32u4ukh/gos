@@ -48,7 +48,7 @@ type Asker struct {
 func NewAsker(site int32, laddr *net.TCPAddr, socketType define.SocketType, nWork int32) (*Asker, error) {
 	a := &Asker{
 		site:         site,
-		conn:         base.NewConn(define.BUFFER_SIZE),
+		conn:         base.NewConn(0, define.BUFFER_SIZE),
 		laddr:        laddr,
 		socketType:   socketType,
 		frameTime:    200 * time.Millisecond,
