@@ -14,14 +14,14 @@ import (
 
 type Tcp0Anser struct {
 	*Anser
-	tcp0s    []*Tcp0
-	currTcp0 *Tcp0
+	tcp0s    []*base.Tcp0
+	currTcp0 *base.Tcp0
 }
 
 func NewTcp0Anser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, error) {
 	var err error
 	a := &Tcp0Anser{
-		tcp0s:    make([]*Tcp0, nConnect),
+		tcp0s:    make([]*base.Tcp0, nConnect),
 		currTcp0: nil,
 	}
 	a.Anser, err = newAnser(laddr, nConnect, nWork)
@@ -36,7 +36,7 @@ func NewTcp0Anser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, err
 	var i int32
 
 	for i = 0; i < nConnect; i++ {
-		a.tcp0s[i] = NewTcp0()
+		a.tcp0s[i] = base.NewTcp0()
 	}
 
 	return a, nil
@@ -54,8 +54,8 @@ func (a *Tcp0Anser) Handler() {
 func (a *Tcp0Anser) Read() bool {
 	a.currTcp0 = a.tcp0s[a.currConn.GetId()]
 
-	if a.currConn.CheckReadable(a.ReadableChecker) {
-		if a.currTcp0.state == 0 {
+	if a.currConn.CheckReadable(a.currTcp0.ReadableChecker) {
+		if a.currTcp0.State == 0 {
 			// 從 readBuffer 當中讀取封包長度
 			a.currConn.Read(&a.readBuffer, 4)
 
@@ -63,7 +63,7 @@ func (a *Tcp0Anser) Read() bool {
 			a.currTcp0.ReadLength = base.BytesToInt32(a.readBuffer[:4], a.order)
 
 			// 更新 currTcp0 狀態值
-			a.currTcp0.state = 1
+			a.currTcp0.State = 1
 
 		} else {
 			// 將傳入的數據，加入工作緩存中
@@ -83,7 +83,7 @@ func (a *Tcp0Anser) Read() bool {
 			a.currConn.PacketLength = -1
 
 			// 重置 欲讀取長度 以及 狀態值
-			a.currTcp0.resetReadLength()
+			a.currTcp0.ResetReadLength()
 		}
 
 		// // 此時的 a.currConn.readLength 會是 4
@@ -121,10 +121,10 @@ func (a *Tcp0Anser) Read() bool {
 	return true
 }
 
-// 檢查是否滿足：可讀長度 大於 欲讀取長度
-func (a *Tcp0Anser) ReadableChecker(buffer *[]byte, i int32, o int32, length int32) bool {
-	return length >= a.currTcp0.ReadLength
-}
+// // 檢查是否滿足：可讀長度 大於 欲讀取長度
+// func (a *Tcp0Anser) ReadableChecker(buffer *[]byte, i int32, o int32, length int32) bool {
+// 	return length >= a.currTcp0.ReadLength
+// }
 
 func (a *Tcp0Anser) Write(cid int32, data *[]byte, length int32) error {
 	return a.Anser.Write(cid, data, length)
@@ -133,27 +133,4 @@ func (a *Tcp0Anser) Write(cid int32, data *[]byte, length int32) error {
 // 由外部定義 workHandler，定義如何處理工作
 func (a *Tcp0Anser) SetWorkHandler(handler func(*base.Work)) {
 	a.Anser.workHandler = handler
-}
-
-// ====================================================================================================
-// Tcp0
-// ====================================================================================================
-type Tcp0 struct {
-	state      int8
-	headerSize int32
-	ReadLength int32
-}
-
-func NewTcp0() *Tcp0 {
-	t := &Tcp0{
-		state:      0,
-		headerSize: 4,
-	}
-	t.ReadLength = t.headerSize
-	return t
-}
-
-func (t *Tcp0) resetReadLength() {
-	t.state = 0
-	t.ReadLength = t.headerSize
 }
