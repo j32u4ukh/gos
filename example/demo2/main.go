@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"gos"
 	"gos/ans"
+	"gos/ask"
 	"gos/define"
 	"os"
 	"strconv"
@@ -83,7 +84,8 @@ func (s *Service) RunAsk(ip string, port int) {
 	}
 
 	mgr := NewMgr()
-	asker.SetWorkHandler(mgr.Handler)
+	tcp0Asker := asker.(*ask.Tcp0Asker)
+	tcp0Asker.SetWorkHandler(mgr.Handler)
 	fmt.Printf("(s *Service) RunAsk | 伺服器初始化完成\n")
 	err = gos.StartConnect()
 

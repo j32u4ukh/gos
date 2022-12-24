@@ -51,7 +51,7 @@ func StartListen() {
 	}
 }
 
-func Bind(site int32, ip string, port int, socketType define.SocketType) (*ask.Asker, error) {
+func Bind(site int32, ip string, port int, socketType define.SocketType) (ask.IAsker, error) {
 	asker, err := server.bind(site, ip, port, socketType)
 
 	if err != nil {
@@ -63,7 +63,7 @@ func Bind(site int32, ip string, port int, socketType define.SocketType) (*ask.A
 
 // 開始所有已註冊的監聽
 func StartConnect() error {
-	var asker *ask.Asker
+	var asker ask.IAsker
 	var err error
 
 	for _, asker = range server.askerMap {
@@ -101,7 +101,7 @@ func SendToClient(port int32, cid int32, data *[]byte, length int32) error {
 }
 
 func RunAsk() {
-	var asker *ask.Asker
+	var asker ask.IAsker
 	// 處理各個 asker 讀取到的數據
 	for _, asker = range server.askerMap {
 		asker.Handler()

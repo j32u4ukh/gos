@@ -11,6 +11,25 @@ import (
 	"github.com/pkg/errors"
 )
 
+type IAsker interface {
+	Connect() error
+	Handler()
+	GetAddress() (string, int32)
+	// 定義如何讀取(一次讀取多少；多少數據算一個完整的封包)
+	Read() bool
+
+	Write(*[]byte, int32) error
+}
+
+func NewAsker(socketType define.SocketType, site int32, laddr *net.TCPAddr, nWork int32) (IAsker, error) {
+	switch socketType {
+	case define.Tcp0:
+		return NewTcp0Asker(site, laddr, nWork)
+	default:
+		return nil, fmt.Errorf("invalid socket type: %v", socketType)
+	}
+}
+
 type Asker struct {
 	// 連線編號
 	site int32
@@ -19,7 +38,7 @@ type Asker struct {
 	// 連線位置
 	laddr *net.TCPAddr
 	// 通訊類型
-	socketType define.SocketType
+	// socketType define.SocketType
 	// 每幀時間
 	frameTime time.Duration
 	// 數據讀取緩存
@@ -36,6 +55,7 @@ type Asker struct {
 	// 工作緩存
 	// ==================================================
 	works    *base.Work
+	currWork *base.Work
 	lastWork *base.Work
 
 	// ==================================================
@@ -43,14 +63,14 @@ type Asker struct {
 	// ==================================================
 	// 工作處理函式
 	workHandler func(*base.Work)
+	read        func() bool
 }
 
-func NewAsker(site int32, laddr *net.TCPAddr, socketType define.SocketType, nWork int32) (*Asker, error) {
+func newAsker(site int32, laddr *net.TCPAddr, nWork int32) (*Asker, error) {
 	a := &Asker{
 		site:         site,
 		conn:         base.NewConn(0, define.BUFFER_SIZE),
 		laddr:        laddr,
-		socketType:   socketType,
 		frameTime:    200 * time.Millisecond,
 		readBuffer:   make([]byte, 64*1024),
 		beatInterval: 1000 * time.Millisecond,
@@ -103,17 +123,17 @@ func (a *Asker) GetAddress() (string, int32) {
 	return a.laddr.IP.String(), int32(a.laddr.Port)
 }
 
-// 由外部定義 workHandler，定義如何處理工作
-func (a *Asker) SetWorkHandler(handler func(*base.Work)) {
-	a.workHandler = handler
-}
+// // 由外部定義 workHandler，定義如何處理工作
+// func (a *Asker) SetWorkHandler(handler func(*base.Work)) {
+// 	a.workHandler = handler
+// }
 
 func (a *Asker) Handler() {
 	var packet *base.Packet
 	var err error
 	var nWrite int32
 	keepHandling := true
-	work := a.getEmptyWork()
+	a.currWork = a.getEmptyWork()
 
 	for a.conn.State == define.Connected && keepHandling {
 		select {
@@ -126,13 +146,13 @@ func (a *Asker) Handler() {
 				a.beatInterval = 1000 * time.Millisecond
 
 				// TODO: 每隔數分鐘再印一次資訊即可
-				work.Index = 999
-				work.RequestTime = time.Now().UTC()
-				work.Body.AddRawData(a.heartData)
-				work.Send()
+				a.currWork.Index = 999
+				a.currWork.RequestTime = time.Now().UTC()
+				a.currWork.Body.AddRawData(a.heartData)
+				a.currWork.Send()
 
 				// 指向下一個工作結構
-				work = work.Next
+				a.currWork = a.currWork.Next
 
 				// 結束當前迴圈
 				keepHandling = false
@@ -181,43 +201,7 @@ func (a *Asker) Handler() {
 		// 從緩存中讀取數據
 		default:
 			// 結束當前迴圈(若未進入下方兩個區塊)
-			keepHandling = false
-
-			// 可讀長度 大於 欲讀取長度
-			if a.conn.ReadableLength >= a.conn.ReadLength {
-				keepHandling = true
-
-				// 此時的 a.conn.readLength 會是 4
-				if a.conn.PacketLength == -1 {
-					// 從 readBuffer 當中讀取數據
-					a.conn.Read(&a.readBuffer, 4)
-					a.conn.PacketLength = base.BytesToInt32(a.readBuffer[:4], a.order)
-
-					// 下次欲讀取長度為封包長度
-					a.conn.ReadLength = a.conn.PacketLength
-					// fmt.Printf("readLength: %d, packetLength: %d\n", a.conn.readLength, a.conn.packetLength)
-				} else {
-					// 將傳入的數據，加入工作緩存中
-					a.conn.Read(&a.readBuffer, a.conn.ReadLength)
-
-					// 考慮分包問題，收到完整一包數據傳完才傳到應用層
-					work.Index = a.conn.Index
-					work.RequestTime = time.Now().UTC()
-					work.State = 1
-					// fmt.Printf("(a *Asker) handler | 將傳入的數據，加入工作緩存中, Index: %d, state: %d\n", work.Index, work.state)
-					work.Body.AddRawData(a.readBuffer[:a.conn.ReadLength])
-					work.Body.ResetIndex()
-
-					// 指向下一個工作結構
-					work = work.Next
-
-					// 重置 封包長度
-					a.conn.PacketLength = -1
-
-					// 重置 欲讀取長度
-					a.conn.ReadLength = define.DATALENGTH
-				}
-			}
+			keepHandling = a.read()
 
 			nWrite, err = a.conn.Write()
 
@@ -285,44 +269,44 @@ func (a *Asker) getEmptyWork() *base.Work {
 
 // 根據 work.state 對工作進行處理，並確保工作鏈式結構的最前端為須處理的工作，後面再接上空的工作結構
 func (a *Asker) dealWork() {
-	work := a.works
+	a.currWork = a.works
 	var finished, yet *base.Work = nil, nil
 
-	for work.State != -1 {
+	for a.currWork.State != -1 {
 		// fmt.Printf("(a *Asker) dealWork | work.Index: %d, state: %d\n", work.Index, work.state)
 
-		switch work.State {
+		switch a.currWork.State {
 		// 工作已完成
 		case 0:
-			work, finished = a.relinkWork(work, finished, true)
+			finished = a.relinkWork(finished, true)
 		case 1:
 			// 對工作進行處理
-			a.workHandler(work)
+			a.workHandler(a.currWork)
 
-			switch work.State {
+			switch a.currWork.State {
 			case 0:
 				// 將完成的工作加入 finished，並更新 work 所指向的工作結構
-				work, finished = a.relinkWork(work, finished, true)
+				finished = a.relinkWork(finished, true)
 			case 1:
 				// 將工作接入待處理的區塊，下次回圈再行處理
-				work, yet = a.relinkWork(work, yet, false)
+				yet = a.relinkWork(yet, false)
 			case 2:
 				// 將向客戶端傳輸數據，寫入 writeBuffer
-				a.Write(&work.Data, work.Length)
+				a.Write(&a.currWork.Data, a.currWork.Length)
 
 				// 將完成的工作加入 finished，並更新 work 所指向的工作結構
-				work, finished = a.relinkWork(work, finished, true)
+				finished = a.relinkWork(finished, true)
 			}
 		case 2:
 			// 將向客戶端傳輸數據，寫入 writeBuffer
-			a.Write(&work.Data, work.Length)
+			a.Write(&a.currWork.Data, a.currWork.Length)
 
 			// 將完成的工作加入 finished，並更新 work 所指向的工作結構
-			work, finished = a.relinkWork(work, finished, true)
+			finished = a.relinkWork(finished, true)
 		default:
-			fmt.Printf("(a *Asker) dealWork | 連線 %d 發生異常工作 state(%d)，直接將工作結束\n", work.Index, work.State)
+			fmt.Printf("(a *Asker) dealWork | 連線 %d 發生異常工作 state(%d)，直接將工作結束\n", a.currWork.Index, a.currWork.State)
 			// 將完成的工作加入 finished，並更新 work 所指向的工作結構
-			work, finished = a.relinkWork(work, finished, true)
+			finished = a.relinkWork(finished, true)
 		}
 	}
 
@@ -363,25 +347,25 @@ func (a *Asker) Write(data *[]byte, length int32) error {
 }
 
 // 將處理後的 work 移到所屬分類的鏈式結構 destination 之下
-func (a *Asker) relinkWork(work *base.Work, destination *base.Work, done bool) (*base.Work, *base.Work) {
+func (a *Asker) relinkWork(destination *base.Work, done bool) *base.Work {
 	// 更新 works 指標位置
-	a.works = work.Next
+	a.works = a.currWork.Next
 
 	// 空做是否已完成
 	if done {
 		// 清空當前工作結構
-		work.Release()
+		a.currWork.Release()
 	} else {
 		// 從原本的鏈式結構中移除
-		work.Next = nil
+		a.currWork.Next = nil
 	}
 
 	if destination == nil {
-		destination = work
+		destination = a.currWork
 	} else {
-		destination.Add(work)
+		destination.Add(a.currWork)
 	}
 
-	work = a.works
-	return work, destination
+	a.currWork = a.works
+	return destination
 }

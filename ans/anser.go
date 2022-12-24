@@ -11,8 +11,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-type ReadFunc func() bool
-
 type IAnswer interface {
 	Listen()
 	Handler()
@@ -82,7 +80,7 @@ type Anser struct {
 	workHandler func(*base.Work)
 
 	// 數據讀取函式(由各 SocketType 實作)
-	read ReadFunc
+	read func() bool
 }
 
 func newAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (*Anser, error) {

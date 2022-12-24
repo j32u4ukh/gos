@@ -15,13 +15,13 @@ type goserver struct {
 	// key: port; value: *Anser
 	anserMap map[int32]ans.IAnswer
 	// key: site; value: *Asker
-	askerMap map[int32]*ask.Asker
+	askerMap map[int32]ask.IAsker
 }
 
 func newGoserver() *goserver {
 	g := &goserver{
 		anserMap: map[int32]ans.IAnswer{},
-		askerMap: map[int32]*ask.Asker{},
+		askerMap: map[int32]ask.IAsker{},
 	}
 	return g
 }
@@ -42,10 +42,10 @@ func (g *goserver) listen(socketType define.SocketType, port int32) (ans.IAnswer
 	return g.anserMap[port], nil
 }
 
-func (g *goserver) bind(site int32, ip string, port int, socketType define.SocketType) (*ask.Asker, error) {
+func (g *goserver) bind(site int32, ip string, port int, socketType define.SocketType) (ask.IAsker, error) {
 	if _, ok := g.askerMap[site]; !ok {
 		laddr := &net.TCPAddr{IP: net.ParseIP(ip), Port: port, Zone: ""}
-		asker, err := ask.NewAsker(site, laddr, socketType, 10)
+		asker, err := ask.NewAsker(socketType, site, laddr, 10)
 
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to create an Asker for %s:%d.", ip, port)
