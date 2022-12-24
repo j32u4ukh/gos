@@ -11,7 +11,7 @@ import (
 
 type Conn struct {
 	// 連線物件編號
-	Id int32
+	id int32
 
 	// ==================================================
 	// 連線結構
@@ -75,7 +75,7 @@ type Conn struct {
 
 func NewConn(id int32, size int32) *Conn {
 	c := &Conn{
-		Id:             id,
+		id:             id,
 		Index:          -1,
 		NetConn:        nil,
 		State:          define.Unused,
@@ -108,6 +108,11 @@ func NewConn(id int32, size int32) *Conn {
 	}
 
 	return c
+}
+
+// 取得連線編號
+func (c *Conn) GetId() int32 {
+	return c.id
 }
 
 // 連線前準備(雖然連線物件 netConn 會在每次重連線後更新，但 *Conn 為同一個，因此有些前一次連線產生的變數需要被重置)
