@@ -24,19 +24,19 @@ type Anser struct {
 	// 連線 ID
 	index int32
 	// 當前連線數
-	nConnect int32
+	nConn int32
 	// 最大連線數
-	maxConnect int32
+	maxConn int32
 	// 指向第一個連線物件
-	connectors *base.Conn
+	conns *base.Conn
 	// 指向最後一個連線物件
-	lastConnector *base.Conn
+	lastConn *base.Conn
 	// 指向空的連線物件
-	emptyConnector *base.Conn
+	emptyConn *base.Conn
 	// 指向當前連線物件
-	currConnector *base.Conn
+	currConn *base.Conn
 	// 指向前一個連線物件
-	preConnector *base.Conn
+	preConn *base.Conn
 	// 數據讀取緩存
 	readBuffer []byte
 	// 位元組順序 (Byte Order)，即 位元組 的排列順序
@@ -72,9 +72,9 @@ func NewAnser(laddr *net.TCPAddr, socketType define.SocketType, nConnect int32, 
 		listener:   listener,
 		socketType: socketType,
 		index:      0,
-		nConnect:   0,
-		maxConnect: nConnect,
-		connectors: base.NewConn(define.BUFFER_SIZE),
+		nConn:      0,
+		maxConn:    nConnect,
+		conns:      base.NewConn(define.BUFFER_SIZE),
 		readBuffer: make([]byte, 64*1024),
 		order:      binary.LittleEndian,
 		connBuffer: make(chan net.Conn, nWork),
@@ -82,15 +82,15 @@ func NewAnser(laddr *net.TCPAddr, socketType define.SocketType, nConnect int32, 
 	}
 
 	var i int32
-	var nextConnector *base.Conn
+	var nextConn *base.Conn
 	var nextWork *base.Work
-	a.emptyConnector = a.connectors
-	a.lastConnector = a.connectors
+	a.emptyConn = a.conns
+	a.lastConn = a.conns
 
 	for i = 1; i < nConnect; i++ {
-		nextConnector = base.NewConn(define.BUFFER_SIZE)
-		a.lastConnector.Next = nextConnector
-		a.lastConnector = nextConnector
+		nextConn = base.NewConn(define.BUFFER_SIZE)
+		a.lastConn.Next = nextConn
+		a.lastConn = nextConn
 	}
 
 	a.lastWork = a.works
@@ -124,18 +124,18 @@ func (a *Anser) Listen() {
 // 註冊連線
 // TODO: 以 MAP 管理，相同客戶端斷線重連可以使用同一 Conn 物件，將未讀完或未寫完的數據繼續寫出
 func (a *Anser) register(netConn net.Conn) {
-	fmt.Printf("(a *Anser) register | Connector(%d)\n", a.index)
-	a.emptyConnector.Index = a.index
-	a.emptyConnector.NetConn = netConn
-	a.emptyConnector.State = define.Connected
-	go a.emptyConnector.Handler()
+	fmt.Printf("(a *Anser) register | Conn(%d)\n", a.index)
+	a.emptyConn.Index = a.index
+	a.emptyConn.NetConn = netConn
+	a.emptyConn.State = define.Connected
+	go a.emptyConn.Handler()
 
 	// 更新空連線指標位置
-	a.emptyConnector = a.emptyConnector.Next
+	a.emptyConn = a.emptyConn.Next
 
 	// 更新連線數與連線物件的索引值
 	// TODO: a.nConnect == a.maxConnect, 檢查有沒有可以踢掉的連線
-	a.nConnect += 1
+	a.nConn += 1
 	a.index += 1
 }
 
@@ -160,98 +160,98 @@ func (a *Anser) Handler() {
 		}
 	}
 
-	a.preConnector = nil
-	a.currConnector = a.connectors
+	a.preConn = nil
+	a.currConn = a.conns
 	work := a.getEmptyWork()
 
-	for a.currConnector != nil && a.currConnector.State != define.Unused {
+	for a.currConn != nil && a.currConn.State != define.Unused {
 		// TODO: 處理主動斷線
 		select {
 		// 封包事件
-		case packet = <-a.currConnector.ReadCh:
+		case packet = <-a.currConn.ReadCh:
 
 			if packet.Error != nil {
 				switch eType := packet.Error.(type) {
 				case net.Error:
 					if eType.Timeout() {
-						fmt.Printf("(a *Anser) Handler | Connector %d 發生 timeout error.\n", a.currConnector.Index)
+						fmt.Printf("(a *Anser) Handler | Conn %d 發生 timeout error.\n", a.currConn.Index)
 					} else {
-						fmt.Printf("(a *Anser) Handler | Connector %d 發生 net.Error.\n", a.currConnector.Index)
+						fmt.Printf("(a *Anser) Handler | Conn %d 發生 net.Error.\n", a.currConn.Index)
 					}
 				default:
-					fmt.Printf("(a *Anser) Handler | Connector %d 讀取 socket 時發生錯誤\nError: %+v\n", a.currConnector.Index, packet.Error)
+					fmt.Printf("(a *Anser) Handler | Conn %d 讀取 socket 時發生錯誤\nError: %+v\n", a.currConn.Index, packet.Error)
 				}
 
 				// 結束連線
-				a.releaseConnector()
+				a.releaseConn()
 				continue
 			}
 
 			// 將封包數據寫入 readBuffer
-			a.currConnector.SetReadBuffer(packet)
+			a.currConn.SetReadBuffer(packet)
 
 			// 更新斷線時間(NOTE: 若斷線時間與客戶端睡眠時間相同，會變成讀取錯誤，而非 timeout 錯誤，造成誤判)
-			err = a.currConnector.NetConn.SetReadDeadline(time.Now().Add(5000 * time.Millisecond))
+			err = a.currConn.NetConn.SetReadDeadline(time.Now().Add(5000 * time.Millisecond))
 
 			if err != nil {
 				fmt.Printf("(a *Anser) handler | DeadlineError: %+v\n", err)
 
 				// 結束連線
-				a.releaseConnector()
+				a.releaseConn()
 				continue
 			}
 
 		// 從緩存中讀取數據
 		default:
 			// 可讀長度 大於 欲讀取長度
-			// fmt.Printf("readableLength: %d, readLength: %d\n", a.currConnector.readableLength, a.currConnector.readLength)
-			if a.currConnector.ReadableLength >= a.currConnector.ReadLength {
-				// 此時的 a.currConnector.readLength 會是 4
-				if a.currConnector.PacketLength == -1 {
+			// fmt.Printf("readableLength: %d, readLength: %d\n", a.currConn.readableLength, a.currConn.readLength)
+			if a.currConn.ReadableLength >= a.currConn.ReadLength {
+				// 此時的 a.currConn.readLength 會是 4
+				if a.currConn.PacketLength == -1 {
 					// 從 readBuffer 當中讀取數據
-					a.currConnector.Read(&a.readBuffer, 4)
+					a.currConn.Read(&a.readBuffer, 4)
 
 					// fmt.Printf("(a *Anser) handler | packetLength: %+v\n", a.readBuffer[:4])
-					a.currConnector.PacketLength = base.BytesToInt32(a.readBuffer[:4], a.order)
+					a.currConn.PacketLength = base.BytesToInt32(a.readBuffer[:4], a.order)
 
 					// 下次欲讀取長度為封包長度
-					a.currConnector.ReadLength = a.currConnector.PacketLength
-					// fmt.Printf("readLength: %d, packetLength: %d\n", a.currConnector.readLength, a.currConnector.packetLength)
+					a.currConn.ReadLength = a.currConn.PacketLength
+					// fmt.Printf("readLength: %d, packetLength: %d\n", a.currConn.readLength, a.currConn.packetLength)
 				} else {
 					// 將傳入的數據，加入工作緩存中
-					a.currConnector.Read(&a.readBuffer, a.currConnector.ReadLength)
+					a.currConn.Read(&a.readBuffer, a.currConn.ReadLength)
 
 					// 考慮分包問題，收到完整一包數據傳完才傳到應用層
-					work.Index = a.currConnector.Index
+					work.Index = a.currConn.Index
 					work.RequestTime = time.Now().UTC()
 					work.State = 1
-					work.Body.AddRawData(a.readBuffer[:a.currConnector.ReadLength])
+					work.Body.AddRawData(a.readBuffer[:a.currConn.ReadLength])
 					work.Body.ResetIndex()
 
 					// 指向下一個工作結構
 					work = work.Next
 
 					// 重置 封包長度
-					a.currConnector.PacketLength = -1
+					a.currConn.PacketLength = -1
 
 					// 重置 欲讀取長度
-					a.currConnector.ReadLength = define.DATALENGTH
+					a.currConn.ReadLength = define.DATALENGTH
 				}
 			}
 
-			_, err = a.currConnector.Write()
+			_, err = a.currConn.Write()
 
 			if err != nil {
 				fmt.Printf("(a *Anser) handler | Failed to write: %+v\n", err)
 
 				// 結束連線
-				a.releaseConnector()
+				a.releaseConn()
 				continue
 			}
 
 			// 指標指向下一個連線物件
-			a.preConnector = a.currConnector
-			a.currConnector = a.currConnector.Next
+			a.preConn = a.currConn
+			a.currConn = a.currConn.Next
 		}
 	}
 
@@ -338,7 +338,7 @@ func (a *Anser) dealWork() {
 
 func (a *Anser) Write(cid int32, data *[]byte, length int32) error {
 	// fmt.Printf("(a *Anser) write | cid: %d\n", cid)
-	c := a.getConnector(cid)
+	c := a.getConn(cid)
 
 	if c == nil {
 		return errors.New(fmt.Sprintf("There is no cid equals to %d.", cid))
@@ -347,16 +347,16 @@ func (a *Anser) Write(cid int32, data *[]byte, length int32) error {
 	c.SetWriteBuffer(data, length)
 
 	// if err != nil {
-	// 	a.currConnector = c
-	// 	a.releaseConnector()
+	// 	a.currConn = c
+	// 	a.releaseConn()
 	// 	return errors.Wrapf(err, "Failed to write to port: %d, conn(%d)", a.laddr.Port, cid)
 	// }
 
 	return nil
 }
 
-func (a *Anser) getConnector(cid int32) *base.Conn {
-	c := a.connectors
+func (a *Anser) getConn(cid int32) *base.Conn {
+	c := a.conns
 
 	for c != nil {
 		if c.Index == cid {
@@ -392,39 +392,39 @@ func (a *Anser) relinkWork(work *base.Work, destination *base.Work, done bool) (
 	return work, destination
 }
 
-func (a *Anser) releaseConnector() {
-	fmt.Printf("(a *Anser) releaseConnector | 釋放連線資源 Connector(%d)", a.currConnector.Index)
-	a.nConnect -= 1
+func (a *Anser) releaseConn() {
+	fmt.Printf("(a *Anser) releaseConn | 釋放連線資源 Conn(%d)", a.currConn.Index)
+	a.nConn -= 1
 
-	if a.preConnector == nil {
+	if a.preConn == nil {
 		// 更新連線物件起始位置
-		a.connectors = a.currConnector.Next
+		a.conns = a.currConn.Next
 
 		// 釋放連線物件
-		a.currConnector.Release()
+		a.currConn.Release()
 
-		// 將釋放後的 Connector 移到最後
-		a.lastConnector.Next = a.currConnector
+		// 將釋放後的 Conn 移到最後
+		a.lastConn.Next = a.currConn
 
 		// 更新指向最後一個連線物件的位置
-		a.lastConnector = a.currConnector
+		a.lastConn = a.currConn
 
 		// 更新下次檢查的指標位置
-		a.currConnector = a.connectors
+		a.currConn = a.conns
 	} else {
 		// 更新鏈式指標所指向的對象
-		a.preConnector.Next = a.currConnector.Next
+		a.preConn.Next = a.currConn.Next
 
 		// 釋放連線物件
-		a.currConnector.Release()
+		a.currConn.Release()
 
-		// 將釋放後的 Connector 移到最後
-		a.lastConnector.Next = a.currConnector
+		// 將釋放後的 Conn 移到最後
+		a.lastConn.Next = a.currConn
 
 		// 更新指向最後一個連線物件的位置
-		a.lastConnector = a.currConnector
+		a.lastConn = a.currConn
 
 		// 更新下次檢查的指標位置
-		a.currConnector = a.currConnector.Next
+		a.currConn = a.currConn.Next
 	}
 }
