@@ -220,6 +220,11 @@ func (c *Conn) Read(data *[]byte, length int32) {
 	// fmt.Printf("(c *Conn) read | after readOutput: %d, readInput: %d, readableLength: %d\n", c.readOutput, c.readInput, c.readableLength)
 }
 
+// 根據 checker 函式，檢查是否已讀取到所需的數據(條件可能是 長度 或 換行符 等)
+func (c *Conn) CheckReadable(checker func(buffer *[]byte, i int32, o int32, length int32) bool) bool {
+	return checker(&c.readBuffer, c.readInput, c.readOutput, c.ReadableLength)
+}
+
 // 將寫出數據加入緩存
 // TODO: 檢查 c.writeInput 是否反超 c.writeOutput，若反超，表示緩衝大小不足
 func (c *Conn) SetWriteBuffer(data *[]byte, length int32) {
