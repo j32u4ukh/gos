@@ -37,7 +37,7 @@ func (a *Tcp0Anser) Handler() {
 	a.Anser.Handler()
 }
 
-func (a *Tcp0Anser) Read(work *base.Work) (bool, *base.Work) {
+func (a *Tcp0Anser) Read() bool {
 	// 可讀長度 大於 欲讀取長度
 	// fmt.Printf("readableLength: %d, readLength: %d\n", a.currConn.readableLength, a.currConn.readLength)
 	if a.currConn.ReadableLength >= a.currConn.ReadLength {
@@ -57,14 +57,14 @@ func (a *Tcp0Anser) Read(work *base.Work) (bool, *base.Work) {
 			a.currConn.Read(&a.readBuffer, a.currConn.ReadLength)
 
 			// 考慮分包問題，收到完整一包數據傳完才傳到應用層
-			work.Index = a.currConn.Index
-			work.RequestTime = time.Now().UTC()
-			work.State = 1
-			work.Body.AddRawData(a.readBuffer[:a.currConn.ReadLength])
-			work.Body.ResetIndex()
+			a.currWork.Index = a.currConn.Index
+			a.currWork.RequestTime = time.Now().UTC()
+			a.currWork.State = 1
+			a.currWork.Body.AddRawData(a.readBuffer[:a.currConn.ReadLength])
+			a.currWork.Body.ResetIndex()
 
 			// 指向下一個工作結構
-			work = work.Next
+			a.currWork = a.currWork.Next
 
 			// 重置 封包長度
 			a.currConn.PacketLength = -1
@@ -73,7 +73,7 @@ func (a *Tcp0Anser) Read(work *base.Work) (bool, *base.Work) {
 			a.currConn.ReadLength = define.DATALENGTH
 		}
 	}
-	return true, work
+	return true
 }
 
 func (a *Tcp0Anser) Write(cid int32, data *[]byte, length int32) error {

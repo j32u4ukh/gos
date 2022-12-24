@@ -11,14 +11,14 @@ import (
 	"github.com/pkg/errors"
 )
 
-type ReadFunc func(*base.Work) (bool, *base.Work)
+type ReadFunc func() bool
 
 type IAnswer interface {
 	Listen()
 	Handler()
 
 	// 定義如何讀取(一次讀取多少；多少數據算一個完整的封包)
-	Read(*base.Work) (bool, *base.Work)
+	Read() bool
 
 	Write(int32, *[]byte, int32) error
 }
@@ -72,6 +72,7 @@ type Anser struct {
 	// 工作緩存
 	// ==================================================
 	works    *base.Work
+	currWork *base.Work
 	lastWork *base.Work
 
 	// ==================================================
@@ -162,11 +163,6 @@ func (a *Anser) register(netConn net.Conn) {
 	a.index += 1
 }
 
-// // 由外部定義 workHandler，定義如何處理工作
-// func (a *Anser) SetWorkHandler(handler func(*base.Work)) {
-// 	a.workHandler = handler
-// }
-
 // 持續檢查是否有未完成的工作，若有，則呼叫外部定義的 workHandler 函式
 func (a *Anser) Handler() {
 	var packet *base.Packet
@@ -185,7 +181,7 @@ func (a *Anser) Handler() {
 
 	a.preConn = nil
 	a.currConn = a.conns
-	work := a.getEmptyWork()
+	a.currWork = a.getEmptyWork()
 
 	for a.currConn != nil && a.currConn.State != define.Unused {
 		// TODO: 處理主動斷線
@@ -227,8 +223,9 @@ func (a *Anser) Handler() {
 		// 從緩存中讀取數據
 		default:
 			// a.read 根據補不同 SocketType，有不同的讀取數據函式實作
-			_, work = a.read(work)
+			a.read()
 
+			// 數據寫出，未因 SocketType 不同而有不同
 			_, err = a.currConn.Write()
 
 			if err != nil {
@@ -264,45 +261,45 @@ func (a *Anser) getEmptyWork() *base.Work {
 
 // 根據 work.state 對工作進行處理，並確保工作鏈式結構的最前端為須處理的工作，後面再接上空的工作結構
 func (a *Anser) dealWork() {
-	work := a.works
+	a.currWork = a.works
 	var finished, yet *base.Work = nil, nil
 
-	for work.State != -1 {
+	for a.currWork.State != -1 {
 		// fmt.Printf("(a *Anser) dealWork | work.Index: %d\n", work.Index)
 
-		switch work.State {
+		switch a.currWork.State {
 		// 工作已完成
 		case 0:
-			work, finished = a.relinkWork(work, finished, true)
+			a.currWork, finished = a.relinkWork(a.currWork, finished, true)
 		case 1:
 			// 對工作進行處理
-			a.workHandler(work)
+			a.workHandler(a.currWork)
 
-			switch work.State {
+			switch a.currWork.State {
 			case 0:
 				// 將完成的工作加入 finished，並更新 work 所指向的工作結構
-				work, finished = a.relinkWork(work, finished, true)
+				a.currWork, finished = a.relinkWork(a.currWork, finished, true)
 			case 1:
 				// 將工作接入待處理的區塊，下次回圈再行處理
-				work, yet = a.relinkWork(work, yet, false)
+				a.currWork, yet = a.relinkWork(a.currWork, yet, false)
 			case 2:
 				// 將向客戶端傳輸數據，寫入 writeBuffer
-				a.Write(work.Index, &work.Data, work.Length)
+				a.Write(a.currWork.Index, &a.currWork.Data, a.currWork.Length)
 
 				// 將完成的工作加入 finished，並更新 work 所指向的工作結構
-				work, finished = a.relinkWork(work, finished, true)
+				a.currWork, finished = a.relinkWork(a.currWork, finished, true)
 			}
 		case 2:
 			// 將向客戶端傳輸數據，寫入 writeBuffer
-			a.Write(work.Index, &work.Data, work.Length)
+			a.Write(a.currWork.Index, &a.currWork.Data, a.currWork.Length)
 
 			// 將完成的工作加入 finished，並更新 work 所指向的工作結構
-			work, finished = a.relinkWork(work, finished, true)
+			a.currWork, finished = a.relinkWork(a.currWork, finished, true)
 		default:
-			fmt.Printf("(a *Anser) dealWork | 連線 %d 發生異常工作 state(%d)，直接將工作結束\n", work.Index, work.State)
+			fmt.Printf("(a *Anser) dealWork | 連線 %d 發生異常工作 state(%d)，直接將工作結束\n", a.currWork.Index, a.currWork.State)
 
 			// 將完成的工作加入 finished，並更新 work 所指向的工作結構
-			work, finished = a.relinkWork(work, finished, true)
+			a.currWork, finished = a.relinkWork(a.currWork, finished, true)
 		}
 	}
 
