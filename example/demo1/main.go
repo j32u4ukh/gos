@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"gos"
+	"gos/ans"
 	"gos/define"
 	"os"
 	"strconv"
@@ -43,7 +44,7 @@ func (s *Service) Stop() {
 }
 
 func (s *Service) RunAns(port int) {
-	anser, err := gos.Listen(int32(port), define.Tcp0)
+	anser, err := gos.Listen(define.Tcp0, int32(port))
 	fmt.Printf("(s *Service) RunAns | Listen to port %d\n", port)
 
 	if err != nil {
@@ -52,7 +53,9 @@ func (s *Service) RunAns(port int) {
 	}
 
 	mgr := &Mgr{}
-	anser.SetWorkHandler(mgr.Handler)
+	tcp0Answer := anser.(*ans.Tcp0Anser)
+	tcp0Answer.SetWorkHandler(mgr.Handler)
+
 	fmt.Printf("(s *Service) RunAns | 伺服器初始化完成\n")
 	gos.StartListen()
 	fmt.Printf("(s *Service) RunAns | 開始監聽\n")

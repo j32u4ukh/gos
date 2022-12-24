@@ -11,7 +11,25 @@ import (
 	"github.com/pkg/errors"
 )
 
-type IAnser interface {
+type ReadFunc func(*base.Work) (bool, *base.Work)
+
+type IAnswer interface {
+	Listen()
+	Handler()
+
+	// 定義如何讀取(一次讀取多少；多少數據算一個完整的封包)
+	Read(*base.Work) (bool, *base.Work)
+
+	Write(int32, *[]byte, int32) error
+}
+
+func NewAnser(socketType define.SocketType, laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, error) {
+	switch socketType {
+	case define.Tcp0:
+		return NewTcp0Anser(laddr, nConnect, nWork)
+	default:
+		return nil, fmt.Errorf("invalid socket type: %v", socketType)
+	}
 }
 
 type Anser struct {
@@ -19,8 +37,8 @@ type Anser struct {
 	laddr *net.TCPAddr
 	// 監聽連線物件
 	listener *net.TCPListener
-	// 通訊類型
-	socketType define.SocketType
+	// // 通訊類型
+	// socketType define.SocketType
 	// ==================================================
 	// 連線列表
 	// ==================================================
@@ -61,9 +79,12 @@ type Anser struct {
 	// ==================================================
 	// 工作處理函式
 	workHandler func(*base.Work)
+
+	// 數據讀取函式(由各 SocketType 實作)
+	read ReadFunc
 }
 
-func NewAnser(laddr *net.TCPAddr, socketType define.SocketType, nConnect int32, nWork int32) (*Anser, error) {
+func newAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (*Anser, error) {
 	listener, err := net.ListenTCP("tcp", laddr)
 
 	if err != nil {
@@ -73,7 +94,6 @@ func NewAnser(laddr *net.TCPAddr, socketType define.SocketType, nConnect int32, 
 	a := &Anser{
 		laddr:      laddr,
 		listener:   listener,
-		socketType: socketType,
 		index:      0,
 		nConn:      0,
 		maxConn:    nConnect,
@@ -142,10 +162,10 @@ func (a *Anser) register(netConn net.Conn) {
 	a.index += 1
 }
 
-// 由外部定義 workHandler，定義如何處理工作
-func (a *Anser) SetWorkHandler(handler func(*base.Work)) {
-	a.workHandler = handler
-}
+// // 由外部定義 workHandler，定義如何處理工作
+// func (a *Anser) SetWorkHandler(handler func(*base.Work)) {
+// 	a.workHandler = handler
+// }
 
 // 持續檢查是否有未完成的工作，若有，則呼叫外部定義的 workHandler 函式
 func (a *Anser) Handler() {
@@ -206,43 +226,8 @@ func (a *Anser) Handler() {
 
 		// 從緩存中讀取數據
 		default:
-			// TODO: read(*base.Conn, *[]byte, *base.Work)
-
-			// 可讀長度 大於 欲讀取長度
-			// fmt.Printf("readableLength: %d, readLength: %d\n", a.currConn.readableLength, a.currConn.readLength)
-			if a.currConn.ReadableLength >= a.currConn.ReadLength {
-				// 此時的 a.currConn.readLength 會是 4
-				if a.currConn.PacketLength == -1 {
-					// 從 readBuffer 當中讀取數據
-					a.currConn.Read(&a.readBuffer, 4)
-
-					// fmt.Printf("(a *Anser) handler | packetLength: %+v\n", a.readBuffer[:4])
-					a.currConn.PacketLength = base.BytesToInt32(a.readBuffer[:4], a.order)
-
-					// 下次欲讀取長度為封包長度
-					a.currConn.ReadLength = a.currConn.PacketLength
-					// fmt.Printf("readLength: %d, packetLength: %d\n", a.currConn.readLength, a.currConn.packetLength)
-				} else {
-					// 將傳入的數據，加入工作緩存中
-					a.currConn.Read(&a.readBuffer, a.currConn.ReadLength)
-
-					// 考慮分包問題，收到完整一包數據傳完才傳到應用層
-					work.Index = a.currConn.Index
-					work.RequestTime = time.Now().UTC()
-					work.State = 1
-					work.Body.AddRawData(a.readBuffer[:a.currConn.ReadLength])
-					work.Body.ResetIndex()
-
-					// 指向下一個工作結構
-					work = work.Next
-
-					// 重置 封包長度
-					a.currConn.PacketLength = -1
-
-					// 重置 欲讀取長度
-					a.currConn.ReadLength = define.DATALENGTH
-				}
-			}
+			// a.read 根據補不同 SocketType，有不同的讀取數據函式實作
+			_, work = a.read(work)
 
 			_, err = a.currConn.Write()
 

@@ -13,24 +13,24 @@ import (
 
 type goserver struct {
 	// key: port; value: *Anser
-	anserMap map[int32]*ans.Anser
+	anserMap map[int32]ans.IAnswer
 	// key: site; value: *Asker
 	askerMap map[int32]*ask.Asker
 }
 
 func newGoserver() *goserver {
 	g := &goserver{
-		anserMap: map[int32]*ans.Anser{},
+		anserMap: map[int32]ans.IAnswer{},
 		askerMap: map[int32]*ask.Asker{},
 	}
 	return g
 }
 
 // 指定要監聽的 port，並生成 Anser 物件
-func (g *goserver) listen(port int32, socketType define.SocketType) (*ans.Anser, error) {
+func (g *goserver) listen(socketType define.SocketType, port int32) (ans.IAnswer, error) {
 	if _, ok := g.anserMap[port]; !ok {
 		laddr, _ := net.ResolveTCPAddr("tcp", fmt.Sprintf(":%d", port))
-		anser, err := ans.NewAnser(laddr, socketType, 10000, 10)
+		anser, err := ans.NewAnser(socketType, laddr, 10000, 10)
 
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to create an Anser for port %d.", port)

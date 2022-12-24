@@ -33,8 +33,8 @@ func init() {
 	}
 }
 
-func Listen(port int32, socketType define.SocketType) (*ans.Anser, error) {
-	anser, err := server.listen(port, socketType)
+func Listen(socketType define.SocketType, port int32) (ans.IAnswer, error) {
+	anser, err := server.listen(socketType, port)
 
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to listen on port %d", port)
@@ -45,7 +45,7 @@ func Listen(port int32, socketType define.SocketType) (*ans.Anser, error) {
 
 // 開始所有已註冊的監聽
 func StartListen() {
-	var anser *ans.Anser
+	var anser ans.IAnswer
 	for _, anser = range server.anserMap {
 		go anser.Listen()
 	}
@@ -80,7 +80,7 @@ func StartConnect() error {
 
 // 開始讀取數據與處理
 func RunAns() {
-	var anser *ans.Anser
+	var anser ans.IAnswer
 	// 處理各個 anser 讀取到的數據
 	for _, anser = range server.anserMap {
 		anser.Handler()
