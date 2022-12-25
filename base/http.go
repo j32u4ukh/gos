@@ -3,6 +3,7 @@ package base
 import (
 	"bytes"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -12,6 +13,19 @@ import (
 //
 // The keys should be in canonical form, as returned by
 // CanonicalHeaderKey.
+//
+// Connection: 當 client 和 server 通信時對於長鏈接如何進行處理
+// [Request]
+// - close（告訴WEB服務器或者代理服務器，在完成本次請求的響應後，斷開連接，不要等待本次連接的後續請求了）。
+// - keepalive（告訴WEB服務器或者代理服務器，在完成本次請求的響應後，保持連接，等待本次連接的後續請求）。
+// [Request]
+// - close（連接已經關閉）。
+// - keepalive（連接保持着，在等待本次連接的後續請求）。 Keep-Alive：如果瀏覽器請求保持連接，則該頭部表明希望 WEB 服務器保持連接多長時間（秒）。例如：Keep-Alive：300
+// Content-Type: WEB 服務器告訴瀏覽器自己響應的對象的類型。
+// - text/html
+// - text/html; charset=utf-8
+// - application/json
+// Content-Length: WEB 服務器告訴瀏覽器自己響應的對象的長度。若有 Data 數據，需描述數據長度。
 type Header map[string][]string
 
 // A MIMEHeader represents a MIME-style header mapping keys to sets of values.
@@ -25,9 +39,13 @@ type R2 struct {
 	State int8
 	*Request
 	*Response
+	Header
 
 	// 讀取長度
 	ReadLength int32
+
+	// Body 數據
+	Body []byte
 }
 
 func NewR2() *R2 {
@@ -35,6 +53,7 @@ func NewR2() *R2 {
 		State:    0,
 		Request:  NewRequest(),
 		Response: NewResponse(),
+		Header:   map[string][]string{},
 	}
 	return rr
 }
@@ -82,21 +101,52 @@ func (rr *R2) HasEnoughData(buffer *[]byte, i int32, o int32, length int32) bool
 	return length >= rr.ReadLength
 }
 
+func (rr *R2) SetHeader(key string, value string) {
+	if _, ok := rr.Header[key]; !ok {
+		rr.Header[key] = []string{value}
+	} else {
+		rr.Header[key] = append(rr.Header[key], value)
+	}
+}
+
+func (rr *R2) SetBody(body []byte) {
+	rr.Header["Content-Length"] = []string{strconv.Itoa(len(body))}
+	rr.Body = body
+}
+
+// TODO: 生成 Response message
+func (rr *R2) FormResponse() []byte {
+	var buffer bytes.Buffer
+	// HTTP/1.1 200 OK\r\n
+	buffer.WriteString(fmt.Sprintf("%s %d %s\r\n", rr.Proto, rr.Code, rr.Message))
+
+	// Header
+	for k, v := range rr.Header {
+		buffer.WriteString(fmt.Sprintf("%s: %s\r\n", k, strings.Join(v, ", ")))
+	}
+
+	if _, ok := rr.Header["Content-Length"]; ok {
+		buffer.WriteString("\r\n")
+		buffer.Write(rr.Body)
+	}
+
+	return buffer.Bytes()
+}
+
 // ====================================================================================================
 // Request
 // ====================================================================================================
 type Request struct {
 	Method string
 	Query  string
+	//
 	Proto  string
 	Params map[string]string
-	Header
-	Data []byte
 }
 
 func NewRequest() *Request {
 	r := &Request{
-		Header: map[string][]string{},
+		Proto:  "HTTP/1.1",
 		Params: map[string]string{},
 	}
 	return r
@@ -119,6 +169,7 @@ func (r *Request) ParseFirstLine(line string) bool {
 	}
 
 	r.Query = strings.TrimPrefix(r.Query, "?")
+	r.Proto = strings.TrimRight(r.Proto, "\r\n")
 
 	fmt.Printf("(r *Request) ParseFirstLine | Method: %s, Query: %s, Proto: %s\n", r.Method, r.Query, r.Proto)
 	return true
@@ -188,6 +239,8 @@ func (r Request) GetParam(key string) (bool, string) {
 // Response
 // ====================================================================================================
 type Response struct {
+	Code    int32
+	Message string
 }
 
 func NewResponse() *Response {

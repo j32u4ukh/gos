@@ -2,6 +2,7 @@ package ans
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"gos/base"
 	"net"
@@ -217,14 +218,29 @@ func (a *HttpAnser) SetWorkHandler() {
 			if functions, ok := handler[r2.Request.Query]; ok {
 				for _, f := range functions {
 					f(*r2.Request, r2.Response)
+
+					for k := range r2.Header {
+						delete(r2.Header, k)
+					}
+
+					r2.Code = 200
+					r2.Message = "OK"
+					r2.SetHeader("Connection", "close")
+					r2.SetHeader("Content-Type", "application/json")
+					j, _ := json.Marshal(map[string]any{
+						"id":  w.Index,
+						"msg": "json message",
+					})
+					r2.SetBody(j)
+					// TODO: 將 Response 回傳數據轉換成 Work 傳遞的格式
+					bs := r2.FormResponse()
+					fmt.Printf("Response: %s\n", string(bs))
+					// r := []byte("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/html\r\nContent-Length: 19\r\n\r\n<h1>Hola Mundo</h1>")
+					w.Body.AddRawData(bs)
+					w.Send()
 				}
 			}
 		}
-
-		// TODO: 將 Response 回傳數據轉換成 Work 傳遞的格式
-		r := []byte("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/html\r\nContent-Length: 19\r\n\r\n<h1>Hola Mundo</h1>")
-		w.Body.AddRawData(r)
-		w.Send()
 	}
 }
 
