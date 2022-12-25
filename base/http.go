@@ -69,25 +69,29 @@ func (rr *R2) HasLineData(buffer *[]byte, i int32, o int32, length int32) bool {
 	value := -1
 
 	if o < i {
+		fmt.Printf("(rr *R2) HasLineData | buffer0: %+v\n", (*buffer)[o:i])
 		value = bytes.IndexByte((*buffer)[o:i], '\n')
-		fmt.Printf("(rr *R2) HasLineData | value: %d\n", value)
+		fmt.Printf("(rr *R2) HasLineData | value(o < i): %d\n", value)
 
 	} else {
 		value = bytes.IndexByte((*buffer)[o:], '\n')
+		fmt.Printf("(rr *R2) HasLineData | buffer1: %+v\n", (*buffer)[o:])
 
 		if value != -1 {
-			rr.ReadLength = int32(value)
-			fmt.Printf("(rr *R2) HasLineData | value: %d\n", value)
+			rr.ReadLength = int32(value) + 1
+			fmt.Printf("(rr *R2) HasLineData | value([o:]): %d\n", value)
 			return true
 		}
 
 		rr.ReadLength = int32(len((*buffer)[o:]))
 		fmt.Printf("(rr *R2) HasLineData | temp ReadLength: %d\n", rr.ReadLength)
 		value = bytes.IndexByte((*buffer)[:i], '\n')
+		fmt.Printf("(rr *R2) HasLineData | buffer2: %+v\n", (*buffer)[:i])
+		fmt.Printf("(rr *R2) HasLineData | value([:i]): %d\n", value)
 	}
 
 	if value != -1 {
-		rr.ReadLength += int32(value)
+		rr.ReadLength += int32(value) + 1
 		fmt.Printf("(rr *R2) HasLineData | value: %d\n", value)
 		return true
 	}

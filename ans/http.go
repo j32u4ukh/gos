@@ -85,7 +85,7 @@ func NewHttpAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, err
 
 // 監聽連線並註冊
 func (a *HttpAnser) Listen() {
-	fmt.Printf("(a *HttpAnser) Listen\n")
+	// fmt.Printf("(a *HttpAnser) Listen\n")
 	a.SetWorkHandler()
 	a.Anser.Listen()
 }
@@ -119,7 +119,7 @@ func (a *HttpAnser) Read() bool {
 
 	// 讀取 Header 數據
 	if a.currR2.State == 1 {
-		for a.currConn.CheckReadable(a.currR2.HasLineData) {
+		for a.currConn.CheckReadable(a.currR2.HasLineData) && a.currR2.State == 1 {
 			// 讀取一行數據
 			a.currConn.Read(&a.readBuffer, a.currR2.ReadLength)
 
@@ -128,25 +128,25 @@ func (a *HttpAnser) Read() bool {
 			// 將讀到的數據從冒號拆分成 key, value
 			k, v, ok := bytes.Cut(a.readBuffer[:a.currR2.ReadLength], COLON)
 
-			// 當前這行數據不包含":"，結束 Header 的讀取
-			if !ok {
-				if _, ok := a.currR2.Header["Content-Length"]; !ok {
-					// 考慮分包問題，收到完整一包數據傳完才傳到應用層
-					a.currWork.Index = a.currConn.Index
-					a.currWork.RequestTime = time.Now().UTC()
-					a.currWork.State = 1
-					a.currWork.Body.ResetIndex()
+			if ok {
+				// 持續讀取 Header
+				key := string(k)
 
-					// 指向下一個工作結構
-					a.currWork = a.currWork.Next
+				if _, ok := a.currR2.Header[key]; !ok {
+					a.currR2.Header[key] = []string{}
+				}
 
-					// Header 中不包含 Content-Length，狀態值恢復為 0
-					a.currR2.State = 0
-					return true
+				value := strings.TrimLeft(string(v), " \t")
+				value = strings.TrimRight(value, "\r\n")
+				a.currR2.Header[key] = append(a.currR2.Header[key], value)
+				fmt.Printf("(a *HttpAnser) Read | Header, key: %s, value: %s\n", key, value)
 
-				} else {
-					// Header 中包含 Content-Length，狀態值設為 2，等待讀取後續數據
-					length, err := strconv.Atoi(a.currR2.Header["Content-Length"][0])
+			} else {
+				// 當前這行數據不包含":"，結束 Header 的讀取
+
+				// Header 中包含 Content-Length，狀態值設為 2，等待讀取後續數據
+				if contentLength, ok := a.currR2.Header["Content-Length"]; ok {
+					length, err := strconv.Atoi(contentLength[0])
 					fmt.Printf("(a *HttpAnser) Read | Content-Length: %d\n", length)
 
 					if err != nil {
@@ -157,17 +157,22 @@ func (a *HttpAnser) Read() bool {
 					a.currR2.ReadLength = int32(length)
 					a.currR2.State = 2
 					fmt.Printf("(a *HttpAnser) Read | State: 1 -> 2\n")
+
+				} else {
+					// 考慮分包問題，收到完整一包數據傳完才傳到應用層
+					a.currWork.Index = a.currConn.Index
+					a.currWork.RequestTime = time.Now().UTC()
+					a.currWork.State = 1
+					a.currWork.Body.ResetIndex()
+
+					// 指向下一個工作結構
+					a.currWork = a.currWork.Next
+
+					// Header 中不包含 Content-Length，狀態值恢復為 0
+					a.currR2.State = 3
+					return true
 				}
 			}
-
-			key := string(k)
-
-			if _, ok := a.currR2.Header[key]; !ok {
-				a.currR2.Header[key] = []string{}
-			}
-
-			a.currR2.Header[key] = append(a.currR2.Header[key], strings.TrimLeft(string(v), " \t"))
-			fmt.Printf("(a *HttpAnser) Read | Header, key: %s, value: %s\n", key, a.currR2.Header[key])
 		}
 	}
 
@@ -179,6 +184,7 @@ func (a *HttpAnser) Read() bool {
 			// ==========
 			// 將傳入的數據，加入工作緩存中
 			a.currConn.Read(&a.readBuffer, a.currR2.ReadLength)
+			fmt.Printf("(a *HttpAnser) Read | %s\n", string(a.readBuffer[:a.currR2.ReadLength]))
 
 			// 考慮分包問題，收到完整一包數據傳完才傳到應用層
 			a.currWork.Index = a.currConn.GetId()
@@ -191,7 +197,9 @@ func (a *HttpAnser) Read() bool {
 			a.currWork = a.currWork.Next
 
 			// 重置狀態值
-			a.currR2.State = 0
+			a.currR2.State = 3
+
+			return false
 		}
 	}
 
@@ -205,11 +213,11 @@ func (a *HttpAnser) Write(cid int32, data *[]byte, length int32) error {
 // 由外部定義 workHandler，定義如何處理工作
 func (a *HttpAnser) SetWorkHandler() {
 
-	for method, functions := range a.Handlers {
-		for p := range functions {
-			fmt.Printf("(a *HttpAnser) SetWorkHandler | handlers method: %s, path: %s\n", method, p)
-		}
-	}
+	// for method, functions := range a.Handlers {
+	// 	for p := range functions {
+	// 		fmt.Printf("(a *HttpAnser) SetWorkHandler | handlers method: %s, path: %s\n", method, p)
+	// 	}
+	// }
 
 	a.workHandler = func(w *base.Work) {
 		r2 := a.r2s[w.Index]
