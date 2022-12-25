@@ -7,3 +7,14 @@ const (
 	Tcp0 SocketType = iota
 	Http
 )
+
+func (s SocketType) String() string {
+	switch s {
+	case Tcp0:
+		return "Tcp0"
+	case Http:
+		return "Http"
+	default:
+		return "Null"
+	}
+}
