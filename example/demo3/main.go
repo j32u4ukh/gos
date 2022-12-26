@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"gos"
 	"gos/ans"
-	"gos/base"
+	"gos/base/ghttp"
 	"gos/define"
 	"time"
 )
@@ -35,22 +35,34 @@ func RunAns(port int) {
 
 	httpAnswer := anser.(*ans.HttpAnser)
 
-	httpAnswer.GET("/", func(req base.Request, res *base.Response) {
-		fmt.Println("GET | /")
+	httpAnswer.GET("/", func(req ghttp.Request, res *ghttp.Response) {
+		res.Json(200, ghttp.H{
+			"index": 1,
+			"msg":   "GET | /",
+		})
 	})
 
-	httpAnswer.POST("/", func(req base.Request, res *base.Response) {
-		fmt.Println("POST | /")
+	httpAnswer.POST("/", func(req ghttp.Request, res *ghttp.Response) {
+		res.Json(200, ghttp.H{
+			"index": 2,
+			"msg":   "POST | /",
+		})
 	})
 
 	r1 := httpAnswer.NewRouter("/abc")
 
-	r1.GET("/get", func(req base.Request, res *base.Response) {
-		fmt.Println("GET | /abc/get")
+	r1.GET("/get", func(req ghttp.Request, res *ghttp.Response) {
+		res.Json(200, ghttp.H{
+			"index": 3,
+			"msg":   "GET | /abc/get",
+		})
 	})
 
-	r1.POST("/post", func(req base.Request, res *base.Response) {
-		fmt.Println("POST | /abc/post")
+	r1.POST("/post", func(req ghttp.Request, res *ghttp.Response) {
+		res.Json(200, ghttp.H{
+			"index": 4,
+			"msg":   "POST | /abc/post",
+		})
 	})
 
 	fmt.Printf("(s *Service) RunAns | 伺服器初始化完成\n")

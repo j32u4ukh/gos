@@ -2,9 +2,9 @@ package ans
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"gos/base"
+	"gos/base/ghttp"
 	"net"
 	"path"
 	"strconv"
@@ -23,7 +23,7 @@ var (
 	COLON []byte = []byte(":")
 )
 
-type HandlerFunc func(req base.Request, res *base.Response)
+type HandlerFunc func(req ghttp.Request, res *ghttp.Response)
 type HandlerChain []HandlerFunc
 
 // ====================================================================================================
@@ -42,8 +42,8 @@ type HttpAnser struct {
 	// 個數與 Anser 的 nConnect 相同，因此可利用 Conn 中的 id 作為索引值，來存取 rrStates, Request 與 Response
 	// 由於是使用 Conn 的 id 作為索引值，因此可以不用從第一個開始使用，結束使用後也不需要對順序進行調整
 	// ==================================================
-	r2s    []*base.R2
-	currR2 *base.R2
+	r2s    []*ghttp.R2
+	currR2 *ghttp.R2
 }
 
 func NewHttpAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, error) {
@@ -53,7 +53,7 @@ func NewHttpAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, err
 			MethodGet:  {},
 			MethodPost: {},
 		},
-		r2s:    make([]*base.R2, nConnect),
+		r2s:    make([]*ghttp.R2, nConnect),
 		currR2: nil,
 	}
 
@@ -77,7 +77,7 @@ func NewHttpAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, err
 	// ===== R2 =====
 	var i int32
 	for i = 0; i < nConnect; i++ {
-		a.r2s[i] = base.NewR2()
+		a.r2s[i] = ghttp.NewR2()
 	}
 
 	return a, nil
@@ -104,7 +104,7 @@ func (a *HttpAnser) Read() bool {
 			a.currConn.Read(&a.readBuffer, a.currR2.ReadLength)
 
 			// 拆分第一行數據
-			firstLine := string(a.readBuffer[:a.currR2.ReadLength])
+			firstLine := strings.TrimRight(string(a.readBuffer[:a.currR2.ReadLength]), "\r\n")
 			fmt.Printf("(a *HttpAnser) Read | firstLine: %s\n", firstLine)
 			ok := a.currR2.Request.ParseFirstLine(firstLine)
 
@@ -225,25 +225,20 @@ func (a *HttpAnser) SetWorkHandler() {
 		if handler, ok := a.Handlers[r2.Request.Method]; ok {
 			if functions, ok := handler[r2.Request.Query]; ok {
 				for _, f := range functions {
+
 					f(*r2.Request, r2.Response)
 
-					for k := range r2.Header {
-						delete(r2.Header, k)
-					}
-
-					r2.Code = 200
-					r2.Message = "OK"
 					r2.SetHeader("Connection", "close")
-					r2.SetHeader("Content-Type", "application/json")
-					j, _ := json.Marshal(map[string]any{
-						"id":  w.Index,
-						"msg": "json message",
-					})
-					r2.SetBody(j)
-					// TODO: 將 Response 回傳數據轉換成 Work 傳遞的格式
+					// r2.SetHeader("Content-Type", "application/json")
+					// j, _ := json.Marshal(map[string]any{
+					// 	"id":  w.Index,
+					// 	"msg": "json message",
+					// })
+					// r2.SetBody(j)
+
+					// 將 Response 回傳數據轉換成 Work 傳遞的格式
 					bs := r2.FormResponse()
 					fmt.Printf("Response: %s\n", string(bs))
-					// r := []byte("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/html\r\nContent-Length: 19\r\n\r\n<h1>Hola Mundo</h1>")
 					w.Body.AddRawData(bs)
 					w.Send()
 				}

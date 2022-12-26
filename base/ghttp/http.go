@@ -1,7 +1,8 @@
-package base
+package ghttp
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -31,6 +32,12 @@ type Header map[string][]string
 // A MIMEHeader represents a MIME-style header mapping keys to sets of values.
 type MIMEHeader map[string][]string
 
+type H map[string]any
+
+var (
+	jsonContentType = []string{"application/json"}
+)
+
 // ====================================================================================================
 // Request & Response
 // ====================================================================================================
@@ -50,16 +57,16 @@ type R2 struct {
 
 func NewR2() *R2 {
 	rr := &R2{
-		State:    0,
-		Request:  NewRequest(),
-		Response: NewResponse(),
-		Header:   map[string][]string{},
+		State:  0,
+		Header: map[string][]string{},
 	}
+	rr.Request = NewRequest(rr)
+	rr.Response = NewResponse(rr)
 	return rr
 }
 
 func (rr *R2) HasLineData(buffer *[]byte, i int32, o int32, length int32) bool {
-	fmt.Printf("(rr *R2) HasLineData | i: %d, o: %d, length: %d\n", i, o, length)
+	// fmt.Printf("(rr *R2) HasLineData | i: %d, o: %d, length: %d\n", i, o, length)
 
 	if length == 0 {
 		return false
@@ -69,30 +76,30 @@ func (rr *R2) HasLineData(buffer *[]byte, i int32, o int32, length int32) bool {
 	value := -1
 
 	if o < i {
-		fmt.Printf("(rr *R2) HasLineData | buffer0: %+v\n", (*buffer)[o:i])
+		// fmt.Printf("(rr *R2) HasLineData | buffer0: %+v\n", (*buffer)[o:i])
 		value = bytes.IndexByte((*buffer)[o:i], '\n')
-		fmt.Printf("(rr *R2) HasLineData | value(o < i): %d\n", value)
+		// fmt.Printf("(rr *R2) HasLineData | value(o < i): %d\n", value)
 
 	} else {
 		value = bytes.IndexByte((*buffer)[o:], '\n')
-		fmt.Printf("(rr *R2) HasLineData | buffer1: %+v\n", (*buffer)[o:])
+		// fmt.Printf("(rr *R2) HasLineData | buffer1: %+v\n", (*buffer)[o:])
 
 		if value != -1 {
 			rr.ReadLength = int32(value) + 1
-			fmt.Printf("(rr *R2) HasLineData | value([o:]): %d\n", value)
+			// fmt.Printf("(rr *R2) HasLineData | value([o:]): %d\n", value)
 			return true
 		}
 
 		rr.ReadLength = int32(len((*buffer)[o:]))
-		fmt.Printf("(rr *R2) HasLineData | temp ReadLength: %d\n", rr.ReadLength)
+		// fmt.Printf("(rr *R2) HasLineData | temp ReadLength: %d\n", rr.ReadLength)
 		value = bytes.IndexByte((*buffer)[:i], '\n')
-		fmt.Printf("(rr *R2) HasLineData | buffer2: %+v\n", (*buffer)[:i])
-		fmt.Printf("(rr *R2) HasLineData | value([:i]): %d\n", value)
+		// fmt.Printf("(rr *R2) HasLineData | buffer2: %+v\n", (*buffer)[:i])
+		// fmt.Printf("(rr *R2) HasLineData | value([:i]): %d\n", value)
 	}
 
 	if value != -1 {
 		rr.ReadLength += int32(value) + 1
-		fmt.Printf("(rr *R2) HasLineData | value: %d\n", value)
+		// fmt.Printf("(rr *R2) HasLineData | value: %d\n", value)
 		return true
 	}
 
@@ -101,7 +108,7 @@ func (rr *R2) HasLineData(buffer *[]byte, i int32, o int32, length int32) bool {
 }
 
 func (rr *R2) HasEnoughData(buffer *[]byte, i int32, o int32, length int32) bool {
-	fmt.Printf("(rr *R2) HasEnoughData | length: %d, ReadLength: %d\n", length, rr.ReadLength)
+	// fmt.Printf("(rr *R2) HasEnoughData | length: %d, ReadLength: %d\n", length, rr.ReadLength)
 	return length >= rr.ReadLength
 }
 
@@ -113,10 +120,16 @@ func (rr *R2) SetHeader(key string, value string) {
 	}
 }
 
-func (rr *R2) SetBody(body []byte) {
-	rr.Header["Content-Length"] = []string{strconv.Itoa(len(body))}
-	rr.Body = body
-}
+// func (rr *R2) Json(code int32, obj any) {
+// 	rr.Code = code
+// 	body, _ := json.Marshal(obj)
+// 	rr.SetBody(body)
+// }
+
+// func (rr *R2) SetBody(body []byte) {
+// 	rr.Header["Content-Length"] = []string{strconv.Itoa(len(body))}
+// 	rr.Body = body
+// }
 
 // TODO: 生成 Response message
 func (rr *R2) FormResponse() []byte {
@@ -141,6 +154,7 @@ func (rr *R2) FormResponse() []byte {
 // Request
 // ====================================================================================================
 type Request struct {
+	*R2
 	Method string
 	Query  string
 	//
@@ -148,8 +162,9 @@ type Request struct {
 	Params map[string]string
 }
 
-func NewRequest() *Request {
+func NewRequest(r2 *R2) *Request {
 	r := &Request{
+		R2:     r2,
 		Proto:  "HTTP/1.1",
 		Params: map[string]string{},
 	}
@@ -243,11 +258,39 @@ func (r Request) GetParam(key string) (bool, string) {
 // Response
 // ====================================================================================================
 type Response struct {
+	*R2
 	Code    int32
 	Message string
+	body    []byte
 }
 
-func NewResponse() *Response {
-	r := &Response{}
+func NewResponse(r2 *R2) *Response {
+	r := &Response{
+		R2: r2,
+	}
 	return r
+}
+
+func (r *Response) Json(code int32, obj any) {
+	r.Code = code
+
+	if code == 200 {
+		r.Message = "OK"
+
+	} else {
+		r.Message = "ERROR"
+	}
+
+	for k := range r.R2.Header {
+		delete(r.R2.Header, k)
+	}
+
+	r.R2.Header["Content-Type"] = jsonContentType
+	r.body, _ = json.Marshal(obj)
+	r.SetBody(r.body)
+}
+
+func (r *Response) SetBody(body []byte) {
+	r.R2.Header["Content-Length"] = []string{strconv.Itoa(len(body))}
+	r.R2.Body = body
 }
