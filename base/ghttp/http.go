@@ -120,17 +120,6 @@ func (rr *R2) SetHeader(key string, value string) {
 	}
 }
 
-// func (rr *R2) Json(code int32, obj any) {
-// 	rr.Code = code
-// 	body, _ := json.Marshal(obj)
-// 	rr.SetBody(body)
-// }
-
-// func (rr *R2) SetBody(body []byte) {
-// 	rr.Header["Content-Length"] = []string{strconv.Itoa(len(body))}
-// 	rr.Body = body
-// }
-
 // TODO: 生成 Response message
 func (rr *R2) FormResponse() []byte {
 	var buffer bytes.Buffer
@@ -188,8 +177,6 @@ func (r *Request) ParseFirstLine(line string) bool {
 	}
 
 	r.Query = strings.TrimPrefix(r.Query, "?")
-	r.Proto = strings.TrimRight(r.Proto, "\r\n")
-
 	fmt.Printf("(r *Request) ParseFirstLine | Method: %s, Query: %s, Proto: %s\n", r.Method, r.Query, r.Proto)
 	return true
 }

@@ -197,7 +197,7 @@ func (c *Conn) SetReadBuffer(packet *Packet) {
 
 // 從 readBuffer 讀取指定長度的數據
 func (c *Conn) Read(data *[]byte, length int32) {
-	fmt.Printf("(c *Conn) read | before readOutput: %d, readInput: %d, ReadableLength: %d, length: %d\n", c.readOutput, c.readInput, c.ReadableLength, length)
+	// fmt.Printf("(c *Conn) read | before readOutput: %d, readInput: %d, ReadableLength: %d, length: %d\n", c.readOutput, c.readInput, c.ReadableLength, length)
 
 	// 更新可讀數據長度
 	c.ReadableLength -= length
@@ -217,7 +217,7 @@ func (c *Conn) Read(data *[]byte, length int32) {
 		copy((*data)[idx:length], c.readBuffer[:c.readOutput])
 	}
 
-	fmt.Printf("(c *Conn) read | after readOutput: %d, readInput: %d, ReadableLength: %d\n", c.readOutput, c.readInput, c.ReadableLength)
+	// fmt.Printf("(c *Conn) read | after readOutput: %d, readInput: %d, ReadableLength: %d\n", c.readOutput, c.readInput, c.ReadableLength)
 }
 
 // 根據 checker 函式，檢查是否已讀取到所需的數據(條件可能是 長度 或 換行符 等)
