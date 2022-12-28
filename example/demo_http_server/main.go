@@ -34,6 +34,8 @@ func RunAns(port int) {
 	}
 
 	httpAnswer := anser.(*ans.HttpAnser)
+	mrg := &Mgr{}
+	mrg.Handler(httpAnswer.Router)
 
 	httpAnswer.GET("/", func(req ghttp.Request, res *ghttp.Response) {
 		res.Json(200, ghttp.H{
