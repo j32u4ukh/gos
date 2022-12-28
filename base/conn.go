@@ -30,7 +30,7 @@ type Conn struct {
 	// 讀寫結構
 	// ==================================================
 	// 緩衝長度
-	bufferLength int32
+	BufferLength int32
 	// 封包個數
 	nPacket int32
 	// 位元組順序 (Byte Order)，即 位元組 的排列順序
@@ -81,7 +81,7 @@ func NewConn(id int32, size int32) *Conn {
 		State:          define.Unused,
 		Next:           nil,
 		stopCh:         make(chan bool, 1),
-		bufferLength:   size * define.MTU,
+		BufferLength:   size * define.MTU,
 		nPacket:        size,
 		order:          binary.LittleEndian,
 		readBuffer:     nil,
@@ -99,8 +99,8 @@ func NewConn(id int32, size int32) *Conn {
 		writeIdx:       0,
 	}
 
-	c.readBuffer = make([]byte, c.bufferLength)
-	c.writeBuffer = make([]byte, c.bufferLength)
+	c.readBuffer = make([]byte, c.BufferLength)
+	c.writeBuffer = make([]byte, c.BufferLength)
 
 	var i int32
 	for i = 0; i < size; i++ {
@@ -172,7 +172,7 @@ func (c *Conn) SetReadBuffer(packet *Packet) {
 	// 更新可讀數據長度
 	c.ReadableLength += packet.Length
 
-	if c.readInput+packet.Length < c.bufferLength {
+	if c.readInput+packet.Length < c.BufferLength {
 		copy(c.readBuffer[c.readInput:c.readInput+packet.Length], packet.Data[:packet.Length])
 
 		// 更新下次塞值的起始位置
@@ -180,7 +180,7 @@ func (c *Conn) SetReadBuffer(packet *Packet) {
 
 	} else {
 		// 若剩餘長度不足一個 MTU，則分成兩次讀取
-		idx := c.bufferLength - c.readInput
+		idx := c.BufferLength - c.readInput
 
 		// 將數據寫到 readBuffer 的尾部(數據長度為 idx)
 		copy(c.readBuffer[c.readInput:], packet.Data[:idx])
@@ -197,17 +197,17 @@ func (c *Conn) SetReadBuffer(packet *Packet) {
 
 // 從 readBuffer 讀取指定長度的數據
 func (c *Conn) Read(data *[]byte, length int32) {
-	// fmt.Printf("(c *Conn) read | before readOutput: %d, readInput: %d, readableLength: %d\n", c.readOutput, c.readInput, c.readableLength)
+	// fmt.Printf("(c *Conn) read | before readOutput: %d, readInput: %d, ReadableLength: %d, length: %d\n", c.readOutput, c.readInput, c.ReadableLength, length)
 
 	// 更新可讀數據長度
 	c.ReadableLength -= length
 
-	if c.readOutput+length < c.bufferLength {
+	if c.readOutput+length < c.BufferLength {
 		copy((*data)[:length], c.readBuffer[c.readOutput:c.readOutput+length])
 		c.readOutput += length
 
 	} else {
-		idx := c.bufferLength - c.readOutput
+		idx := c.BufferLength - c.readOutput
 
 		// 讀到 readBuffer 的結尾(長度為 idx)
 		copy((*data)[:idx], c.readBuffer[c.readOutput:])
@@ -217,7 +217,7 @@ func (c *Conn) Read(data *[]byte, length int32) {
 		copy((*data)[idx:length], c.readBuffer[:c.readOutput])
 	}
 
-	// fmt.Printf("(c *Conn) read | after readOutput: %d, readInput: %d, readableLength: %d\n", c.readOutput, c.readInput, c.readableLength)
+	// fmt.Printf("(c *Conn) read | after readOutput: %d, readInput: %d, ReadableLength: %d\n", c.readOutput, c.readInput, c.ReadableLength)
 }
 
 // 根據 checker 函式，檢查是否已讀取到所需的數據(條件可能是 長度 或 換行符 等)
@@ -230,12 +230,12 @@ func (c *Conn) CheckReadable(checker func(buffer *[]byte, i int32, o int32, leng
 func (c *Conn) SetWriteBuffer(data *[]byte, length int32) {
 	// fmt.Printf("(c *Conn) setWriteBuffer | c.writeInput: %d, length: %d\n", c.writeInput, length)
 
-	if c.writeInput+length < c.bufferLength {
+	if c.writeInput+length < c.BufferLength {
 		copy(c.writeBuffer[c.writeInput:c.writeInput+length], (*data)[:length])
 		c.writeInput += length
 
 	} else {
-		c.writeIdx = c.bufferLength - c.writeInput
+		c.writeIdx = c.BufferLength - c.writeInput
 		copy(c.writeBuffer[c.writeInput:], (*data)[:c.writeIdx])
 
 		c.writeInput = length - c.writeIdx
@@ -274,7 +274,7 @@ func (c *Conn) Write() (int32, error) {
 		// fmt.Printf("(c *Conn) write | Output: %+v\n", c.writeBuffer[c.writeOutput:c.writeOutput+int32(c.nWrite)])
 		c.writeOutput += int32(c.nWrite)
 
-		if c.writeOutput == c.bufferLength {
+		if c.writeOutput == c.BufferLength {
 			c.writeOutput = 0
 		}
 
