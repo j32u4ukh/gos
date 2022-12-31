@@ -76,7 +76,7 @@ func NewHttpAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, err
 	// ===== R2 =====
 	var i int32
 	for i = 0; i < nConnect; i++ {
-		a.r2s[i] = ghttp.NewR2()
+		a.r2s[i] = ghttp.NewR2(i)
 	}
 
 	return a, nil

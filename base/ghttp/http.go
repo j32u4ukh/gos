@@ -42,6 +42,8 @@ var (
 // Request & Response
 // ====================================================================================================
 type R2 struct {
+	id    int32
+	Index int32
 	// 0: 讀取第一行, 1: 讀取 Header, 2: 讀取 Data
 	State int8
 	*Request
@@ -55,14 +57,19 @@ type R2 struct {
 	Body []byte
 }
 
-func NewR2() *R2 {
+func NewR2(id int32) *R2 {
 	rr := &R2{
+		id:     id,
 		State:  0,
 		Header: map[string][]string{},
 	}
 	rr.Request = NewRequest(rr)
 	rr.Response = NewResponse(rr)
 	return rr
+}
+
+func (rr *R2) GetId() int32 {
+	return rr.id
 }
 
 func (rr *R2) HasLineData(buffer *[]byte, i int32, o int32, length int32) bool {
