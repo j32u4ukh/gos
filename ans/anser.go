@@ -37,8 +37,6 @@ type Anser struct {
 	laddr *net.TCPAddr
 	// 監聽連線物件
 	listener *net.TCPListener
-	// // 通訊類型
-	// socketType define.SocketType
 	// ==================================================
 	// 連線列表
 	// ==================================================

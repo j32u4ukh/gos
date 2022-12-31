@@ -57,10 +57,10 @@ func (a *Tcp0Anser) Read() bool {
 	if a.currConn.CheckReadable(a.currTcp0.ReadableChecker) {
 		if a.currTcp0.State == 0 {
 			// 從 readBuffer 當中讀取封包長度
-			a.currConn.Read(&a.readBuffer, 4)
+			a.currConn.Read(&a.readBuffer, a.currTcp0.HeaderSize)
 
 			// 下次欲讀取長度為封包長度
-			a.currTcp0.ReadLength = base.BytesToInt32(a.readBuffer[:4], a.order)
+			a.currTcp0.ReadLength = base.BytesToInt32(a.readBuffer[:a.currTcp0.HeaderSize], a.order)
 
 			// 更新 currTcp0 狀態值
 			a.currTcp0.State = 1
@@ -85,46 +85,9 @@ func (a *Tcp0Anser) Read() bool {
 			// 重置 欲讀取長度 以及 狀態值
 			a.currTcp0.ResetReadLength()
 		}
-
-		// // 此時的 a.currConn.readLength 會是 4
-		// if a.currConn.PacketLength == -1 {
-		// 	// 從 readBuffer 當中讀取數據
-		// 	a.currConn.Read(&a.readBuffer, 4)
-
-		// 	// fmt.Printf("(a *Anser) handler | packetLength: %+v\n", a.readBuffer[:4])
-		// 	a.currConn.PacketLength = base.BytesToInt32(a.readBuffer[:4], a.order)
-
-		// 	// 下次欲讀取長度為封包長度
-		// 	a.currConn.ReadLength = a.currConn.PacketLength
-		// 	// fmt.Printf("readLength: %d, packetLength: %d\n", a.currConn.readLength, a.currConn.packetLength)
-		// } else {
-		// 	// 將傳入的數據，加入工作緩存中
-		// 	a.currConn.Read(&a.readBuffer, a.currConn.ReadLength)
-
-		// 	// 考慮分包問題，收到完整一包數據傳完才傳到應用層
-		// 	a.currWork.Index = a.currConn.Index
-		// 	a.currWork.RequestTime = time.Now().UTC()
-		// 	a.currWork.State = 1
-		// 	a.currWork.Body.AddRawData(a.readBuffer[:a.currConn.ReadLength])
-		// 	a.currWork.Body.ResetIndex()
-
-		// 	// 指向下一個工作結構
-		// 	a.currWork = a.currWork.Next
-
-		// 	// 重置 封包長度
-		// 	a.currConn.PacketLength = -1
-
-		// 	// 重置 欲讀取長度
-		// 	a.currConn.ReadLength = define.DATALENGTH
-		// }
 	}
 	return true
 }
-
-// // 檢查是否滿足：可讀長度 大於 欲讀取長度
-// func (a *Tcp0Anser) ReadableChecker(buffer *[]byte, i int32, o int32, length int32) bool {
-// 	return length >= a.currTcp0.ReadLength
-// }
 
 func (a *Tcp0Anser) Write(cid int32, data *[]byte, length int32) error {
 	return a.Anser.Write(cid, data, length)
