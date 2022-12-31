@@ -126,7 +126,7 @@ func (c *Conn) GetId() int32 {
 }
 
 func (c *Conn) Add(conn *Conn) {
-	curr := conn
+	curr := c
 	for curr.Next != nil {
 		curr = curr.Next
 	}

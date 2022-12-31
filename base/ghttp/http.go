@@ -44,6 +44,8 @@ var (
 type R2 struct {
 	id    int32
 	Index int32
+	Next  *R2
+	//////////////////////////////////////////////////
 	// 0: 讀取第一行, 1: 讀取 Header, 2: 讀取 Data
 	State int8
 	*Request
@@ -60,6 +62,8 @@ type R2 struct {
 func NewR2(id int32) *R2 {
 	rr := &R2{
 		id:     id,
+		Index:  -1,
+		Next:   nil,
 		State:  0,
 		Header: map[string][]string{},
 	}
@@ -70,6 +74,14 @@ func NewR2(id int32) *R2 {
 
 func (rr *R2) GetId() int32 {
 	return rr.id
+}
+
+func (rr *R2) Add(r2 *R2) {
+	r := rr
+	for r.Next != nil {
+		r = r.Next
+	}
+	r.Next = r2
 }
 
 func (rr *R2) HasLineData(buffer *[]byte, i int32, o int32, length int32) bool {
