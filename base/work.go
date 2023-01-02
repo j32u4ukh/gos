@@ -48,15 +48,8 @@ func NewWork(id int32) *Work {
 	return c
 }
 
-func (w *Work) String() string {
-	descript := fmt.Sprintf("Work(id: %d, Index: %d, state: %d, requestTime: %+v, next: %+v)",
-		w.id,
-		w.Index,
-		w.State,
-		w.RequestTime,
-		w.Next != nil,
-	)
-	return descript
+func (w *Work) GetId() int32 {
+	return w.id
 }
 
 func (w *Work) Add(work *Work) {
@@ -137,4 +130,15 @@ func CheckWorks(works *Work) {
 		work = work.Next
 	}
 	fmt.Println()
+}
+
+func (w *Work) String() string {
+	descript := fmt.Sprintf("Work(id: %d, Index: %d, state: %d, requestTime: %+v, next: %+v)",
+		w.id,
+		w.Index,
+		w.State,
+		w.RequestTime,
+		w.Next != nil,
+	)
+	return descript
 }

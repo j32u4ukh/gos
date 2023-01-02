@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"gos/ans"
 	"gos/ask"
+	"gos/base/ghttp"
 	"gos/define"
+	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -121,4 +124,51 @@ func SendToServer(site int32, data *[]byte, length int32) error {
 		return nil
 	}
 	return errors.New(fmt.Sprintf("Unknown site: %d", site))
+}
+
+// 傳送 http 訊息，可透過 cid 指定使用的連線物件
+func SendRequest(req *ghttp.Request, callback func(*ghttp.Response)) error {
+	fmt.Printf("SendRequest | Request: %+v\n", req)
+
+	// 檢查是否有相同 Address、已建立的 Asker
+	for _, asker := range server.askerMap {
+		ip, port := asker.GetAddress()
+		host := fmt.Sprintf("%s/%d", ip, port)
+
+		if host == req.Header["Host"][0] {
+			httpAsker := asker.(*ask.HttpAsker)
+			httpAsker.Send(req, callback)
+			return nil
+		}
+	}
+
+	if host, ok := req.Header["Host"]; ok {
+		fmt.Printf("SendRequest | host: %s\n", host[0])
+
+		ip, remaind, _ := strings.Cut(host[0], ":")
+		p, query, ok := strings.Cut(remaind, "/")
+		fmt.Printf("SendRequest | ip: %s, port: %s\n", ip, p)
+		if ok {
+			req.Query = query
+		}
+		var asker ask.IAsker
+		var err error
+
+		if ok {
+			port, _ := strconv.Atoi(p)
+			asker, err = Bind(100, ip, port, define.Http)
+		} else {
+			asker, err = Bind(100, ip, 80, define.Http)
+		}
+
+		if err != nil {
+			return errors.Wrapf(err, "Failed to bind to host: %s", host[0])
+		}
+
+		httpAsker := asker.(*ask.HttpAsker)
+		httpAsker.Send(req, callback)
+		return nil
+	}
+
+	return errors.New("Request 中未定義 uri")
 }

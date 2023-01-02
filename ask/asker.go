@@ -26,7 +26,9 @@ func NewAsker(socketType define.SocketType, site int32, laddr *net.TCPAddr, nWor
 	switch socketType {
 	case define.Tcp0:
 		return NewTcp0Asker(site, laddr, 1, nWork)
-	// TODO: Chrome 一次最多可同時送出 6 個請求, HttpAsker nConnect = 6
+	// Chrome 一次最多可同時送出 6 個請求, HttpAsker nConnect = 6
+	case define.Http:
+		return NewHttpAsker(site, laddr, 6, nWork)
 	default:
 		return nil, fmt.Errorf("invalid socket type: %v", socketType)
 	}
@@ -136,6 +138,7 @@ func (a *Asker) GetAddress() (string, int32) {
 func (a *Asker) Connect(index int32) error {
 	// 註冊連線通道
 	netConn, err := net.DialTCP("tcp", nil, a.addr)
+	fmt.Printf("(a *Asker) Connect | Conn(%d) connect to %+v\n", index, a.addr)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to connect to %s:%d.", a.addr.IP, a.addr.Port)
 	}
@@ -190,6 +193,8 @@ func (a *Asker) checkConnection() {
 	for {
 		select {
 		case connBuffer = <-a.connBuffer:
+			fmt.Printf("(a *Asker) checkConnection | connBuffer: %+v\n", connBuffer)
+
 			// TODO: 檢查是否有空閒的連線物件可以使用
 			a.emptyConn = a.getConn(connBuffer.Index)
 			if a.emptyConn == nil {
@@ -435,17 +440,6 @@ func (a *Asker) relinkWork(destination *base.Work, done bool) *base.Work {
 	return destination
 }
 
-// // 將寫出數據加入緩存
-// func (a *Asker) Write(data *[]byte, length int32) error {
-// 	// fmt.Printf("(a *Anser) write | cid: %d\n", cid)
-// 	c := a.getConn(cid)
-// 	if c == nil {
-// 		return errors.New(fmt.Sprintf("There is no cid equals to %d.", cid))
-// 	}
-// 	c.SetWriteBuffer(data, length)
-// 	return nil
-// }
-
 // 取得連線物件編號為 id 的連線物件
 // id 若為 -1，尋找當前空閒的連線物件
 func (a *Asker) getConn(id int32) *base.Conn {
@@ -469,6 +463,18 @@ func (a *Asker) getConn(id int32) *base.Conn {
 	}
 	return nil
 }
+
+// // 有連線中且有空的 Conn 優先
+// func (a *Asker) getAvalidableConn(id int32) *base.Conn {
+// 	var idx, score int32 = 0, 0
+// 	a.currConn = a.conns
+// 	for a.currConn != nil{
+// 		if a.currConn.State == define.Connected || a.currConn.State == define.Connecting || a.currConn.State == define.Reconnect{
+
+// 		}
+// 	}
+// 	return nil
+// }
 
 // 斷線處理
 func (a *Asker) disconnectHandler() {

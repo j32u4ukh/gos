@@ -13,15 +13,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-const (
-	MethodGet  = "GET"
-	MethodPost = "POST"
-)
-
-var (
-	COLON string = ":"
-)
-
 type HandlerFunc func(req ghttp.Request, res *ghttp.Response)
 type HandlerChain []HandlerFunc
 
@@ -37,7 +28,7 @@ type HttpAnser struct {
 	Handlers map[string]map[string]HandlerChain
 
 	// ==================================================
-	// rrStates & Request & Response
+	// Request & Response
 	// 個數與 Anser 的 nConnect 相同，因此可利用 Conn 中的 id 作為索引值，來存取 rrStates, Request 與 Response
 	// 由於是使用 Conn 的 id 作為索引值，因此可以不用從第一個開始使用，結束使用後也不需要對順序進行調整
 	// ==================================================
@@ -49,8 +40,8 @@ func NewHttpAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, err
 	var err error
 	a := &HttpAnser{
 		Handlers: map[string]map[string]HandlerChain{
-			MethodGet:  {},
-			MethodPost: {},
+			ghttp.MethodGet:  {},
+			ghttp.MethodPost: {},
 		},
 		r2s:    make([]*ghttp.R2, nConnect),
 		currR2: nil,
@@ -62,9 +53,6 @@ func NewHttpAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, err
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to new HttpAnser.")
 	}
-
-	// 設置數據讀取函式
-	a.Anser.read = a.Read
 
 	// ===== Router =====
 	a.Router = &Router{
@@ -79,6 +67,12 @@ func NewHttpAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, err
 		a.r2s[i] = ghttp.NewR2(i)
 	}
 
+	//////////////////////////////////////////////////
+	// HttpAnser 自定義函式
+	//////////////////////////////////////////////////
+	// 設置數據讀取函式
+	a.Anser.read = a.Read
+
 	return a, nil
 }
 
@@ -89,9 +83,9 @@ func (a *HttpAnser) Listen() {
 	a.Anser.Listen()
 }
 
-func (a *HttpAnser) Handler() {
-	a.Anser.Handler()
-}
+// func (a *HttpAnser) Handler() {
+// 	a.Anser.Handler()
+// }
 
 func (a *HttpAnser) Read() bool {
 	// 根據 Conn 的 Id，存取對應的 R2
@@ -130,7 +124,7 @@ func (a *HttpAnser) Read() bool {
 			// 將讀到的數據從冒號拆分成 key, value
 			// k, v, ok := bytes.Cut(a.readBuffer[:a.currR2.ReadLength], COLON)
 			headerLine = strings.TrimRight(string(a.readBuffer[:a.currR2.ReadLength]), "\r\n")
-			key, value, ok = strings.Cut(headerLine, COLON)
+			key, value, ok = strings.Cut(headerLine, ghttp.COLON)
 
 			if ok {
 				// 持續讀取 Header
@@ -262,11 +256,11 @@ func (r *Router) NewRouter(relativePath string, handlers ...HandlerFunc) *Router
 }
 
 func (r *Router) GET(path string, handlers ...HandlerFunc) {
-	r.handle(MethodGet, path, handlers...)
+	r.handle(ghttp.MethodGet, path, handlers...)
 }
 
 func (r *Router) POST(path string, handlers ...HandlerFunc) {
-	r.handle(MethodPost, path, handlers...)
+	r.handle(ghttp.MethodPost, path, handlers...)
 }
 
 func (r *Router) handle(method string, path string, handlers ...HandlerFunc) {

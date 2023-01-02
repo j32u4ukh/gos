@@ -47,9 +47,9 @@ func (a *Tcp0Anser) Listen() {
 	a.Anser.Listen()
 }
 
-func (a *Tcp0Anser) Handler() {
-	a.Anser.Handler()
-}
+// func (a *Tcp0Anser) Handler() {
+// 	a.Anser.Handler()
+// }
 
 func (a *Tcp0Anser) Read() bool {
 	a.currTcp0 = a.tcp0s[a.currConn.GetId()]
