@@ -37,7 +37,7 @@ type Work struct {
 func NewWork(id int32) *Work {
 	c := &Work{
 		id:          id,
-		Index:       -1,
+		Index:       -2,
 		RequestTime: time.Now().UTC(),
 		Next:        nil,
 		Data:        make([]byte, define.BUFFER_SIZE*define.MTU),
@@ -115,7 +115,7 @@ func (w *Work) Finish() {
 }
 
 func (w *Work) Release() {
-	w.Index = -1
+	w.Index = -2
 	w.Next = nil
 	w.Length = 0
 	w.State = -1

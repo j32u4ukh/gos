@@ -114,59 +114,9 @@ func RunAsk(ip string, port int) {
 		fmt.Printf("SendRequestError: %+v\n", err)
 		return
 	}
-	// mgr := NewMgr()
-	// tcp0Asker := asker.(*ask.Tcp0Asker)
-	// tcp0Asker.SetWorkHandler(mgr.Handler)
-	// fmt.Printf("(s *Service) RunAsk | 伺服器初始化完成\n")
-	// err = gos.StartConnect()
 
-	// if err != nil {
-	// 	fmt.Printf("Error: %+v\n", err)
-	// 	return
-	// }
-
-	// fmt.Printf("(s *Service) RunAsk | 開始連線\n")
 	var start time.Time
 	var during, frameTime time.Duration = 0, 200 * time.Millisecond
-
-	// // TODO: 暫緩一般數據傳送，先實作心跳包機制
-	// go func() {
-	// 	time.Sleep(2 * time.Second)
-	// 	fmt.Printf("(s *Service) RunAsk | After 2 Second.\n")
-	// 	var data []byte
-	// 	temp := []byte{}
-
-	// 	for i := 50; i < 55; i++ {
-	// 		temp = append(temp, byte(i))
-	// 		// fmt.Printf("(s *Service) RunAsk | i: %d, temp: %+v\n", i, temp)
-	// 		mgr.Body.AddByte(1)
-	// 		mgr.Body.AddUInt16(0)
-	// 		mgr.Body.AddByteArray(temp)
-	// 		data = mgr.Body.FormData()
-	// 		// fmt.Printf("(s *Service) RunAsk | i: %d, length: %d, data: %+v\n", i, len(data), data)
-	// 		gos.SendToServer(0, &data, int32(len(data)))
-	// 		time.Sleep(1 * time.Second)
-	// 		mgr.Body.Clear()
-	// 	}
-
-	// 	time.Sleep(5 * time.Second)
-	// 	fmt.Printf("(s *Service) RunAsk | After 5 Second.\n")
-
-	// 	for i := 55; i < 60; i++ {
-	// 		temp = append(temp, byte(i))
-	// 		// fmt.Printf("(s *Service) RunAsk | i: %d, temp: %+v\n", i, temp)
-	// 		mgr.Body.AddByte(1)
-	// 		mgr.Body.AddUInt16(0)
-	// 		mgr.Body.AddByteArray(temp)
-	// 		data = mgr.Body.FormData()
-	// 		// fmt.Printf("(s *Service) RunAsk | i: %d, length: %d, data: %+v\n", i, len(data), data)
-	// 		gos.SendToServer(0, &data, int32(len(data)))
-	// 		time.Sleep(1 * time.Second)
-	// 		mgr.Body.Clear()
-	// 	}
-	// }()
-
-	// fmt.Printf("(s *Service) RunAsk | 開始 gos.RunAsk()\n")
 
 	for {
 		start = time.Now()

@@ -207,6 +207,7 @@ func (a *Asker) checkConnection() {
 			}
 			a.emptyConn.NetConn = connBuffer.Conn
 			a.emptyConn.State = define.Connected
+			fmt.Printf("(a *Asker) checkConnection | Conn(%d), State: %s\n", a.emptyConn.GetId(), a.emptyConn.State)
 			go a.emptyConn.Handler()
 		default:
 			return
@@ -253,6 +254,8 @@ func (a *Asker) connectedHandler() {
 
 		// 將封包數據寫入 readBuffer
 		a.currConn.SetReadBuffer(packet)
+		fmt.Printf("(a *Asker) connectedHandler | packet.Data: %s\n", base.SliceString(packet.Data[:packet.Length]))
+
 		// 延後下次發送心跳包的時間
 		a.heartbeatTime = time.Now().Add(5000 * time.Millisecond)
 		// 更新連線維持時間
@@ -360,7 +363,7 @@ func (a *Asker) dealWork() {
 	var finished, yet *base.Work = nil, nil
 
 	for a.currWork.State != -1 {
-		// fmt.Printf("(a *Asker) dealWork | work.Index: %d, state: %d\n", work.Index, work.state)
+		fmt.Printf("(a *Asker) dealWork | work.Index: %d, state: %d\n", a.currWork.Index, a.currWork.State)
 
 		switch a.currWork.State {
 		// 工作已完成
@@ -381,15 +384,25 @@ func (a *Asker) dealWork() {
 				// 將向客戶端傳輸數據，寫入 writeBuffer
 				a.writeFunc(a.currWork.Index, &a.currWork.Data, a.currWork.Length)
 
-				// 將完成的工作加入 finished，並更新 work 所指向的工作結構
-				finished = a.relinkWork(finished, true)
+				if a.currWork.State == 0 {
+					// 將完成的工作加入 finished，並更新 work 所指向的工作結構
+					finished = a.relinkWork(finished, true)
+				}
 			}
 		case 2:
 			// 將向客戶端傳輸數據，寫入 writeBuffer
 			a.writeFunc(a.currWork.Index, &a.currWork.Data, a.currWork.Length)
 
-			// 將完成的工作加入 finished，並更新 work 所指向的工作結構
-			finished = a.relinkWork(finished, true)
+			switch a.currWork.State {
+			case 0:
+				// 將完成的工作加入 finished，並更新 work 所指向的工作結構
+				finished = a.relinkWork(finished, true)
+			case 1:
+				fallthrough
+			case 2:
+				// 將工作接入待處理的區塊，下次回圈再行處理
+				yet = a.relinkWork(yet, false)
+			}
 		default:
 			fmt.Printf("(a *Asker) dealWork | 連線 %d 發生異常工作 state(%d)，直接將工作結束\n", a.currWork.Index, a.currWork.State)
 			// 將完成的工作加入 finished，並更新 work 所指向的工作結構
@@ -443,7 +456,7 @@ func (a *Asker) relinkWork(destination *base.Work, done bool) *base.Work {
 // 取得連線物件編號為 id 的連線物件
 // id 若為 -1，尋找當前空閒的連線物件
 func (a *Asker) getConn(id int32) *base.Conn {
-	fmt.Printf("(a *Asker) getConn | id: %d\n", id)
+	// fmt.Printf("(a *Asker) getConn | id: %d\n", id)
 	c := a.conns
 	if id == -1 {
 		for c != nil {

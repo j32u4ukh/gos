@@ -199,7 +199,11 @@ func NewRequest(method string, uri string, params map[string]string) (*Request, 
 		Params: params,
 	}
 	var host string
-	host, r.Query, _ = strings.Cut(uri, "?")
+	var ok bool
+	host, r.Query, ok = strings.Cut(uri, "/")
+	if ok {
+		r.Query = fmt.Sprintf("/%s", r.Query)
+	}
 	r.R2.Header["Host"] = []string{host}
 	return r, nil
 }
@@ -327,16 +331,26 @@ func (r Request) FormRequest() []byte {
 			"msg":"test"
 		}
 	*/
+	r.R2.Header["Content-Type"] = []string{"application/json"}
+	r.R2.Header["User-Agent"] = []string{"PostmanRuntime/7.29.2"}
+	r.R2.Header["Accept"] = []string{"*/*"}
+	r.R2.Header["Postman-Token"] = []string{"6746eca0-5849-4c5f-a208-2d981c6100ff"}
+	r.R2.Header["Accept-Encoding"] = []string{"gzip", "deflate", "br"}
+	r.R2.Header["Connection"] = []string{"keep-alive"}
+
 	for k, v := range r.R2.Header {
 		buffer.WriteString(fmt.Sprintf("%s: %s\r\n", k, strings.Join(v, ", ")))
 	}
+
+	buffer.WriteString("\r\n")
 
 	if _, ok := r.R2.Header["Content-Length"]; ok {
 		buffer.WriteString("\r\n")
 		buffer.Write(r.R2.Body)
 	}
-
-	return buffer.Bytes()
+	result := buffer.Bytes()
+	fmt.Printf("(r Request) FormRequest | result: %s\n", string(result))
+	return result
 }
 
 func (r *Request) Json(obj any) {

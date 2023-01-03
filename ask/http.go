@@ -24,16 +24,9 @@ type CallbackHandler struct {
 func newCallbackHandler(workId int32, callback func(*ghttp.Response)) *CallbackHandler {
 	handler := &CallbackHandler{
 		WorkId:   workId,
-		Data:     make([]byte, 64*1024),
-		Length:   0,
 		Callback: callback,
 	}
 	return handler
-}
-
-func (h *CallbackHandler) SetData(data []byte, length int32) {
-	h.Length = length
-	copy(h.Data[:length], data[:length])
 }
 
 func (h *CallbackHandler) String() string {
@@ -202,14 +195,22 @@ func (a *HttpAsker) writeFunc(id int32, data *[]byte, length int32) error {
 
 	if a.currConn.State == define.Unused {
 		fmt.Printf("(a *HttpAsker) writeFunc | currConn.State is Unused\n")
+		a.currConn.State = define.Connecting
+
+		// 設置當前工作結構對應的連線物件
+		a.currWork.Index = a.currConn.GetId()
+		fmt.Printf("(a *HttpAsker) writeFunc | a.currWork.Index <- %d\n", a.currConn.GetId())
 		a.Asker.Connect(a.currConn.GetId())
+		return nil
+	} else if a.currConn.State == define.Connecting {
+		fmt.Printf("(a *HttpAsker) writeFunc | currConn.State is Connecting\n")
+		return nil
 	}
 
-	// 設置當前工作結構對應的連線物件
-	a.currWork.Index = a.currConn.GetId()
-
 	// 將數據寫入連線物件的緩存
+	fmt.Printf("(a *HttpAsker) writeFunc | WriteBuffer, length: %d, data: %+v\n", length, (*data)[:length])
 	a.currConn.SetWriteBuffer(data, length)
+	a.currWork.State = 0
 	return nil
 }
 
@@ -220,11 +221,15 @@ func (a *HttpAsker) Write(data *[]byte, length int32) error {
 	w.State = 2
 	// 標註此工作未指定寫出的連線物件，由空閒的連線物件來寫出
 	w.Index = -1
+	w.Body.AddRawData((*data)[:length])
+
 	handler := newCallbackHandler(w.GetId(), func(r *ghttp.Response) {
 		fmt.Printf("Response: %v\n", r)
 	})
-	handler.SetData(*data, length)
+
 	a.Handlers = append(a.Handlers, handler)
+	w.Send()
+
 	return nil
 }
 
@@ -270,16 +275,15 @@ func (a *HttpAsker) Send(req *ghttp.Request, callback func(*ghttp.Response)) err
 
 	// 取得空的工作結構
 	w := a.getEmptyWork()
-	// 標註此工作之後須寫出
-	w.State = 2
 	// 標註此工作未指定寫出的連線物件，由空閒的連線物件來寫出
 	w.Index = -1
-	fmt.Printf("(a *HttpAsker) Send | work: %+v\n", w)
+	w.Body.AddRawData(req.FormRequest())
 
 	handler := newCallbackHandler(w.GetId(), callback)
-	data := req.FormRequest()
-	handler.SetData(data, int32(len(data)))
-	fmt.Printf("(a *HttpAsker) Send | handler: %+v\n", handler)
 	a.Handlers = append(a.Handlers, handler)
+	fmt.Printf("(a *HttpAsker) Send | handler: %+v\n", handler)
+
+	w.Send()
+	fmt.Printf("(a *HttpAsker) Send | work: %+v\n", w)
 	return nil
 }

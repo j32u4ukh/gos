@@ -149,7 +149,7 @@ func SendRequest(req *ghttp.Request, callback func(*ghttp.Response)) error {
 		p, query, ok := strings.Cut(remaind, "/")
 		fmt.Printf("SendRequest | ip: %s, port: %s\n", ip, p)
 		if ok {
-			req.Query = query
+			fmt.Printf("SendRequest | query: %s\n", query)
 		}
 		var asker ask.IAsker
 		var err error

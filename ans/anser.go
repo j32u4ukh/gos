@@ -378,7 +378,7 @@ func (a *Anser) relinkWork(destination *base.Work, done bool) *base.Work {
 }
 
 func (a *Anser) releaseConn() {
-	fmt.Printf("(a *Anser) releaseConn | 釋放連線資源 Conn(%d)", a.currConn.Index)
+	fmt.Printf("(a *Anser) releaseConn | 釋放連線資源 Conn(%d)\n", a.currConn.Index)
 	a.nConn -= 1
 
 	if a.preConn == nil {
