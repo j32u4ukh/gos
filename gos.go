@@ -145,21 +145,14 @@ func SendRequest(req *ghttp.Request, callback func(*ghttp.Response)) error {
 	if host, ok := req.Header["Host"]; ok {
 		fmt.Printf("SendRequest | host: %s\n", host[0])
 
-		ip, remaind, _ := strings.Cut(host[0], ":")
-		p, query, ok := strings.Cut(remaind, "/")
+		ip, p, _ := strings.Cut(host[0], ":")
 		fmt.Printf("SendRequest | ip: %s, port: %s\n", ip, p)
-		if ok {
-			fmt.Printf("SendRequest | query: %s\n", query)
-		}
+		fmt.Printf("SendRequest | query: %s\n", req.Query)
 		var asker ask.IAsker
 		var err error
 
-		if ok {
-			port, _ := strconv.Atoi(p)
-			asker, err = Bind(100, ip, port, define.Http)
-		} else {
-			asker, err = Bind(100, ip, 80, define.Http)
-		}
+		port, _ := strconv.Atoi(p)
+		asker, err = Bind(100, ip, port, define.Http)
 
 		if err != nil {
 			return errors.Wrapf(err, "Failed to bind to host: %s", host[0])

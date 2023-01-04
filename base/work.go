@@ -133,7 +133,7 @@ func CheckWorks(works *Work) {
 }
 
 func (w *Work) String() string {
-	descript := fmt.Sprintf("Work(id: %d, Index: %d, state: %d, requestTime: %+v, next: %+v)",
+	descript := fmt.Sprintf("Work(id: %d, Index: %d, State: %d, requestTime: %+v, next: %+v)",
 		w.id,
 		w.Index,
 		w.State,

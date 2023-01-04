@@ -7,6 +7,8 @@ import (
 	"gos/ask"
 	"gos/base/ghttp"
 	"gos/define"
+	"io/ioutil"
+	"net/http"
 	"os"
 	"time"
 )
@@ -89,6 +91,7 @@ func RunAns(port int) {
 }
 
 func RunAsk(ip string, port int) {
+	// demoNativeHttpRequest(ip, port)
 	asker, err := gos.Bind(0, ip, port, define.Http)
 
 	if err != nil {
@@ -128,4 +131,34 @@ func RunAsk(ip string, port int) {
 			time.Sleep(frameTime - during)
 		}
 	}
+}
+
+func demoNativeHttpRequest(ip string, port int) {
+	// client := &http.Client{}
+
+	// //這邊可以任意變換 http method  GET、POST、PUT、DELETE
+	// req, err := http.NewRequest("GET", fmt.Sprintf("%s:%d/abc/get", ip, port), nil)
+	// if err != nil {
+	// 	fmt.Println(err)
+	// 	return
+	// }
+	// // req.Header.Add("If-None-Match", `W/"wyzzy"`)
+	// res, err := client.Do(req)
+	// requestURL := fmt.Sprintf("http://localhost:%d/abc/get", port)
+
+	requestURL := fmt.Sprintf("http://127.0.0.1:%d/abc/get", port)
+
+	res, err := http.Get(requestURL)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer res.Body.Close()
+	sitemap, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		fmt.Printf("err: %+v\n", err)
+		return
+	}
+
+	fmt.Printf("%s\n", sitemap)
 }

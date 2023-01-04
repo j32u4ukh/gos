@@ -203,6 +203,7 @@ func NewRequest(method string, uri string, params map[string]string) (*Request, 
 	host, r.Query, ok = strings.Cut(uri, "/")
 	if ok {
 		r.Query = fmt.Sprintf("/%s", r.Query)
+		fmt.Printf("NewRequest | Query: %s\n", r.Query)
 	}
 	r.R2.Header["Host"] = []string{host}
 	return r, nil
@@ -317,26 +318,31 @@ func (r Request) FormRequest() []byte {
 
 	// Header
 	/*
-		Content-Type: application/json
-		User-Agent: PostmanRuntime/7.29.2
-		Accept:
-		Postman-Token: 6746eca0-5849-4c5f-a208-2d981c6100ff
-		Host: 192.168.0.198:3333
-		Accept-Encoding: gzip, deflate, br
-		Connection: keep-alive
-		Content-Length: 35
+				Content-Type: application/json
+				User-Agent: PostmanRuntime/7.29.2
+				Accept:
+				Postman-Token: 6746eca0-5849-4c5f-a208-2d981c6100ff
+				Host: 192.168.0.198:3333
+				Accept-Encoding: gzip, deflate, br
+				Connection: keep-alive
+				Content-Length: 35
 
-		{
-			"id":0,
-			"msg":"test"
-		}
+				{
+					"id":0,
+					"msg":"test"
+				}
+
+
+				key: User-Agent, value: Go-http-client/1.1
+		(a *HttpAnser) Read | Header, key: Accept-Encoding, value: gzip
 	*/
-	r.R2.Header["Content-Type"] = []string{"application/json"}
-	r.R2.Header["User-Agent"] = []string{"PostmanRuntime/7.29.2"}
-	r.R2.Header["Accept"] = []string{"*/*"}
-	r.R2.Header["Postman-Token"] = []string{"6746eca0-5849-4c5f-a208-2d981c6100ff"}
-	r.R2.Header["Accept-Encoding"] = []string{"gzip", "deflate", "br"}
-	r.R2.Header["Connection"] = []string{"keep-alive"}
+
+	// r.R2.Header["Content-Type"] = []string{"application/json"}
+	r.R2.Header["User-Agent"] = []string{"Go-http-client/1.1"}
+	// r.R2.Header["Accept"] = []string{"*/*"}
+	// r.R2.Header["Postman-Token"] = []string{"6746eca0-5849-4c5f-a208-2d981c6100ff"}
+	r.R2.Header["Accept-Encoding"] = []string{"gzip"}
+	// r.R2.Header["Connection"] = []string{"keep-alive"}
 
 	for k, v := range r.R2.Header {
 		buffer.WriteString(fmt.Sprintf("%s: %s\r\n", k, strings.Join(v, ", ")))

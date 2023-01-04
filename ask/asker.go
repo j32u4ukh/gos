@@ -189,6 +189,7 @@ func (a *Asker) Handler() {
 
 // 檢查是否有新的連線
 func (a *Asker) checkConnection() {
+	fmt.Printf("(a *Asker) checkConnection\n")
 	var connBuffer base.ConnBuffer
 	for {
 		select {
@@ -401,6 +402,7 @@ func (a *Asker) dealWork() {
 				fallthrough
 			case 2:
 				// 將工作接入待處理的區塊，下次回圈再行處理
+				fmt.Printf("(a *Asker) dealWork | yet work(%d)\n", a.currWork.GetId())
 				yet = a.relinkWork(yet, false)
 			}
 		default:
@@ -409,7 +411,7 @@ func (a *Asker) dealWork() {
 			finished = a.relinkWork(finished, true)
 		}
 	}
-
+	fmt.Println("(a *Asker) dealWork | End of dealWork loop.")
 	// a.works = yet -> finished -> a.works
 	if finished != nil {
 		finished.Add(a.works)
@@ -427,6 +429,7 @@ func (a *Asker) dealWork() {
 		a.works = yet
 		// fmt.Printf("(a *Asker) dealWork | a.works = yet -> a.works\n")
 	}
+	fmt.Println("(a *Asker) dealWork | End of dealWork.")
 }
 
 // 將處理後的 work 移到所屬分類的鏈式結構 destination 之下

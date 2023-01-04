@@ -15,8 +15,6 @@ import (
 type CallbackHandler struct {
 	// 對應工作結構的 id
 	WorkId int32
-	Data   []byte
-	Length int32
 	// 工作完成時的 Callback 函式
 	Callback func(*ghttp.Response)
 }
@@ -30,7 +28,7 @@ func newCallbackHandler(workId int32, callback func(*ghttp.Response)) *CallbackH
 }
 
 func (h *CallbackHandler) String() string {
-	return fmt.Sprintf("CallbackHandler(WorkId: %d, Length: %d)\nData: %+v", h.WorkId, h.Length, h.Data[:h.Length])
+	return fmt.Sprintf("CallbackHandler(WorkId: %d, Callback: %v)", h.WorkId, h.Callback != nil)
 }
 
 type HttpAsker struct {
