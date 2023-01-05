@@ -137,6 +137,7 @@ func (a *HttpAsker) Read() {
 
 			} else {
 				// 當前這行數據不包含":"，結束 Header 的讀取
+				fmt.Printf("(a *HttpAsker) Read | Empty line\n")
 
 				// Header 中包含 Content-Length，狀態值設為 2，等待讀取後續數據
 				if contentLength, ok := a.currR2.Header["Content-Length"]; ok {
@@ -149,27 +150,29 @@ func (a *HttpAsker) Read() {
 					}
 
 					a.currR2.ReadLength = int32(length)
+					fmt.Printf("(a *HttpAsker) Read | a.currR2.ReadLength: %d\n", a.currR2.ReadLength)
 					a.currR2.State = 2
 					fmt.Printf("(a *HttpAsker) Read | State: 1 -> 2\n")
 
 				} else {
 					// Header 中不包含 Content-Length，狀態值恢復為 0
 					a.currR2.State = 0
-					return
 				}
+				return
 			}
 		}
 	}
 
 	// 讀取 Body 數據
 	if a.currR2.State == 2 {
+		fmt.Printf("(a *HttpAsker) Read | State 2, a.currR2.ReadLength: %d\n", a.currR2.ReadLength)
 		if a.currConn.CheckReadable(a.currR2.HasEnoughData) {
 			// ==========
 			// 讀取 data
 			// ==========
 			// 將傳入的數據，加入工作緩存中
 			a.currConn.Read(&a.readBuffer, a.currR2.ReadLength)
-			fmt.Printf("(a *HttpAsker) Read | %s\n", string(a.readBuffer[:a.currR2.ReadLength]))
+			fmt.Printf("(a *HttpAsker) Read | State 2, data: %s\n", string(a.readBuffer[:a.currR2.ReadLength]))
 			a.currR2.BodyLength = a.currR2.ReadLength
 			copy(a.currR2.Body[:a.currR2.ReadLength], a.readBuffer[:a.currR2.ReadLength])
 

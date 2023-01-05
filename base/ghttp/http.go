@@ -143,7 +143,7 @@ func (rr *R2) HasLineData(buffer *[]byte, i int32, o int32, length int32) bool {
 }
 
 func (rr *R2) HasEnoughData(buffer *[]byte, i int32, o int32, length int32) bool {
-	// fmt.Printf("(rr *R2) HasEnoughData | length: %d, ReadLength: %d\n", length, rr.ReadLength)
+	fmt.Printf("(rr *R2) HasEnoughData | length: %d, ReadLength: %d\n", length, rr.ReadLength)
 	return length >= rr.ReadLength
 }
 
