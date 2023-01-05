@@ -31,10 +31,8 @@ func (s *Service) Run(args []string) {
 
 	if service_type == "ans" {
 		s.RunAns(port)
-
 	} else if service_type == "ask" {
 		s.RunAsk("127.0.0.1", port)
-
 	}
 
 	fmt.Println("[Example] Run | End of gos example.")

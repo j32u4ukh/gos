@@ -27,12 +27,25 @@ import (
 // - text/html; charset=utf-8
 // - application/json
 // Content-Length: WEB 服務器告訴瀏覽器自己響應的對象的長度。若有 Data 數據，需描述數據長度。
+//
+// User-Agent: 告訴網站它是透過什麼工具（通過UA分析出瀏覽器名稱、瀏覽器版本號、渲染引擎、操作系統）發送請求的
+// Mozilla/[version] ([system and browser information]) [platform] ([platform details]) [extensions]
+// Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_3) AppleWebKit/604.5.6 (KHTML, like Gecko) Version/11.0.3 Safari/604.5.6
+// 表示使用 Safari 瀏覽器，瀏覽器版本 11.0.3，網頁渲染引擎 WebKit 604.5.6，電腦操作系統 Mac OS。
+// Mozilla/5.0 是一個通用標記符號，用來表示與 Mozilla 相容，這幾乎是現代瀏覽器的標配。Gecko 排版引擎（頁面渲染引擎）
+
 type Header map[string][]string
 
 // A MIMEHeader represents a MIME-style header mapping keys to sets of values.
 type MIMEHeader map[string][]string
 
 type H map[string]any
+
+const (
+	MethodGet  = "GET"
+	MethodPost = "POST"
+	COLON      = ":"
+)
 
 var (
 	jsonContentType = []string{"application/json"}
@@ -42,6 +55,10 @@ var (
 // Request & Response
 // ====================================================================================================
 type R2 struct {
+	id    int32
+	Index int32
+	Next  *R2
+	//////////////////////////////////////////////////
 	// 0: 讀取第一行, 1: 讀取 Header, 2: 讀取 Data
 	State int8
 	*Request
@@ -52,17 +69,35 @@ type R2 struct {
 	ReadLength int32
 
 	// Body 數據
-	Body []byte
+	Body       []byte
+	BodyLength int32
 }
 
-func NewR2() *R2 {
+func NewR2(id int32) *R2 {
 	rr := &R2{
-		State:  0,
-		Header: map[string][]string{},
+		id:         id,
+		Index:      -1,
+		Next:       nil,
+		State:      0,
+		Header:     map[string][]string{},
+		Body:       make([]byte, 64*1024),
+		BodyLength: 0,
 	}
-	rr.Request = NewRequest(rr)
-	rr.Response = NewResponse(rr)
+	rr.Request = newRequest(rr)
+	rr.Response = newResponse(rr)
 	return rr
+}
+
+func (rr *R2) GetId() int32 {
+	return rr.id
+}
+
+func (rr *R2) Add(r2 *R2) {
+	r := rr
+	for r.Next != nil {
+		r = r.Next
+	}
+	r.Next = r2
 }
 
 func (rr *R2) HasLineData(buffer *[]byte, i int32, o int32, length int32) bool {
@@ -108,7 +143,7 @@ func (rr *R2) HasLineData(buffer *[]byte, i int32, o int32, length int32) bool {
 }
 
 func (rr *R2) HasEnoughData(buffer *[]byte, i int32, o int32, length int32) bool {
-	// fmt.Printf("(rr *R2) HasEnoughData | length: %d, ReadLength: %d\n", length, rr.ReadLength)
+	fmt.Printf("(rr *R2) HasEnoughData | length: %d, ReadLength: %d\n", length, rr.ReadLength)
 	return length >= rr.ReadLength
 }
 
@@ -120,7 +155,7 @@ func (rr *R2) SetHeader(key string, value string) {
 	}
 }
 
-// TODO: 生成 Response message
+// 生成 Response message
 func (rr *R2) FormResponse() []byte {
 	var buffer bytes.Buffer
 	// HTTP/1.1 200 OK\r\n
@@ -139,6 +174,10 @@ func (rr *R2) FormResponse() []byte {
 	return buffer.Bytes()
 }
 
+func (rr *R2) SetBodyLength() {
+	rr.Header["Content-Length"] = []string{strconv.Itoa(len(rr.Body))}
+}
+
 // ====================================================================================================
 // Request
 // ====================================================================================================
@@ -151,7 +190,36 @@ type Request struct {
 	Params map[string]string
 }
 
-func NewRequest(r2 *R2) *Request {
+func NewRequest(method string, uri string, params map[string]string) (*Request, error) {
+	r2 := NewR2(-1)
+	r := &Request{
+		R2:     r2,
+		Method: method,
+		Proto:  "HTTP/1.1",
+		Params: params,
+	}
+	var host string
+	var ok bool
+	host, r.Query, ok = strings.Cut(uri, "/")
+	if ok {
+		r.Query = fmt.Sprintf("/%s", r.Query)
+		fmt.Printf("NewRequest | Query: %s\n", r.Query)
+	}
+	r.R2.Header["Host"] = []string{host}
+	return r, nil
+}
+
+// func (a *HttpAsker) Get(uri string, params map[string]string, callback func(*ghttp.Response)) {
+// 	r2 := a.r2s[1]
+// 	r2.Request.Method = ghttp.MethodGet
+// 	if params != nil {
+// 		r2.Request.Params = params
+// 	}
+// 	r2.Host, r2.Request.Query, _ = strings.Cut(uri, "?")
+
+// }
+
+func newRequest(r2 *R2) *Request {
 	r := &Request{
 		R2:     r2,
 		Proto:  "HTTP/1.1",
@@ -241,6 +309,62 @@ func (r Request) GetParam(key string) (bool, string) {
 	return false, ""
 }
 
+func (r Request) FormRequest() []byte {
+	// Accept: */*
+
+	var buffer bytes.Buffer
+	// GET /end HTTP/1.1
+	buffer.WriteString(fmt.Sprintf("%s %s %s\r\n", r.Method, r.Query, r.Proto))
+
+	// Header
+	/*
+				Content-Type: application/json
+				User-Agent: PostmanRuntime/7.29.2
+				Accept:
+				Postman-Token: 6746eca0-5849-4c5f-a208-2d981c6100ff
+				Host: 192.168.0.198:3333
+				Accept-Encoding: gzip, deflate, br
+				Connection: keep-alive
+				Content-Length: 35
+
+				{
+					"id":0,
+					"msg":"test"
+				}
+
+
+				key: User-Agent, value: Go-http-client/1.1
+		(a *HttpAnser) Read | Header, key: Accept-Encoding, value: gzip
+	*/
+
+	// r.R2.Header["Content-Type"] = []string{"application/json"}
+	r.R2.Header["User-Agent"] = []string{"Go-http-client/1.1"}
+	// r.R2.Header["Accept"] = []string{"*/*"}
+	// r.R2.Header["Postman-Token"] = []string{"6746eca0-5849-4c5f-a208-2d981c6100ff"}
+	r.R2.Header["Accept-Encoding"] = []string{"gzip"}
+	// r.R2.Header["Connection"] = []string{"keep-alive"}
+
+	for k, v := range r.R2.Header {
+		buffer.WriteString(fmt.Sprintf("%s: %s\r\n", k, strings.Join(v, ", ")))
+	}
+
+	buffer.WriteString("\r\n")
+
+	if _, ok := r.R2.Header["Content-Length"]; ok {
+		buffer.WriteString("\r\n")
+		buffer.Write(r.R2.Body)
+	}
+	result := buffer.Bytes()
+	fmt.Printf("(r Request) FormRequest | result: %s\n", string(result))
+	return result
+}
+
+func (r *Request) Json(obj any) {
+	r.Header["Content-Type"] = jsonContentType
+	r.Body, _ = json.Marshal(obj)
+	r.SetBodyLength()
+}
+
 // ====================================================================================================
 // Response
 // ====================================================================================================
@@ -248,10 +372,9 @@ type Response struct {
 	*R2
 	Code    int32
 	Message string
-	body    []byte
 }
 
-func NewResponse(r2 *R2) *Response {
+func newResponse(r2 *R2) *Response {
 	r := &Response{
 		R2: r2,
 	}
@@ -273,11 +396,35 @@ func (r *Response) Json(code int32, obj any) {
 	}
 
 	r.R2.Header["Content-Type"] = jsonContentType
-	r.body, _ = json.Marshal(obj)
-	r.SetBody(r.body)
+	r.Body, _ = json.Marshal(obj)
+	r.SetBodyLength()
 }
 
-func (r *Response) SetBody(body []byte) {
-	r.R2.Header["Content-Length"] = []string{strconv.Itoa(len(body))}
-	r.R2.Body = body
+// 解析第一行數據
+// parseRequestLine parses "HTTP/1.1 200 OK" into its three parts.
+func (r *Response) ParseFirstLine(line string) bool {
+	var ok bool
+	r.Proto, r.Message, ok = strings.Cut(line, " ")
+
+	if !ok {
+		return false
+	}
+
+	var codeString string
+	codeString, r.Message, ok = strings.Cut(r.Message, " ")
+
+	if !ok {
+		r.Message = codeString
+		return false
+	}
+
+	code, err := strconv.Atoi(codeString)
+
+	if err != nil {
+		return false
+	}
+
+	r.Code = int32(code)
+	fmt.Printf("(r *Response) ParseFirstLine | Proto: %s, Code: %d, Message: %s\n", r.Proto, r.Code, r.Message)
+	return true
 }

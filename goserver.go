@@ -30,7 +30,7 @@ func newGoserver() *goserver {
 func (g *goserver) listen(socketType define.SocketType, port int32) (ans.IAnswer, error) {
 	if _, ok := g.anserMap[port]; !ok {
 		laddr, _ := net.ResolveTCPAddr("tcp", fmt.Sprintf(":%d", port))
-		anser, err := ans.NewAnser(socketType, laddr, 10000, 10)
+		anser, err := ans.NewAnser(socketType, laddr, 100, 10)
 
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to create an Anser for port %d.", port)

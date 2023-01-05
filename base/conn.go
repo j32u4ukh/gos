@@ -1,12 +1,20 @@
 package base
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"gos/define"
 	"net"
 
 	"github.com/pkg/errors"
+)
+
+type ConnMode byte
+
+const (
+	CLOSE     ConnMode = 0
+	KEEPALIVE ConnMode = 1
 )
 
 type Conn struct {
@@ -22,6 +30,8 @@ type Conn struct {
 	NetConn net.Conn
 	// 連線狀態
 	State define.ConnectState
+	// 連線模式(當 client 和 server 通信時對於長鏈接如何進行處理。)
+	Mode ConnMode
 	// 下一個連線結構的指標
 	Next   *Conn
 	stopCh chan bool
@@ -110,9 +120,17 @@ func NewConn(id int32, size int32) *Conn {
 	return c
 }
 
-// 取得連線編號
+// 取得連線物件編號
 func (c *Conn) GetId() int32 {
 	return c.id
+}
+
+func (c *Conn) Add(conn *Conn) {
+	curr := c
+	for curr.Next != nil {
+		curr = curr.Next
+	}
+	curr.Next = conn
 }
 
 // 連線前準備(雖然連線物件 netConn 會在每次重連線後更新，但 *Conn 為同一個，因此有些前一次連線產生的變數需要被重置)
@@ -284,6 +302,19 @@ func (c *Conn) Write() (int32, error) {
 	return c.nCumWrite, nil
 }
 
+func (c *Conn) Reconnect() {
+	fmt.Printf("(c *Conn) Reconnect | cid: %d\n", c.id)
+
+	// 停止原本的 goroutine
+	c.stopCh <- true
+
+	// 關閉當前連線
+	c.NetConn.Close()
+
+	// 清空連線物件
+	c.NetConn = nil
+}
+
 func (c *Conn) Release() {
 	// 重置 Index
 	c.Index = -1
@@ -303,4 +334,18 @@ func (c *Conn) Release() {
 	// 重置讀取用索引值
 	c.readInput = 0
 	c.readOutput = 0
+}
+
+func (c *Conn) String() string {
+	var b bytes.Buffer
+	b.WriteString(fmt.Sprintf("Conn(id: %d, Index: %d, ", c.id, c.Index))
+	b.WriteString(fmt.Sprintf("NetConn: %+v, State: %s, Next: %+v, ", c.NetConn, c.State, c.Next))
+	b.WriteString(fmt.Sprintf("readInput: %d, readOutput: %d, ReadableLength: %d", c.readInput, c.readOutput, c.ReadableLength))
+	b.WriteString(fmt.Sprintf("writeInput: %d, writeOutput: %d)", c.writeInput, c.writeOutput))
+	return b.String()
+}
+
+type ConnBuffer struct {
+	net.Conn
+	Index int32
 }

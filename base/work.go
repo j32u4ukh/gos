@@ -22,6 +22,7 @@ type Work struct {
 	// ==================================================
 	// 工作內容
 	// ==================================================
+
 	// 工作狀態 -1: 空閒; 0: 完成; 1: 尚未完成; 2: 需寫出數據
 	State int32
 	// 數據緩衝
@@ -36,7 +37,7 @@ type Work struct {
 func NewWork(id int32) *Work {
 	c := &Work{
 		id:          id,
-		Index:       -1,
+		Index:       -2,
 		RequestTime: time.Now().UTC(),
 		Next:        nil,
 		Data:        make([]byte, define.BUFFER_SIZE*define.MTU),
@@ -47,15 +48,8 @@ func NewWork(id int32) *Work {
 	return c
 }
 
-func (w *Work) String() string {
-	descript := fmt.Sprintf("Work(id: %d, Index: %d, state: %d, requestTime: %+v, next: %+v)",
-		w.id,
-		w.Index,
-		w.State,
-		w.RequestTime,
-		w.Next != nil,
-	)
-	return descript
+func (w *Work) GetId() int32 {
+	return w.id
 }
 
 func (w *Work) Add(work *Work) {
@@ -121,7 +115,7 @@ func (w *Work) Finish() {
 }
 
 func (w *Work) Release() {
-	w.Index = -1
+	w.Index = -2
 	w.Next = nil
 	w.Length = 0
 	w.State = -1
@@ -136,4 +130,15 @@ func CheckWorks(works *Work) {
 		work = work.Next
 	}
 	fmt.Println()
+}
+
+func (w *Work) String() string {
+	descript := fmt.Sprintf("Work(id: %d, Index: %d, State: %d, requestTime: %+v, next: %+v)",
+		w.id,
+		w.Index,
+		w.State,
+		w.RequestTime,
+		w.Next != nil,
+	)
+	return descript
 }
