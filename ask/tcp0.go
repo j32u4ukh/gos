@@ -50,14 +50,6 @@ func (a *Tcp0Asker) Connect() error {
 	return a.Asker.Connect(-1)
 }
 
-// func (a *Tcp0Asker) Handler() {
-// 	a.Asker.Handler()
-// }
-
-// func (a *Tcp0Asker) GetAddress() (string, int32) {
-// 	return a.Asker.GetAddress()
-// }
-
 func (a *Tcp0Asker) Read() {
 	a.currTcp0 = a.tcp0s[a.currConn.GetId()]
 
@@ -104,6 +96,7 @@ func (a *Tcp0Asker) writeFunc(id int32, data *[]byte, length int32) error {
 
 func (a *Tcp0Asker) Write(data *[]byte, length int32) error {
 	a.conns.SetWriteBuffer(data, length)
+	a.currWork.State = 0
 	return nil
 }
 
