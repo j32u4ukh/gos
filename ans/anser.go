@@ -165,17 +165,7 @@ func (a *Anser) register(netConn net.Conn) {
 func (a *Anser) Handler() {
 	var packet *base.Packet
 	var err error
-	var netConn net.Conn
-	registerConn := true
-
-	for registerConn {
-		select {
-		case netConn = <-a.connBuffer:
-			a.register(netConn)
-		default:
-			registerConn = false
-		}
-	}
+	a.checkConnection()
 
 	a.preConn = nil
 	a.currConn = a.conns
@@ -242,6 +232,30 @@ func (a *Anser) Handler() {
 
 	// 根據 work.state 分別做不同處理，並重新整理工作結構的鏈結關係
 	a.dealWork()
+}
+
+func (a *Anser) checkConnection() {
+	var netConn net.Conn
+	for {
+		select {
+		case netConn = <-a.connBuffer:
+			fmt.Printf("(a *Anser) checkConnection | Conn(%d)\n", a.index)
+			a.emptyConn.Index = a.index
+			a.emptyConn.NetConn = netConn
+			a.emptyConn.State = define.Connected
+			go a.emptyConn.Handler()
+
+			// 更新空連線指標位置
+			a.emptyConn = a.emptyConn.Next
+
+			// 更新連線數與連線物件的索引值
+			// TODO: a.nConnect == a.maxConnect, 檢查有沒有可以踢掉的連線
+			a.nConn += 1
+			a.index += 1
+		default:
+			return
+		}
+	}
 }
 
 // 尋找空閒的工作結構
