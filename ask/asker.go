@@ -225,7 +225,6 @@ func (a *Asker) connectedHandler() {
 	select {
 	// 封包事件
 	case packet = <-a.currConn.ReadCh:
-		fmt.Printf("(a *Asker) connectedHandler | Conn %d 封包事件\n", a.currConn.GetId())
 
 		// 封包讀取發生異常
 		if packet.Error != nil {
@@ -239,6 +238,7 @@ func (a *Asker) connectedHandler() {
 			default:
 				fmt.Printf("(a *Asker) connectedHandler | Conn %d 讀取 socket 時發生錯誤\nError: %+v\n", a.currConn.GetId(), packet.Error)
 			}
+
 			// 若需要維持連線
 			if a.currConn.Mode == base.KEEPALIVE {
 				// 重新連線
@@ -255,7 +255,6 @@ func (a *Asker) connectedHandler() {
 
 		// 將封包數據寫入 readBuffer
 		a.currConn.SetReadBuffer(packet)
-		fmt.Printf("(a *Asker) connectedHandler | packet.Data: %s\n", base.SliceString(packet.Data[:packet.Length]))
 
 		// 延後下次發送心跳包的時間
 		a.heartbeatTime = time.Now().Add(5000 * time.Millisecond)
@@ -478,18 +477,6 @@ func (a *Asker) getConn(id int32) *base.Conn {
 	}
 	return nil
 }
-
-// // 有連線中且有空的 Conn 優先
-// func (a *Asker) getAvalidableConn(id int32) *base.Conn {
-// 	var idx, score int32 = 0, 0
-// 	a.currConn = a.conns
-// 	for a.currConn != nil{
-// 		if a.currConn.State == define.Connected || a.currConn.State == define.Connecting || a.currConn.State == define.Reconnect{
-
-// 		}
-// 	}
-// 	return nil
-// }
 
 // 斷線處理
 func (a *Asker) disconnectHandler() {

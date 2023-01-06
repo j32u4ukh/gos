@@ -331,6 +331,9 @@ func (c *Conn) Release() {
 	// 狀態設置為未使用
 	c.State = define.Unused
 
+	// 釋放子節點
+	c.Next = nil
+
 	// 重置讀取用索引值
 	c.readInput = 0
 	c.readOutput = 0

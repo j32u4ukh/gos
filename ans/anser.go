@@ -80,7 +80,7 @@ type Anser struct {
 	workHandler func(*base.Work)
 
 	// 數據讀取函式(由各 SocketType 實作)
-	read func() bool
+	readFunc func() bool
 }
 
 func newAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (*Anser, error) {
@@ -143,97 +143,39 @@ func (a *Anser) Listen() {
 	}
 }
 
-// 註冊連線
-// TODO: 以 MAP 管理，相同客戶端斷線重連可以使用同一 Conn 物件，將未讀完或未寫完的數據繼續寫出
-func (a *Anser) register(netConn net.Conn) {
-	fmt.Printf("(a *Anser) register | Conn(%d)\n", a.index)
-	a.emptyConn.Index = a.index
-	a.emptyConn.NetConn = netConn
-	a.emptyConn.State = define.Connected
-	go a.emptyConn.Handler()
-
-	// 更新空連線指標位置
-	a.emptyConn = a.emptyConn.Next
-
-	// 更新連線數與連線物件的索引值
-	// TODO: a.nConnect == a.maxConnect, 檢查有沒有可以踢掉的連線
-	a.nConn += 1
-	a.index += 1
-}
-
 // 持續檢查是否有未完成的工作，若有，則呼叫外部定義的 workHandler 函式
 func (a *Anser) Handler() {
-	var packet *base.Packet
-	var err error
+
+	// 檢查是否有新的連線
 	a.checkConnection()
 
 	a.preConn = nil
 	a.currConn = a.conns
 	a.currWork = a.getEmptyWork()
 
+	// 依序檢查有被使用的連線物件(State 不是 Unused)
+	// 未使用 Unused, 嘗試連線中 Connecting, 連線中 Connected, 超時斷線 Timeout, 斷線 Disconnected, 重新連線中 Reconnect
 	for a.currConn != nil && a.currConn.State != define.Unused {
-		// TODO: 處理主動斷線
-		select {
-		// 封包事件
-		case packet = <-a.currConn.ReadCh:
+		switch a.currConn.State {
 
-			if packet.Error != nil {
-				switch eType := packet.Error.(type) {
-				case net.Error:
-					if eType.Timeout() {
-						fmt.Printf("(a *Anser) Handler | Conn %d 發生 timeout error.\n", a.currConn.Index)
-					} else {
-						fmt.Printf("(a *Anser) Handler | Conn %d 發生 net.Error.\n", a.currConn.Index)
-					}
-				default:
-					fmt.Printf("(a *Anser) Handler | Conn %d 讀取 socket 時發生錯誤\nError: %+v\n", a.currConn.Index, packet.Error)
-				}
+		// 連線中
+		case define.Connected:
+			a.connectedHandler()
 
-				// 結束連線
-				a.releaseConn()
-				continue
-			}
-
-			// 將封包數據寫入 readBuffer
-			a.currConn.SetReadBuffer(packet)
-
-			// 更新斷線時間(NOTE: 若斷線時間與客戶端睡眠時間相同，會變成讀取錯誤，而非 timeout 錯誤，造成誤判)
-			err = a.currConn.NetConn.SetReadDeadline(time.Now().Add(5000 * time.Millisecond))
-
-			if err != nil {
-				fmt.Printf("(a *Anser) handler | DeadlineError: %+v\n", err)
-
-				// 結束連線
-				a.releaseConn()
-				continue
-			}
-
-		// 從緩存中讀取數據
+		// Connecting, Disconnected, Timeout
 		default:
-			// a.read 根據補不同 SocketType，有不同的讀取數據函式實作
-			a.read()
-
-			// 數據寫出，未因 SocketType 不同而有不同
-			_, err = a.currConn.Write()
-
-			if err != nil {
-				fmt.Printf("(a *Anser) handler | Failed to write: %+v\n", err)
-
-				// 結束連線
-				a.releaseConn()
-				continue
-			}
-
-			// 指標指向下一個連線物件
-			a.preConn = a.currConn
 			a.currConn = a.currConn.Next
 		}
 	}
+
+	// 斷線處理: 釋放標註為 define.Disconnect 的連線物件，並確保有被使用的連線物件排在前面，而非有無使用的連線物件交錯排列
+	a.disconnectHandler()
 
 	// 根據 work.state 分別做不同處理，並重新整理工作結構的鏈結關係
 	a.dealWork()
 }
 
+// 檢查是否有新的連線
 func (a *Anser) checkConnection() {
 	var netConn net.Conn
 	for {
@@ -254,6 +196,146 @@ func (a *Anser) checkConnection() {
 			a.index += 1
 		default:
 			return
+		}
+	}
+}
+
+// 連線處理
+func (a *Anser) connectedHandler() {
+	var packet *base.Packet
+	var err error
+
+	// TODO: 處理主動斷線
+	select {
+	// 封包事件
+	case packet = <-a.currConn.ReadCh:
+
+		// 封包讀取發生異常
+		if packet.Error != nil {
+			switch eType := packet.Error.(type) {
+			case net.Error:
+				if eType.Timeout() {
+					fmt.Printf("(a *Anser) Handler | Conn %d 發生 timeout error.\n", a.currConn.Index)
+				} else {
+					fmt.Printf("(a *Anser) Handler | Conn %d 發生 net.Error.\n", a.currConn.Index)
+				}
+			default:
+				fmt.Printf("(a *Anser) Handler | Conn %d 讀取 socket 時發生錯誤\nError: %+v\n", a.currConn.Index, packet.Error)
+			}
+
+			// 連線狀態設為結束
+			a.currConn.State = define.Disconnect
+
+			// 指標指向下一個連線物件
+			a.preConn = a.currConn
+			a.currConn = a.currConn.Next
+			return
+		}
+
+		// 將封包數據寫入 readBuffer
+		a.currConn.SetReadBuffer(packet)
+
+		// 更新斷線時間(NOTE: 若斷線時間與客戶端睡眠時間相同，會變成讀取錯誤，而非 timeout 錯誤，造成誤判)
+		err = a.currConn.NetConn.SetReadDeadline(time.Now().Add(5000 * time.Millisecond))
+
+		if err != nil {
+			fmt.Printf("(a *Anser) handler | DeadlineError: %+v\n", err)
+
+			// 連線狀態設為結束
+			a.currConn.State = define.Disconnect
+
+			// 指標指向下一個連線物件
+			a.preConn = a.currConn
+			a.currConn = a.currConn.Next
+			return
+		}
+
+	// 從緩存中讀取數據
+	default:
+		// a.read 根據補不同 SocketType，有不同的讀取數據函式實作
+		a.readFunc()
+
+		// 數據寫出，未因 SocketType 不同而有不同
+		_, err = a.currConn.Write()
+
+		if err != nil {
+			fmt.Printf("(a *Anser) handler | Failed to write: %+v\n", err)
+
+			// 連線狀態設為結束
+			a.currConn.State = define.Disconnect
+
+			// 指標指向下一個連線物件
+			a.preConn = a.currConn
+			a.currConn = a.currConn.Next
+			return
+		}
+
+		// 指標指向下一個連線物件
+		a.preConn = a.currConn
+		a.currConn = a.currConn.Next
+	}
+}
+
+// 斷線處理
+func (a *Anser) disconnectHandler() {
+	a.preConn = nil
+	a.currConn = a.conns
+	hasDisconnect := false
+
+	for a.currConn != nil {
+		////////////////////////////////////////////////////////////////////////////////////////////////////
+		////////////////////////////////////////////////////////////////////////////////////////////////////
+		//           TODO: 此處的處理有誤，造成 ListNode 頭尾相連，變成一個環，因此此處迴圈無法結束            //
+		////////////////////////////////////////////////////////////////////////////////////////////////////
+		////////////////////////////////////////////////////////////////////////////////////////////////////
+		if a.currConn.State == define.Disconnect {
+			fmt.Printf("(a *Asker) disconnectHandler | cid: %d\n", a.currConn.GetId())
+			hasDisconnect = true
+			a.nConn -= 1
+
+			if a.preConn == nil {
+				// 更新連線物件起始位置
+				a.conns = a.currConn.Next
+
+				// 釋放連線物件
+				a.currConn.Release()
+
+				// 將釋放後的 Conn 移到最後
+				a.lastConn.Next = a.currConn
+
+				// 更新指向最後一個連線物件的位置
+				a.lastConn = a.currConn
+
+				// 更新下次檢查的指標位置
+				a.currConn = a.conns
+			} else {
+				// 更新鏈式指標所指向的對象
+				a.preConn.Next = a.currConn.Next
+
+				// 釋放連線物件
+				a.currConn.Release()
+
+				// 將釋放後的 Conn 移到最後
+				a.lastConn.Next = a.currConn
+
+				// 更新指向最後一個連線物件的位置
+				a.lastConn = a.currConn
+
+				// 更新下次檢查的指標位置
+				a.currConn = a.preConn.Next
+			}
+
+		} else {
+			a.preConn = a.currConn
+			a.currConn = a.currConn.Next
+		}
+
+		if hasDisconnect && a.currConn != nil {
+			fmt.Printf("(a *Asker) disconnectHandler | currConn cid: %d\n", a.currConn.GetId())
+
+			if a.currConn.Next != nil {
+				fmt.Printf("(a *Asker) disconnectHandler | currConn.Next cid: %d\n", a.currConn.Next.GetId())
+			}
 		}
 	}
 }
@@ -344,13 +426,7 @@ func (a *Anser) Write(cid int32, data *[]byte, length int32) error {
 	}
 
 	c.SetWriteBuffer(data, length)
-
-	// if err != nil {
-	// 	a.currConn = c
-	// 	a.releaseConn()
-	// 	return errors.Wrapf(err, "Failed to write to port: %d, conn(%d)", a.laddr.Port, cid)
-	// }
-
+	// a.currWork.State = 0
 	return nil
 }
 
@@ -391,39 +467,39 @@ func (a *Anser) relinkWork(destination *base.Work, done bool) *base.Work {
 	return destination
 }
 
-func (a *Anser) releaseConn() {
-	fmt.Printf("(a *Anser) releaseConn | 釋放連線資源 Conn(%d)\n", a.currConn.Index)
-	a.nConn -= 1
+// func (a *Anser) releaseConn() {
+// 	fmt.Printf("(a *Anser) releaseConn | 釋放連線資源 Conn(%d)\n", a.currConn.Index)
+// 	a.nConn -= 1
 
-	if a.preConn == nil {
-		// 更新連線物件起始位置
-		a.conns = a.currConn.Next
+// 	if a.preConn == nil {
+// 		// 更新連線物件起始位置
+// 		a.conns = a.currConn.Next
 
-		// 釋放連線物件
-		a.currConn.Release()
+// 		// 釋放連線物件
+// 		a.currConn.Release()
 
-		// 將釋放後的 Conn 移到最後
-		a.lastConn.Next = a.currConn
+// 		// 將釋放後的 Conn 移到最後
+// 		a.lastConn.Next = a.currConn
 
-		// 更新指向最後一個連線物件的位置
-		a.lastConn = a.currConn
+// 		// 更新指向最後一個連線物件的位置
+// 		a.lastConn = a.currConn
 
-		// 更新下次檢查的指標位置
-		a.currConn = a.conns
-	} else {
-		// 更新鏈式指標所指向的對象
-		a.preConn.Next = a.currConn.Next
+// 		// 更新下次檢查的指標位置
+// 		a.currConn = a.conns
+// 	} else {
+// 		// 更新鏈式指標所指向的對象
+// 		a.preConn.Next = a.currConn.Next
 
-		// 釋放連線物件
-		a.currConn.Release()
+// 		// 釋放連線物件
+// 		a.currConn.Release()
 
-		// 將釋放後的 Conn 移到最後
-		a.lastConn.Next = a.currConn
+// 		// 將釋放後的 Conn 移到最後
+// 		a.lastConn.Next = a.currConn
 
-		// 更新指向最後一個連線物件的位置
-		a.lastConn = a.currConn
+// 		// 更新指向最後一個連線物件的位置
+// 		a.lastConn = a.currConn
 
-		// 更新下次檢查的指標位置
-		a.currConn = a.currConn.Next
-	}
-}
+// 		// 更新下次檢查的指標位置
+// 		a.currConn = a.currConn.Next
+// 	}
+// }

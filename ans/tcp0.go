@@ -31,7 +31,7 @@ func NewTcp0Anser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, err
 	}
 
 	// 設置數據讀取函式
-	a.Anser.read = a.Read
+	a.Anser.readFunc = a.Read
 
 	var i int32
 
@@ -46,10 +46,6 @@ func NewTcp0Anser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, err
 func (a *Tcp0Anser) Listen() {
 	a.Anser.Listen()
 }
-
-// func (a *Tcp0Anser) Handler() {
-// 	a.Anser.Handler()
-// }
 
 func (a *Tcp0Anser) Read() bool {
 	a.currTcp0 = a.tcp0s[a.currConn.GetId()]

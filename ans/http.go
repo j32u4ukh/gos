@@ -71,7 +71,7 @@ func NewHttpAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, err
 	// HttpAnser 自定義函式
 	//////////////////////////////////////////////////
 	// 設置數據讀取函式
-	a.Anser.read = a.Read
+	a.Anser.readFunc = a.Read
 
 	return a, nil
 }
