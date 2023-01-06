@@ -280,7 +280,7 @@ func (a *Anser) connectedHandler() {
 func (a *Anser) disconnectHandler() {
 	a.preConn = nil
 	a.currConn = a.conns
-	hasDisconnect := false
+	// hasDisconnect := false
 
 	for a.currConn != nil {
 		////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -289,8 +289,8 @@ func (a *Anser) disconnectHandler() {
 		////////////////////////////////////////////////////////////////////////////////////////////////////
 		////////////////////////////////////////////////////////////////////////////////////////////////////
 		if a.currConn.State == define.Disconnect {
-			fmt.Printf("(a *Asker) disconnectHandler | cid: %d\n", a.currConn.GetId())
-			hasDisconnect = true
+			fmt.Printf("(a *Anser) disconnectHandler | cid: %d\n", a.currConn.GetId())
+			// hasDisconnect = true
 			a.nConn -= 1
 
 			if a.preConn == nil {
@@ -330,13 +330,13 @@ func (a *Anser) disconnectHandler() {
 			a.currConn = a.currConn.Next
 		}
 
-		if hasDisconnect && a.currConn != nil {
-			fmt.Printf("(a *Asker) disconnectHandler | currConn cid: %d\n", a.currConn.GetId())
+		// if hasDisconnect && a.currConn != nil {
+		// 	fmt.Printf("(a *Anser) disconnectHandler | currConn cid: %d\n", a.currConn.GetId())
 
-			if a.currConn.Next != nil {
-				fmt.Printf("(a *Asker) disconnectHandler | currConn.Next cid: %d\n", a.currConn.Next.GetId())
-			}
-		}
+		// 	if a.currConn.Next != nil {
+		// 		fmt.Printf("(a *Anser) disconnectHandler | currConn.Next cid: %d\n", a.currConn.Next.GetId())
+		// 	}
+		// }
 	}
 }
 

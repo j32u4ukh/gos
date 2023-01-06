@@ -334,6 +334,9 @@ func (a *Asker) timeoutHandler() {
 func (a *Asker) reconnectHandler() {
 	fmt.Printf("(a *Asker) reconnectHandler | Conn %d\n", a.currConn.GetId())
 
+	a.currWork = a.works
+	base.CheckWorks(a.currWork)
+
 	// 嘗試連線中
 	a.currConn.State = define.Connecting
 
@@ -516,7 +519,7 @@ func (a *Asker) disconnectHandler() {
 				a.lastConn = a.currConn
 
 				// 更新下次檢查的指標位置
-				a.currConn = a.currConn.Next
+				a.currConn = a.preConn.Next
 			}
 		} else {
 			a.preConn = a.currConn
