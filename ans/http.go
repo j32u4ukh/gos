@@ -158,7 +158,7 @@ func (a *HttpAnser) Read() bool {
 
 				} else {
 					// 考慮分包問題，收到完整一包數據傳完才傳到應用層
-					a.currWork.Index = a.currConn.Index
+					a.currWork.Index = a.currConn.GetId()
 					a.currWork.RequestTime = time.Now().UTC()
 					a.currWork.State = 1
 					a.currWork.Body.ResetIndex()
