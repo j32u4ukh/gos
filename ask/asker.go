@@ -194,7 +194,7 @@ func (a *Asker) checkConnection() {
 	for {
 		select {
 		case connBuffer = <-a.connBuffer:
-			fmt.Printf("(a *Asker) checkConnection | connBuffer: %+v\n", connBuffer)
+			// fmt.Printf("(a *Asker) checkConnection | connBuffer: %+v\n", connBuffer)
 
 			// TODO: 檢查是否有空閒的連線物件可以使用
 			a.emptyConn = a.getConn(connBuffer.Index)
@@ -208,7 +208,7 @@ func (a *Asker) checkConnection() {
 			}
 			a.emptyConn.NetConn = connBuffer.Conn
 			a.emptyConn.State = define.Connected
-			fmt.Printf("(a *Asker) checkConnection | Conn(%d), State: %s\n", a.emptyConn.GetId(), a.emptyConn.State)
+			// fmt.Printf("(a *Asker) checkConnection | Conn(%d), State: %s\n", a.emptyConn.GetId(), a.emptyConn.State)
 			go a.emptyConn.Handler()
 		default:
 			return
@@ -334,9 +334,6 @@ func (a *Asker) timeoutHandler() {
 func (a *Asker) reconnectHandler() {
 	fmt.Printf("(a *Asker) reconnectHandler | Conn %d\n", a.currConn.GetId())
 
-	a.currWork = a.works
-	base.CheckWorks(a.currWork)
-
 	// 嘗試連線中
 	a.currConn.State = define.Connecting
 
@@ -366,7 +363,7 @@ func (a *Asker) dealWork() {
 	var finished, yet *base.Work = nil, nil
 
 	for a.currWork.State != -1 {
-		fmt.Printf("(a *Asker) dealWork | work.Index: %d, state: %d\n", a.currWork.Index, a.currWork.State)
+		// fmt.Printf("(a *Asker) dealWork | work: %+v\n", a.currWork)
 
 		switch a.currWork.State {
 		// 工作已完成
@@ -404,7 +401,7 @@ func (a *Asker) dealWork() {
 				fallthrough
 			case 2:
 				// 將工作接入待處理的區塊，下次回圈再行處理
-				fmt.Printf("(a *Asker) dealWork | yet work(%d)\n", a.currWork.GetId())
+				// fmt.Printf("(a *Asker) dealWork | yet work(%d)\n", a.currWork.GetId())
 				yet = a.relinkWork(yet, false)
 			}
 		default:
@@ -471,7 +468,7 @@ func (a *Asker) getConn(id int32) *base.Conn {
 		}
 	} else {
 		for c != nil {
-			fmt.Printf("(a *Asker) getConn | GetId: %d\n", c.GetId())
+			// fmt.Printf("(a *Asker) getConn | GetId: %d\n", c.GetId())
 			if c.GetId() == id {
 				return c
 			}

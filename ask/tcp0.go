@@ -91,12 +91,12 @@ func (a *Tcp0Asker) Read() {
 
 func (a *Tcp0Asker) writeFunc(id int32, data *[]byte, length int32) error {
 	a.Write(data, length)
+	a.currWork.State = 0
 	return nil
 }
 
 func (a *Tcp0Asker) Write(data *[]byte, length int32) error {
 	a.conns.SetWriteBuffer(data, length)
-	a.currWork.State = 0
 	return nil
 }
 

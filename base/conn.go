@@ -17,6 +17,11 @@ const (
 	KEEPALIVE ConnMode = 1
 )
 
+type ConnBuffer struct {
+	net.Conn
+	Index int32
+}
+
 type Conn struct {
 	// 連線物件編號
 	id int32
@@ -133,21 +138,8 @@ func (c *Conn) Add(conn *Conn) {
 	curr.Next = conn
 }
 
-// 連線前準備(雖然連線物件 netConn 會在每次重連線後更新，但 *Conn 為同一個，因此有些前一次連線產生的變數需要被重置)
-func (c *Conn) PrepareBeforeConnect() {
-	// 確保 stopCh 為空
-	select {
-	case <-c.stopCh:
-	default:
-	}
-
-	c.nRead = 0
-	c.readErr = nil
-	c.writeErr = nil
-}
-
 func (c *Conn) Handler() {
-	// fmt.Printf("(c *Conn) handler\n")
+	// fmt.Printf("(c *Conn) handler, c.readErr: %+v\n", c.readErr)
 
 	for c.readErr == nil {
 		select {
@@ -156,7 +148,7 @@ func (c *Conn) Handler() {
 			return
 
 		default:
-			// fmt.Printf("(c *Conn) handler | readIdx: %d, netConn: %v\n", c.readIdx, c.netConn != nil)
+			// fmt.Printf("(c *Conn) handler | readIdx: %d, netConn: %v\n", c.readIdx, c.NetConn != nil)
 
 			// 每次讀取至多長度為 MTU 的數據(Read 為阻塞型函式)
 			c.nRead, c.readErr = c.NetConn.Read(c.readPackets[c.readIdx].Data)
@@ -165,7 +157,7 @@ func (c *Conn) Handler() {
 			if c.readErr != nil {
 				c.readPackets[c.readIdx].Error = c.readErr
 				c.readPackets[c.readIdx].Length = 0
-				fmt.Printf("(c *Conn) handler | Read Error: %+v\n", c.readErr)
+				// fmt.Printf("(c *Conn) handler | Read Error: %+v\n", c.readErr)
 
 			} else {
 				c.readPackets[c.readIdx].Error = nil
@@ -185,7 +177,7 @@ func (c *Conn) Handler() {
 
 // 讀取封包數據，並寫入 readBuffer
 func (c *Conn) SetReadBuffer(packet *Packet) {
-	// fmt.Printf("(c *Conn) setReadBuffer | before readOutput: %d, readInput: %d, readableLength: %d\n", c.readOutput, c.readInput, c.readableLength)
+	// fmt.Printf("(c *Conn) setReadBuffer | before readOutput: %d, readInput: %d, readableLength: %d\n", c.readOutput, c.readInput, c.ReadableLength)
 
 	// 更新可讀數據長度
 	c.ReadableLength += packet.Length
@@ -210,7 +202,7 @@ func (c *Conn) SetReadBuffer(packet *Packet) {
 		copy(c.readBuffer[:c.readInput], packet.Data[idx:])
 	}
 
-	// fmt.Printf("(c *Conn) setReadBuffer | after readOutput: %d, readInput: %d, readableLength: %d\n", c.readOutput, c.readInput, c.readableLength)
+	// fmt.Printf("(c *Conn) setReadBuffer | after readOutput: %d, readInput: %d, readableLength: %d\n", c.readOutput, c.readInput, c.ReadableLength)
 }
 
 // 從 readBuffer 讀取指定長度的數據
@@ -264,7 +256,7 @@ func (c *Conn) SetWriteBuffer(data *[]byte, length int32) {
 }
 
 func (c *Conn) Write() (int32, error) {
-	// fmt.Printf("(c *Conn) write | netConn: %v, writeInput: %d, writeOutput: %d\n", c.netConn != nil, c.writeInput, c.writeOutput)
+	// fmt.Printf("(c *Conn) write | netConn: %v, writeInput: %d, writeOutput: %d\n", c.NetConn != nil, c.writeInput, c.writeOutput)
 	c.nCumWrite = 0
 
 	for c.NetConn != nil && c.writeInput != c.writeOutput {
@@ -302,17 +294,19 @@ func (c *Conn) Write() (int32, error) {
 	return c.nCumWrite, nil
 }
 
+// 當有需要重新連線的情況下，首先就會發生 Socket 讀取異常，並導致 Handler 的 goroutine 結束，因此無須再利用 c.stopCh 將 Handler 結束
 func (c *Conn) Reconnect() {
 	fmt.Printf("(c *Conn) Reconnect | cid: %d\n", c.id)
-
-	// 停止原本的 goroutine
-	c.stopCh <- true
 
 	// 關閉當前連線
 	c.NetConn.Close()
 
 	// 清空連線物件
 	c.NetConn = nil
+
+	c.nRead = 0
+	c.readErr = nil
+	c.writeErr = nil
 }
 
 func (c *Conn) Release() {
@@ -348,7 +342,11 @@ func (c *Conn) String() string {
 	return b.String()
 }
 
-type ConnBuffer struct {
-	net.Conn
-	Index int32
+func CheckConns(root *Conn) {
+	c := root
+	for c != nil {
+		fmt.Printf("CheckConns | %s\n", c)
+		c = c.Next
+	}
+	fmt.Println()
 }

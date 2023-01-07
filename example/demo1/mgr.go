@@ -36,7 +36,7 @@ func (m *Mgr) Handler(work *base.Work) {
 		work.Body.AddUInt16(32)
 		work.Body.AddString(fmt.Sprintf("Message from (m *Mgr) Handler(work *gos.Work), #data: %d", len(data)))
 		work.SendTransData()
-		fmt.Printf("(m *Mgr) Handler | SendTransData back\n")
+		fmt.Printf("(m *Mgr) Handler | SendTransData back, work: %+v\n", work)
 
 	} else if kind == 2 && serivce == 32 {
 		response := work.Body.PopString()

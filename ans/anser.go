@@ -283,11 +283,6 @@ func (a *Anser) disconnectHandler() {
 	// hasDisconnect := false
 
 	for a.currConn != nil {
-		////////////////////////////////////////////////////////////////////////////////////////////////////
-		////////////////////////////////////////////////////////////////////////////////////////////////////
-		//           TODO: 此處的處理有誤，造成 ListNode 頭尾相連，變成一個環，因此此處迴圈無法結束            //
-		////////////////////////////////////////////////////////////////////////////////////////////////////
-		////////////////////////////////////////////////////////////////////////////////////////////////////
 		if a.currConn.State == define.Disconnect {
 			fmt.Printf("(a *Anser) disconnectHandler | cid: %d\n", a.currConn.GetId())
 			// hasDisconnect = true
@@ -329,15 +324,12 @@ func (a *Anser) disconnectHandler() {
 			a.preConn = a.currConn
 			a.currConn = a.currConn.Next
 		}
-
-		// if hasDisconnect && a.currConn != nil {
-		// 	fmt.Printf("(a *Anser) disconnectHandler | currConn cid: %d\n", a.currConn.GetId())
-
-		// 	if a.currConn.Next != nil {
-		// 		fmt.Printf("(a *Anser) disconnectHandler | currConn.Next cid: %d\n", a.currConn.Next.GetId())
-		// 	}
-		// }
 	}
+
+	// if hasDisconnect {
+	// 	a.currWork = a.works
+	// 	base.CheckWorks(a.currWork)
+	// }
 }
 
 // 尋找空閒的工作結構
@@ -359,7 +351,7 @@ func (a *Anser) dealWork() {
 	var finished, yet *base.Work = nil, nil
 
 	for a.currWork.State != -1 {
-		// fmt.Printf("(a *Anser) dealWork | work.Index: %d\n", work.Index)
+		// fmt.Printf("(a *Anser) dealWork | work: %+v\n", a.currWork)
 
 		switch a.currWork.State {
 		// 工作已完成
@@ -466,40 +458,3 @@ func (a *Anser) relinkWork(destination *base.Work, done bool) *base.Work {
 	a.currWork = a.works
 	return destination
 }
-
-// func (a *Anser) releaseConn() {
-// 	fmt.Printf("(a *Anser) releaseConn | 釋放連線資源 Conn(%d)\n", a.currConn.Index)
-// 	a.nConn -= 1
-
-// 	if a.preConn == nil {
-// 		// 更新連線物件起始位置
-// 		a.conns = a.currConn.Next
-
-// 		// 釋放連線物件
-// 		a.currConn.Release()
-
-// 		// 將釋放後的 Conn 移到最後
-// 		a.lastConn.Next = a.currConn
-
-// 		// 更新指向最後一個連線物件的位置
-// 		a.lastConn = a.currConn
-
-// 		// 更新下次檢查的指標位置
-// 		a.currConn = a.conns
-// 	} else {
-// 		// 更新鏈式指標所指向的對象
-// 		a.preConn.Next = a.currConn.Next
-
-// 		// 釋放連線物件
-// 		a.currConn.Release()
-
-// 		// 將釋放後的 Conn 移到最後
-// 		a.lastConn.Next = a.currConn
-
-// 		// 更新指向最後一個連線物件的位置
-// 		a.lastConn = a.currConn
-
-// 		// 更新下次檢查的指標位置
-// 		a.currConn = a.currConn.Next
-// 	}
-// }

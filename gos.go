@@ -143,11 +143,11 @@ func SendRequest(req *ghttp.Request, callback func(*ghttp.Response)) error {
 	}
 
 	if host, ok := req.Header["Host"]; ok {
-		fmt.Printf("SendRequest | host: %s\n", host[0])
+		// fmt.Printf("SendRequest | host: %s\n", host[0])
 
 		ip, p, _ := strings.Cut(host[0], ":")
-		fmt.Printf("SendRequest | ip: %s, port: %s\n", ip, p)
-		fmt.Printf("SendRequest | query: %s\n", req.Query)
+		// fmt.Printf("SendRequest | ip: %s, port: %s\n", ip, p)
+		// fmt.Printf("SendRequest | query: %s\n", req.Query)
 		var asker ask.IAsker
 		var err error
 
