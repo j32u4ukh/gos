@@ -42,36 +42,6 @@ func RunAns(port int) {
 	mrg := &Mgr{}
 	mrg.Handler(httpAnswer.Router)
 
-	httpAnswer.GET("/", func(req ghttp.Request, res *ghttp.Response) {
-		res.Json(200, ghttp.H{
-			"index": 1,
-			"msg":   "GET | /",
-		})
-	})
-
-	httpAnswer.POST("/", func(req ghttp.Request, res *ghttp.Response) {
-		res.Json(200, ghttp.H{
-			"index": 2,
-			"msg":   "POST | /",
-		})
-	})
-
-	r1 := httpAnswer.NewRouter("/abc")
-
-	r1.GET("/get", func(req ghttp.Request, res *ghttp.Response) {
-		res.Json(200, ghttp.H{
-			"index": 3,
-			"msg":   "GET | /abc/get",
-		})
-	})
-
-	r1.POST("/post", func(req ghttp.Request, res *ghttp.Response) {
-		res.Json(200, ghttp.H{
-			"index": 4,
-			"msg":   "POST | /abc/post",
-		})
-	})
-
 	fmt.Printf("(s *Service) RunAns | 伺服器初始化完成\n")
 	gos.StartListen()
 	fmt.Printf("(s *Service) RunAns | 開始監聽\n")
@@ -133,7 +103,7 @@ func RunAsk(ip string, port int) {
 	}
 }
 
-func demoNativeHttpRequest(ip string, port int) {
+func DemoNativeHttpRequest(ip string, port int) {
 	// client := &http.Client{}
 
 	// //這邊可以任意變換 http method  GET、POST、PUT、DELETE
