@@ -245,6 +245,7 @@ func (r *Request) ParseFirstLine(line string) bool {
 	}
 
 	r.Query = strings.TrimPrefix(r.Query, "?")
+
 	fmt.Printf("(r *Request) ParseFirstLine | Method: %s, Query: %s, Proto: %s\n", r.Method, r.Query, r.Proto)
 	return true
 }

@@ -10,7 +10,7 @@
             "request": "launch",
             "mode": "auto",
             "program": "./example/demo_http_server",
-            // "args": ["ans"],
+            "args": ["ans"],
         }
     ]
 }

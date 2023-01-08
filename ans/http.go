@@ -34,6 +34,9 @@ type HttpAnser struct {
 	// ==================================================
 	r2s    []*ghttp.R2
 	currR2 *ghttp.R2
+
+	// Temp variables
+	lineString string
 }
 
 func NewHttpAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, error) {
@@ -78,14 +81,9 @@ func NewHttpAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, err
 
 // 監聽連線並註冊
 func (a *HttpAnser) Listen() {
-	// fmt.Printf("(a *HttpAnser) Listen\n")
 	a.SetWorkHandler()
 	a.Anser.Listen()
 }
-
-// func (a *HttpAnser) Handler() {
-// 	a.Anser.Handler()
-// }
 
 func (a *HttpAnser) Read() bool {
 	// 根據 Conn 的 Id，存取對應的 R2
@@ -97,13 +95,14 @@ func (a *HttpAnser) Read() bool {
 			a.currConn.Read(&a.readBuffer, a.currR2.ReadLength)
 
 			// 拆分第一行數據
-			firstLine := strings.TrimRight(string(a.readBuffer[:a.currR2.ReadLength]), "\r\n")
-			fmt.Printf("(a *HttpAnser) Read | firstLine: %s\n", firstLine)
-			ok := a.currR2.Request.ParseFirstLine(firstLine)
+			a.lineString = strings.TrimRight(string(a.readBuffer[:a.currR2.ReadLength]), "\r\n")
+			fmt.Printf("(a *HttpAnser) Read | firstLine: %s\n", a.lineString)
 
-			if ok {
-				// 解析第一行數據中的請求路徑
-				a.currR2.Request.ParseQuery()
+			if a.currR2.Request.ParseFirstLine(a.lineString) {
+				if a.currR2.Request.Method == ghttp.MethodGet {
+					// 解析第一行數據中的請求路徑
+					a.currR2.Request.ParseQuery()
+				}
 				a.currR2.State = 1
 				fmt.Printf("(a *HttpAnser) Read | State: 0 -> 1\n")
 			}
@@ -112,7 +111,7 @@ func (a *HttpAnser) Read() bool {
 
 	// 讀取 Header 數據
 	if a.currR2.State == 1 {
-		var headerLine, key, value string
+		var key, value string
 		var ok bool
 
 		for a.currConn.CheckReadable(a.currR2.HasLineData) && a.currR2.State == 1 {
@@ -123,8 +122,8 @@ func (a *HttpAnser) Read() bool {
 			// so the first line must contain a colon.
 			// 將讀到的數據從冒號拆分成 key, value
 			// k, v, ok := bytes.Cut(a.readBuffer[:a.currR2.ReadLength], COLON)
-			headerLine = strings.TrimRight(string(a.readBuffer[:a.currR2.ReadLength]), "\r\n")
-			key, value, ok = strings.Cut(headerLine, ghttp.COLON)
+			a.lineString = strings.TrimRight(string(a.readBuffer[:a.currR2.ReadLength]), "\r\n")
+			key, value, ok = strings.Cut(a.lineString, ghttp.COLON)
 
 			if ok {
 				// 持續讀取 Header
@@ -232,10 +231,9 @@ func (a *HttpAnser) SetWorkHandler() {
 	}
 }
 
-func (a *HttpAnser) ServeHttp(method string, path string) {
-	fmt.Printf("(s *Server) ServeHttp | method: %s, path: %s\n", method, path)
-
-}
+// func (a *HttpAnser) ServeHttp(method string, path string) {
+// 	fmt.Printf("(s *Server) ServeHttp | method: %s, path: %s\n", method, path)
+// }
 
 // ====================================================================================================
 // Router
@@ -283,7 +281,6 @@ func (r *Router) combinePath(relativePath string) string {
 
 func (r *Router) combineHandlers(handlers HandlerChain) HandlerChain {
 	size := len(r.Handlers) + len(handlers)
-	// assert1(finalSize < int(abortIndex), "too many handlers")
 	mergedHandlers := make(HandlerChain, size)
 	copy(mergedHandlers, r.Handlers)
 	copy(mergedHandlers[len(r.Handlers):], handlers)
