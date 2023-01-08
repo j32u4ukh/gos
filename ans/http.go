@@ -226,14 +226,28 @@ func (a *HttpAnser) SetWorkHandler() {
 					w.Body.AddRawData(bs)
 					w.Send()
 				}
+			} else {
+				a.errorRequestHandler(w, r2, "Unregistered http query.")
 			}
+		} else {
+			a.errorRequestHandler(w, r2, "Unregistered http method.")
 		}
 	}
 }
 
-// func (a *HttpAnser) ServeHttp(method string, path string) {
-// 	fmt.Printf("(s *Server) ServeHttp | method: %s, path: %s\n", method, path)
-// }
+func (a *HttpAnser) errorRequestHandler(w *base.Work, r2 *ghttp.R2, msg string) {
+	fmt.Printf("(s *Server) errorRequestHandler | method: %s, query: %s\n", r2.Request.Method, r2.Request.Query)
+	r2.Response.Json(400, ghttp.H{
+		"msg": msg,
+	})
+	r2.SetHeader("Connection", "close")
+
+	// 將 Response 回傳數據轉換成 Work 傳遞的格式
+	bs := r2.FormResponse()
+	fmt.Printf("Response: %s\n", string(bs))
+	w.Body.AddRawData(bs)
+	w.Send()
+}
 
 // ====================================================================================================
 // Router

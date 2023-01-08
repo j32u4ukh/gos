@@ -209,16 +209,6 @@ func NewRequest(method string, uri string, params map[string]string) (*Request, 
 	return r, nil
 }
 
-// func (a *HttpAsker) Get(uri string, params map[string]string, callback func(*ghttp.Response)) {
-// 	r2 := a.r2s[1]
-// 	r2.Request.Method = ghttp.MethodGet
-// 	if params != nil {
-// 		r2.Request.Params = params
-// 	}
-// 	r2.Host, r2.Request.Query, _ = strings.Cut(uri, "?")
-
-// }
-
 func newRequest(r2 *R2) *Request {
 	r := &Request{
 		R2:     r2,
@@ -382,15 +372,22 @@ func newResponse(r2 *R2) *Response {
 	return r
 }
 
-func (r *Response) Json(code int32, obj any) {
+// Status sets the HTTP response code.
+func (r *Response) Status(code int32) {
 	r.Code = code
 
-	if code == 200 {
+	switch code {
+	case 200:
 		r.Message = "OK"
-
-	} else {
+	case 400:
+		r.Message = "Bad Request"
+	default:
 		r.Message = "ERROR"
 	}
+}
+
+func (r *Response) Json(code int32, obj any) {
+	r.Status(code)
 
 	for k := range r.R2.Header {
 		delete(r.R2.Header, k)
