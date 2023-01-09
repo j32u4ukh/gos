@@ -24,20 +24,27 @@ func NewTcp0Anser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, err
 		tcp0s:    make([]*base.Tcp0, nConnect),
 		currTcp0: nil,
 	}
+
+	// ===== Anser =====
 	a.Anser, err = newAnser(laddr, nConnect, nWork)
+	a.Anser.ReadTimeout = 3000 * time.Millisecond
 
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to new Tcp0Anser.")
 	}
 
-	// 設置數據讀取函式
-	a.Anser.readFunc = a.Read
-
+	// ===== Tcp0 =====
 	var i int32
 
 	for i = 0; i < nConnect; i++ {
 		a.tcp0s[i] = base.NewTcp0()
 	}
+
+	//////////////////////////////////////////////////
+	// 自定義函式
+	//////////////////////////////////////////////////
+	// 設置數據讀取函式
+	a.Anser.readFunc = a.Read
 
 	return a, nil
 }

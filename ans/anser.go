@@ -37,6 +37,8 @@ type Anser struct {
 	laddr *net.TCPAddr
 	// 監聽連線物件
 	listener *net.TCPListener
+	// 讀取超時
+	ReadTimeout time.Duration
 	// ==================================================
 	// 連線列表
 	// ==================================================
@@ -236,7 +238,7 @@ func (a *Anser) connectedHandler() {
 		a.currConn.SetReadBuffer(packet)
 
 		// 更新斷線時間(NOTE: 若斷線時間與客戶端睡眠時間相同，會變成讀取錯誤，而非 timeout 錯誤，造成誤判)
-		err = a.currConn.NetConn.SetReadDeadline(time.Now().Add(5000 * time.Millisecond))
+		err = a.currConn.NetConn.SetReadDeadline(time.Now().Add(a.ReadTimeout))
 
 		if err != nil {
 			fmt.Printf("(a *Anser) handler | DeadlineError: %+v\n", err)

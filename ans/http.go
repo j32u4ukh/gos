@@ -52,6 +52,7 @@ func NewHttpAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, err
 
 	// ===== Anser =====
 	a.Anser, err = newAnser(laddr, nConnect, nWork)
+	a.Anser.ReadTimeout = 5000 * time.Millisecond
 
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to new HttpAnser.")
@@ -71,7 +72,7 @@ func NewHttpAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, err
 	}
 
 	//////////////////////////////////////////////////
-	// HttpAnser 自定義函式
+	// 自定義函式
 	//////////////////////////////////////////////////
 	// 設置數據讀取函式
 	a.Anser.readFunc = a.Read
@@ -238,7 +239,8 @@ func (a *HttpAnser) SetWorkHandler() {
 func (a *HttpAnser) errorRequestHandler(w *base.Work, r2 *ghttp.R2, msg string) {
 	fmt.Printf("(s *Server) errorRequestHandler | method: %s, query: %s\n", r2.Request.Method, r2.Request.Query)
 	r2.Response.Json(400, ghttp.H{
-		"msg": msg,
+		"code": 400,
+		"msg":  msg,
 	})
 	r2.SetHeader("Connection", "close")
 
