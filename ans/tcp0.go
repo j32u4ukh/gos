@@ -44,7 +44,7 @@ func NewTcp0Anser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, err
 	// 自定義函式
 	//////////////////////////////////////////////////
 	// 設置數據讀取函式
-	a.Anser.readFunc = a.Read
+	a.Anser.readFunc = a.readFunc
 	a.Anser.writeFunc = a.writeFunc
 	return a, nil
 }
@@ -54,7 +54,7 @@ func (a *Tcp0Anser) Listen() {
 	a.Anser.Listen()
 }
 
-func (a *Tcp0Anser) Read() bool {
+func (a *Tcp0Anser) readFunc() bool {
 	a.currTcp0 = a.tcp0s[a.currConn.GetId()]
 
 	if a.currConn.CheckReadable(a.currTcp0.ReadableChecker) {

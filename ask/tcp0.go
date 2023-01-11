@@ -41,7 +41,7 @@ func NewTcp0Asker(site int32, laddr *net.TCPAddr, nConnect int32, nWork int32) (
 	//////////////////////////////////////////////////
 	// Tcp0Asker 自定義函式
 	//////////////////////////////////////////////////
-	a.Asker.readFunc = a.Read
+	a.Asker.readFunc = a.readFunc
 	a.Asker.writeFunc = a.writeFunc
 	return a, nil
 }
@@ -50,7 +50,7 @@ func (a *Tcp0Asker) Connect() error {
 	return a.Asker.Connect(-1)
 }
 
-func (a *Tcp0Asker) Read() {
+func (a *Tcp0Asker) readFunc() {
 	a.currTcp0 = a.tcp0s[a.currConn.GetId()]
 
 	if a.currConn.CheckReadable(a.currTcp0.ReadableChecker) {

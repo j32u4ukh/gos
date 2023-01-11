@@ -18,8 +18,6 @@ type IAsker interface {
 	Handler()
 	// 取得連線位置
 	GetAddress() (string, int32)
-	// 定義如何讀取(一次讀取多少；多少數據算一個完整的封包)
-	Read()
 	// 供外部寫出數據(寫到寫出緩存中)
 	Write(*[]byte, int32) error
 	// getConn(id int32) *base.Conn

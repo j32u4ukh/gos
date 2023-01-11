@@ -16,8 +16,6 @@ type IAnswer interface {
 	Listen()
 	// 執行一次主迴圈
 	Handler()
-	// 定義如何讀取(一次讀取多少；多少數據算一個完整的封包)
-	Read() bool
 	// 數據寫出(寫到寫出緩存中)
 	Write(int32, *[]byte, int32) error
 }

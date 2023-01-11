@@ -78,7 +78,7 @@ func NewHttpAsker(site int32, laddr *net.TCPAddr, nConnect int32, nWork int32) (
 	//////////////////////////////////////////////////
 	// HttpAsker 自定義函式
 	//////////////////////////////////////////////////
-	a.Asker.readFunc = a.Read
+	a.Asker.readFunc = a.readFunc
 	a.Asker.writeFunc = a.writeFunc
 	return a, nil
 }
@@ -87,7 +87,7 @@ func (a *HttpAsker) Connect() error {
 	return a.Asker.Connect(-1)
 }
 
-func (a *HttpAsker) Read() {
+func (a *HttpAsker) readFunc() {
 	// 根據 Conn 的 Id，存取對應的 R2
 	a.currR2 = a.r2s[a.currConn.GetId()]
 	fmt.Printf("(a *HttpAsker) Read | Conn(%d), State: %d\n", a.currConn.GetId(), a.currR2.State)
