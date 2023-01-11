@@ -47,6 +47,8 @@ const (
 	COLON      = ":"
 )
 
+// const errorHeaders = "\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n"
+
 var (
 	jsonContentType = []string{"application/json"}
 )
@@ -375,15 +377,7 @@ func newResponse(r2 *R2) *Response {
 // Status sets the HTTP response code.
 func (r *Response) Status(code int32) {
 	r.Code = code
-
-	switch code {
-	case 200:
-		r.Message = "OK"
-	case 400:
-		r.Message = "Bad Request"
-	default:
-		r.Message = "ERROR"
-	}
+	r.Message = StatusText(code)
 }
 
 func (r *Response) Json(code int32, obj any) {
