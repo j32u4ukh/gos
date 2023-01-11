@@ -80,8 +80,8 @@ func (a *Tcp0Asker) readFunc() {
 			// 指向下一個工作結構
 			a.currWork = a.currWork.Next
 
-			// 重置 封包長度
-			a.currConn.PacketLength = -1
+			// // 重置 封包長度
+			// a.currConn.PacketLength = -1
 
 			// 重置 欲讀取長度 以及 狀態值
 			a.currTcp0.ResetReadLength()

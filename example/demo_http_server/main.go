@@ -139,7 +139,7 @@ func RunAsk(ip string, port int) {
 
 	fmt.Printf("req: %+v\n", req)
 	err = gos.SendRequest(req, func(res *ghttp.Response) {
-		fmt.Printf("Response: %+v\n", res)
+		fmt.Printf("I'm response: %+v\n", res)
 	})
 
 	if err != nil {

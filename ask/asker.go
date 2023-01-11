@@ -20,7 +20,6 @@ type IAsker interface {
 	GetAddress() (string, int32)
 	// 供外部寫出數據(寫到寫出緩存中)
 	Write(*[]byte, int32) error
-	// getConn(id int32) *base.Conn
 }
 
 func NewAsker(socketType define.SocketType, site int32, laddr *net.TCPAddr, nWork int32) (IAsker, error) {

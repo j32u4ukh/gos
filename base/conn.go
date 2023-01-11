@@ -68,7 +68,7 @@ type Conn struct {
 	// 讀取封包索引值
 	readIdx int32
 	// 封包長度
-	PacketLength int32
+	// PacketLength int32
 	// ========== 寫出 ==========
 	// 寫出緩衝
 	writeBuffer []byte
@@ -106,11 +106,11 @@ func NewConn(id int32, size int32) *Conn {
 		readPackets:    []*Packet{},
 		ReadCh:         make(chan *Packet, size),
 		readIdx:        0,
-		PacketLength:   -1,
-		writeBuffer:    nil,
-		writeInput:     0,
-		writeOutput:    0,
-		writeIdx:       0,
+		// PacketLength:   -1,
+		writeBuffer: nil,
+		writeInput:  0,
+		writeOutput: 0,
+		writeIdx:    0,
 	}
 
 	c.readBuffer = make([]byte, c.BufferLength)

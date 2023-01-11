@@ -8,6 +8,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 )
@@ -80,6 +81,8 @@ func NewHttpAsker(site int32, laddr *net.TCPAddr, nConnect int32, nWork int32) (
 	//////////////////////////////////////////////////
 	a.Asker.readFunc = a.readFunc
 	a.Asker.writeFunc = a.writeFunc
+
+	a.SetWorkHandler()
 	return a, nil
 }
 
@@ -157,6 +160,11 @@ func (a *HttpAsker) readFunc() {
 				} else {
 					// Header 中不包含 Content-Length，狀態值恢復為 0
 					a.currR2.State = 0
+
+					// 數據已讀入 currR2 當中，此處工作結構僅負責觸發 WorkHandler，進一步觸發 Callback 函式
+					a.currWork.Index = a.currConn.GetId()
+					a.currWork.RequestTime = time.Now().UTC()
+					a.currWork.State = 1
 				}
 				return
 			}
@@ -178,6 +186,14 @@ func (a *HttpAsker) readFunc() {
 
 			// 重置狀態值
 			a.currR2.State = 0
+
+			// 數據已讀入 currR2 當中，此處工作結構僅負責觸發 WorkHandler，進一步觸發 Callback 函式
+			a.currWork.Index = a.currConn.GetId()
+			a.currWork.RequestTime = time.Now().UTC()
+			a.currWork.State = 1
+
+			// 指向下一個工作結構
+			a.currWork = a.currWork.Next
 		}
 	}
 }
@@ -235,12 +251,14 @@ func (a *HttpAsker) Write(data *[]byte, length int32) error {
 
 // [Work State: 1] 由外部定義 workHandler，定義如何處理工作
 func (a *HttpAsker) SetWorkHandler() {
+	fmt.Printf("(a *HttpAsker) SetWorkHandler\n")
+
 	a.Asker.workHandler = func(w *base.Work) {
 		if w.Index == -1 {
 			return
 		}
 
-		fmt.Printf("(a *HttpAsker) workHandler | work: %+v\n", w)
+		fmt.Printf("(a *HttpAsker) SetWorkHandler | work: %+v\n", w)
 
 		// 取得連線物件
 		a.currConn = a.getConn(w.Index)
@@ -260,9 +278,11 @@ func (a *HttpAsker) SetWorkHandler() {
 
 		if ok {
 			// 將取得的 Response，透過註冊的 Callback 函釋回傳回去
-			fmt.Printf("(a *HttpAsker) Callback | Response: %+v\n", a.currR2.Response)
+			fmt.Printf("(a *HttpAsker) SetWorkHandler | Response: %+v\n", a.currR2.Response)
 			handler.Callback(a.currR2.Response)
 		}
+
+		w.Finish()
 	}
 }
 
