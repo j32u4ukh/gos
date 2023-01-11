@@ -13,18 +13,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-/* TODO:
-1. 優化 Anser 與 Asker ◎
-2. 優化 TransData，一開始初始化一大段記憶體空間，空間不足時，再以二次冪的規則動態增加 ◎
-3. Asker 使用寫入緩存，當斷線重連的過程中需要寫出數據，會先寫到緩存，當連線物件建立後，再將數據傳出去 ◎
-4. Anser 與 Asker 使用新版 TransData ◎
-5. Anser 與 Asker 移到各自的套件當中 ◎
-6. 新增 Socket type(目前是其中一種 TCP) ◎
-7. 實作 HTTP Server
-8. 將不同 Socket type 會有不同的部分抽象出來，允許根據需求抽換該部分
-9. 實作 WebSocket Server
-*/
-
 var server *goserver
 var once sync.Once
 

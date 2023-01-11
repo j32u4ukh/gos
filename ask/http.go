@@ -215,11 +215,10 @@ func (a *HttpAsker) writeFunc(id int32, data *[]byte, length int32) error {
 	return nil
 }
 
+// 原始數據寫出函式，缺乏定義 Callback 函式的能力，應使用 Send 來傳送請求
 func (a *HttpAsker) Write(data *[]byte, length int32) error {
 	// 取得空的工作結構
 	w := a.getEmptyWork()
-	// 標註此工作之後須寫出
-	w.State = 2
 	// 標註此工作未指定寫出的連線物件，由空閒的連線物件來寫出
 	w.Index = -1
 	w.Body.AddRawData((*data)[:length])
@@ -267,6 +266,7 @@ func (a *HttpAsker) SetWorkHandler() {
 	}
 }
 
+// 供外部傳送 Http 請求
 func (a *HttpAsker) Send(req *ghttp.Request, callback func(*ghttp.Response)) error {
 	fmt.Printf("(a *HttpAsker) Send | req: %+v\n", req)
 
