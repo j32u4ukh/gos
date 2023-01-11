@@ -12,12 +12,13 @@ import (
 )
 
 type IAnswer interface {
+	// 開始監聽
 	Listen()
+	// 執行一次主迴圈
 	Handler()
-
 	// 定義如何讀取(一次讀取多少；多少數據算一個完整的封包)
 	Read() bool
-
+	// 數據寫出(寫到寫出緩存中)
 	Write(int32, *[]byte, int32) error
 }
 
@@ -76,13 +77,16 @@ type Anser struct {
 	lastWork *base.Work
 
 	// ==================================================
-	// 外部定義函式
+	// 外部定義函式(由各 SocketType 實作)
 	// ==================================================
 	// 工作處理函式
 	workHandler func(*base.Work)
 
-	// 數據讀取函式(由各 SocketType 實作)
+	// 數據讀取函式
 	readFunc func() bool
+
+	// 數據寫出
+	writeFunc func(int32, *[]byte, int32) error
 }
 
 func newAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (*Anser, error) {
@@ -372,14 +376,14 @@ func (a *Anser) dealWork() {
 				yet = a.relinkWork(yet, false)
 			case 2:
 				// 將向客戶端傳輸數據，寫入 writeBuffer
-				a.Write(a.currWork.Index, &a.currWork.Data, a.currWork.Length)
+				a.writeFunc(a.currWork.Index, &a.currWork.Data, a.currWork.Length)
 
 				// 將完成的工作加入 finished，並更新 work 所指向的工作結構
 				finished = a.relinkWork(finished, true)
 			}
 		case 2:
 			// 將向客戶端傳輸數據，寫入 writeBuffer
-			a.Write(a.currWork.Index, &a.currWork.Data, a.currWork.Length)
+			a.writeFunc(a.currWork.Index, &a.currWork.Data, a.currWork.Length)
 
 			// 將完成的工作加入 finished，並更新 work 所指向的工作結構
 			finished = a.relinkWork(finished, true)

@@ -12,14 +12,17 @@ import (
 )
 
 type IAsker interface {
+	// 開始連線
 	Connect() error
+	// 執行一次主迴圈
 	Handler()
+	// 取得連線位置
 	GetAddress() (string, int32)
 	// 定義如何讀取(一次讀取多少；多少數據算一個完整的封包)
 	Read()
-	// 數據寫出(寫到寫出緩存中)
+	// 供外部寫出數據(寫到寫出緩存中)
 	Write(*[]byte, int32) error
-	getConn(id int32) *base.Conn
+	// getConn(id int32) *base.Conn
 }
 
 func NewAsker(socketType define.SocketType, site int32, laddr *net.TCPAddr, nWork int32) (IAsker, error) {

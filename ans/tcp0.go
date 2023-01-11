@@ -45,7 +45,7 @@ func NewTcp0Anser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, err
 	//////////////////////////////////////////////////
 	// 設置數據讀取函式
 	a.Anser.readFunc = a.Read
-
+	a.Anser.writeFunc = a.writeFunc
 	return a, nil
 }
 
@@ -92,9 +92,13 @@ func (a *Tcp0Anser) Read() bool {
 	return true
 }
 
-func (a *Tcp0Anser) Write(cid int32, data *[]byte, length int32) error {
-	return a.Anser.Write(cid, data, length)
+func (a *Tcp0Anser) writeFunc(cid int32, data *[]byte, length int32) error {
+	return a.Write(cid, data, length)
 }
+
+// func (a *Tcp0Anser) Write(cid int32, data *[]byte, length int32) error {
+// 	return a.Anser.Write(cid, data, length)
+// }
 
 // 由外部定義 workHandler，定義如何處理工作
 func (a *Tcp0Anser) SetWorkHandler(handler func(*base.Work)) {

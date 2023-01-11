@@ -76,7 +76,7 @@ func NewHttpAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, err
 	//////////////////////////////////////////////////
 	// 設置數據讀取函式
 	a.Anser.readFunc = a.Read
-
+	a.Anser.writeFunc = a.writeFunc
 	return a, nil
 }
 
@@ -204,8 +204,19 @@ func (a *HttpAnser) Read() bool {
 	return true
 }
 
-func (a *HttpAnser) Write(cid int32, data *[]byte, length int32) error {
-	return a.Anser.Write(cid, data, length)
+func (a *HttpAnser) writeFunc(cid int32, data *[]byte, length int32) error {
+	// 根據 Conn 的 Id，存取對應的 R2
+	a.currR2 = a.r2s[cid]
+
+	// 取得對應的連線物件
+	a.currConn = a.getConn(cid)
+
+	if a.currConn == nil {
+		return errors.New(fmt.Sprintf("There is no cid equals to %d.", cid))
+	}
+
+	a.currConn.SetWriteBuffer(data, length)
+	return nil
 }
 
 // 由外部定義 workHandler，定義如何處理工作
