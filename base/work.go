@@ -13,7 +13,7 @@ type Work struct {
 	// ==================================================
 	// Work 唯一碼
 	id int32
-	// 對應的 Connector 的 Index
+	// 對應的 Conn 的 Index
 	Index int32
 	// 請求發起的時間(若距離實際處理的時間過長，則不處理)
 	RequestTime time.Time

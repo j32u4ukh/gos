@@ -284,7 +284,7 @@ func (a *Asker) connectedHandler() {
 		// 結束當前迴圈(若未進入下方兩個區塊)
 		a.readFunc()
 
-		_, err = a.currConn.Write()
+		err = a.currConn.Write()
 
 		if err != nil {
 			fmt.Printf("(a *Asker) connectedHandler | 更新斷線時間 err: %+v\n", err)

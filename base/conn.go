@@ -80,12 +80,11 @@ type Conn struct {
 	// ==================================================
 	// 暫存變數(避免重複宣告變數)
 	// ==================================================
-	nRead     int
-	readErr   error
-	nWrite    int
-	nCumWrite int32
-	writeIdx  int32
-	writeErr  error
+	nRead    int
+	readErr  error
+	nWrite   int
+	writeIdx int32
+	writeErr error
 }
 
 func NewConn(id int32, size int32) *Conn {
@@ -255,9 +254,8 @@ func (c *Conn) SetWriteBuffer(data *[]byte, length int32) {
 	// fmt.Printf("(c *Conn) setWriteBuffer | c.writeInput: %d\n", c.writeInput)
 }
 
-func (c *Conn) Write() (int32, error) {
+func (c *Conn) Write() error {
 	// fmt.Printf("(c *Conn) write | netConn: %v, writeInput: %d, writeOutput: %d\n", c.NetConn != nil, c.writeInput, c.writeOutput)
-	c.nCumWrite = 0
 
 	for c.NetConn != nil && c.writeInput != c.writeOutput {
 
@@ -267,7 +265,7 @@ func (c *Conn) Write() (int32, error) {
 
 			if c.writeErr != nil {
 				fmt.Printf("(c *Conn) write | Failed to write data to conn(%d)\nwriteErr: %+v\n", c.Index, c.writeErr)
-				return c.nCumWrite, errors.Wrapf(c.writeErr, "Failed to write data to conn(%d)", c.Index)
+				return errors.Wrapf(c.writeErr, "Failed to write data to conn(%d)", c.Index)
 			}
 
 		} else {
@@ -276,7 +274,7 @@ func (c *Conn) Write() (int32, error) {
 
 			if c.writeErr != nil {
 				fmt.Printf("(c *Conn) write | Failed to write data to conn(%d)\nwriteErr: %+v\n", c.Index, c.writeErr)
-				return c.nCumWrite, errors.Wrapf(c.writeErr, "Failed to write data to conn(%d)", c.Index)
+				return errors.Wrapf(c.writeErr, "Failed to write data to conn(%d)", c.Index)
 			}
 
 		}
@@ -287,11 +285,9 @@ func (c *Conn) Write() (int32, error) {
 		if c.writeOutput == c.BufferLength {
 			c.writeOutput = 0
 		}
-
-		c.nCumWrite += int32(c.nWrite)
 	}
 
-	return c.nCumWrite, nil
+	return nil
 }
 
 // 當有需要重新連線的情況下，首先就會發生 Socket 讀取異常，並導致 Handler 的 goroutine 結束，因此無須再利用 c.stopCh 將 Handler 結束

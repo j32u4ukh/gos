@@ -96,10 +96,6 @@ func (a *Tcp0Anser) writeFunc(cid int32, data *[]byte, length int32) error {
 	return a.Write(cid, data, length)
 }
 
-// func (a *Tcp0Anser) Write(cid int32, data *[]byte, length int32) error {
-// 	return a.Anser.Write(cid, data, length)
-// }
-
 // 由外部定義 workHandler，定義如何處理工作
 func (a *Tcp0Anser) SetWorkHandler(handler func(*base.Work)) {
 	a.Anser.workHandler = handler

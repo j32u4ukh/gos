@@ -262,7 +262,7 @@ func (a *Anser) connectedHandler() {
 		a.readFunc()
 
 		// 數據寫出，未因 SocketType 不同而有不同
-		_, err = a.currConn.Write()
+		err = a.currConn.Write()
 
 		if err != nil {
 			fmt.Printf("(a *Anser) handler | Failed to write: %+v\n", err)
@@ -331,11 +331,6 @@ func (a *Anser) disconnectHandler() {
 			a.currConn = a.currConn.Next
 		}
 	}
-
-	// if hasDisconnect {
-	// 	a.currWork = a.works
-	// 	base.CheckWorks(a.currWork)
-	// }
 }
 
 // 尋找空閒的工作結構

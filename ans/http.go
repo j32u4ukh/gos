@@ -205,9 +205,6 @@ func (a *HttpAnser) Read() bool {
 }
 
 func (a *HttpAnser) writeFunc(cid int32, data *[]byte, length int32) error {
-	// 根據 Conn 的 Id，存取對應的 R2
-	a.currR2 = a.r2s[cid]
-
 	// 取得對應的連線物件
 	a.currConn = a.getConn(cid)
 
