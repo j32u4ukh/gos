@@ -44,8 +44,9 @@ func NewTcp0Anser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, err
 	// 自定義函式
 	//////////////////////////////////////////////////
 	// 設置數據讀取函式
-	a.Anser.readFunc = a.readFunc
-	a.Anser.writeFunc = a.writeFunc
+	a.readFunc = a.read
+	a.writeFunc = a.write
+	a.shouldCloseFunc = a.shouldClose
 	return a, nil
 }
 
@@ -54,7 +55,7 @@ func (a *Tcp0Anser) Listen() {
 	a.Anser.Listen()
 }
 
-func (a *Tcp0Anser) readFunc() bool {
+func (a *Tcp0Anser) read() bool {
 	a.currTcp0 = a.tcp0s[a.currConn.GetId()]
 
 	if a.currConn.CheckReadable(a.currTcp0.ReadableChecker) {
@@ -92,11 +93,19 @@ func (a *Tcp0Anser) readFunc() bool {
 	return true
 }
 
-func (a *Tcp0Anser) writeFunc(cid int32, data *[]byte, length int32) error {
+func (a *Tcp0Anser) write(cid int32, data *[]byte, length int32) error {
 	return a.Write(cid, data, length)
 }
 
 // 由外部定義 workHandler，定義如何處理工作
 func (a *Tcp0Anser) SetWorkHandler(handler func(*base.Work)) {
 	a.Anser.workHandler = handler
+}
+
+// 當前連線是否應斷線
+func (a *Tcp0Anser) shouldClose(err error) bool {
+	// if a.Anser.shouldClose(err) {
+	// 	return true
+	// }
+	return a.Anser.shouldClose(err)
 }

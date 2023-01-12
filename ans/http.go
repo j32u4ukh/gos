@@ -75,8 +75,9 @@ func NewHttpAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, err
 	// 自定義函式
 	//////////////////////////////////////////////////
 	// 設置數據讀取函式
-	a.Anser.readFunc = a.readFunc
-	a.Anser.writeFunc = a.writeFunc
+	a.readFunc = a.read
+	a.writeFunc = a.write
+	a.shouldCloseFunc = a.shouldClose
 	return a, nil
 }
 
@@ -86,7 +87,7 @@ func (a *HttpAnser) Listen() {
 	a.Anser.Listen()
 }
 
-func (a *HttpAnser) readFunc() bool {
+func (a *HttpAnser) read() bool {
 	// 根據 Conn 的 Id，存取對應的 R2
 	a.currR2 = a.r2s[a.currConn.GetId()]
 
@@ -204,7 +205,7 @@ func (a *HttpAnser) readFunc() bool {
 	return true
 }
 
-func (a *HttpAnser) writeFunc(cid int32, data *[]byte, length int32) error {
+func (a *HttpAnser) write(cid int32, data *[]byte, length int32) error {
 	// 取得對應的連線物件
 	a.currConn = a.getConn(cid)
 
@@ -257,6 +258,14 @@ func (a *HttpAnser) errorRequestHandler(w *base.Work, r2 *ghttp.R2, msg string) 
 	fmt.Printf("Response: %s\n", string(bs))
 	w.Body.AddRawData(bs)
 	w.Send()
+}
+
+// 當前連線是否應斷線
+func (a *HttpAnser) shouldClose(err error) bool {
+	// if a.Anser.shouldClose(err) {
+	// 	return true
+	// }
+	return a.Anser.shouldClose(err)
 }
 
 // ====================================================================================================

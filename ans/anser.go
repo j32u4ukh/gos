@@ -85,6 +85,9 @@ type Anser struct {
 
 	// 數據寫出
 	writeFunc func(int32, *[]byte, int32) error
+
+	// 當前連線是否應斷線
+	shouldCloseFunc func(error) bool
 }
 
 func newAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (*Anser, error) {
@@ -254,24 +257,17 @@ func (a *Anser) connectedHandler() {
 			return
 		}
 
-	// 從緩存中讀取數據
 	default:
+		// 從緩存中讀取數據
 		// a.read 根據補不同 SocketType，有不同的讀取數據函式實作
 		a.readFunc()
 
-		// 數據寫出，未因 SocketType 不同而有不同
+		// 實際數據寫出，未因 SocketType 不同而有不同
 		err = a.currConn.Write()
 
-		if err != nil {
-			fmt.Printf("(a *Anser) handler | Failed to write: %+v\n", err)
-
+		if a.shouldCloseFunc(err) {
 			// 連線狀態設為結束
 			a.currConn.State = define.Disconnect
-
-			// 指標指向下一個連線物件
-			a.preConn = a.currConn
-			a.currConn = a.currConn.Next
-			return
 		}
 
 		// 指標指向下一個連線物件
@@ -456,4 +452,13 @@ func (a *Anser) relinkWork(destination *base.Work, done bool) *base.Work {
 
 	a.currWork = a.works
 	return destination
+}
+
+// 當前連線是否應斷線
+func (a *Anser) shouldClose(err error) bool {
+	if err != nil {
+		fmt.Printf("(a *Anser) shouldClose | Conn(%d) failed to write: %+v\n", a.currConn.GetId(), err)
+		return true
+	}
+	return false
 }

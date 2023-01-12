@@ -38,7 +38,8 @@ type Conn struct {
 	// 連線模式(當 client 和 server 通信時對於長鏈接如何進行處理。)
 	Mode ConnMode
 	// 下一個連線結構的指標
-	Next   *Conn
+	Next *Conn
+	// Handler 中斷用 chan
 	stopCh chan bool
 
 	// ==================================================
@@ -76,6 +77,8 @@ type Conn struct {
 	writeInput int32
 	// 此次寫出長度
 	writeOutput int32
+	// 可寫出長度(writeInput ~ writeOutput 之間的數據量)
+	WritableLength int32
 
 	// ==================================================
 	// 暫存變數(避免重複宣告變數)
@@ -107,10 +110,11 @@ func NewConn(id int32, size int32) *Conn {
 		ReadCh:         make(chan *Packet, size),
 		readIdx:        0,
 		// PacketLength:   -1,
-		writeBuffer: nil,
-		writeInput:  0,
-		writeOutput: 0,
-		writeIdx:    0,
+		writeBuffer:    nil,
+		writeInput:     0,
+		writeOutput:    0,
+		writeIdx:       0,
+		WritableLength: 0,
 	}
 
 	c.readBuffer = make([]byte, c.BufferLength)
@@ -238,6 +242,7 @@ func (c *Conn) CheckReadable(checker func(buffer *[]byte, i int32, o int32, leng
 // TODO: 檢查 c.writeInput 是否反超 c.writeOutput，若反超，表示緩衝大小不足
 func (c *Conn) SetWriteBuffer(data *[]byte, length int32) {
 	// fmt.Printf("(c *Conn) setWriteBuffer | c.writeInput: %d, length: %d\n", c.writeInput, length)
+	c.WritableLength += length
 
 	if c.writeInput+length < c.BufferLength {
 		copy(c.writeBuffer[c.writeInput:c.writeInput+length], (*data)[:length])
@@ -281,6 +286,7 @@ func (c *Conn) Write() error {
 
 		// fmt.Printf("(c *Conn) write | Output: %+v\n", c.writeBuffer[c.writeOutput:c.writeOutput+int32(c.nWrite)])
 		c.writeOutput += int32(c.nWrite)
+		c.WritableLength -= int32(c.nWrite)
 
 		if c.writeOutput == c.BufferLength {
 			c.writeOutput = 0

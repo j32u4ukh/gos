@@ -79,8 +79,8 @@ func NewHttpAsker(site int32, laddr *net.TCPAddr, nConnect int32, nWork int32) (
 	//////////////////////////////////////////////////
 	// HttpAsker 自定義函式
 	//////////////////////////////////////////////////
-	a.Asker.readFunc = a.readFunc
-	a.Asker.writeFunc = a.writeFunc
+	a.readFunc = a.read
+	a.writeFunc = a.write
 
 	a.SetWorkHandler()
 	return a, nil
@@ -90,7 +90,7 @@ func (a *HttpAsker) Connect() error {
 	return a.Asker.Connect(-1)
 }
 
-func (a *HttpAsker) readFunc() {
+func (a *HttpAsker) read() {
 	// 根據 Conn 的 Id，存取對應的 R2
 	a.currR2 = a.r2s[a.currConn.GetId()]
 	fmt.Printf("(a *HttpAsker) Read | Conn(%d), State: %d\n", a.currConn.GetId(), a.currR2.State)
@@ -198,7 +198,7 @@ func (a *HttpAsker) readFunc() {
 	}
 }
 
-func (a *HttpAsker) writeFunc(id int32, data *[]byte, length int32) error {
+func (a *HttpAsker) write(id int32, data *[]byte, length int32) error {
 	fmt.Printf("(a *HttpAsker) writeFunc | work id: %d\n", id)
 
 	// 取得連線物件(若 id 為 -1，表示尋找空閒的連線物件)
