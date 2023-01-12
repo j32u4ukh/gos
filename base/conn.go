@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"gos/define"
 	"net"
+	"time"
 
 	"github.com/pkg/errors"
 )
@@ -37,6 +38,8 @@ type Conn struct {
 	State define.ConnectState
 	// 連線模式(當 client 和 server 通信時對於長鏈接如何進行處理。)
 	Mode ConnMode
+	// 斷線時間戳
+	DisconnectTime time.Time
 	// 下一個連線結構的指標
 	Next *Conn
 	// Handler 中斷用 chan
@@ -309,6 +312,10 @@ func (c *Conn) Reconnect() {
 	c.nRead = 0
 	c.readErr = nil
 	c.writeErr = nil
+}
+
+func (c *Conn) SetDisconnectTime(second time.Duration) {
+	c.DisconnectTime = time.Now().Add(time.Second * second)
 }
 
 func (c *Conn) Release() {

@@ -167,7 +167,7 @@ func (a *HttpAnser) read() bool {
 					// 指向下一個工作結構
 					a.currWork = a.currWork.Next
 
-					// Header 中不包含 Content-Length，狀態值恢復為 0
+					// 等待數據寫出
 					a.currR2.State = 3
 					return true
 				}
@@ -195,7 +195,7 @@ func (a *HttpAnser) read() bool {
 			// 指向下一個工作結構
 			a.currWork = a.currWork.Next
 
-			// 重置狀態值
+			// 等待數據寫出
 			a.currR2.State = 3
 
 			return false
@@ -214,6 +214,9 @@ func (a *HttpAnser) write(cid int32, data *[]byte, length int32) error {
 	}
 
 	a.currConn.SetWriteBuffer(data, length)
+
+	// 等待數據寫出
+	a.currR2.State = 4
 	return nil
 }
 
@@ -262,10 +265,16 @@ func (a *HttpAnser) errorRequestHandler(w *base.Work, r2 *ghttp.R2, msg string) 
 
 // 當前連線是否應斷線
 func (a *HttpAnser) shouldClose(err error) bool {
-	// if a.Anser.shouldClose(err) {
-	// 	return true
-	// }
-	return a.Anser.shouldClose(err)
+	if a.Anser.shouldClose(err) {
+		return true
+	}
+	a.currR2 = a.r2s[a.currConn.GetId()]
+	if a.currR2.State == 4 && a.currConn.WritableLength == 0 {
+		fmt.Printf("(a *HttpAnser) shouldClose | Conn(%d) 完成數據寫出，準備關閉連線\n", a.currConn.GetId())
+		a.currR2.State = 0
+		return true
+	}
+	return false
 }
 
 // ====================================================================================================

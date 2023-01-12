@@ -233,6 +233,9 @@ func (a *Anser) connectedHandler() {
 			// 連線狀態設為結束
 			a.currConn.State = define.Disconnect
 
+			// 設定 3 秒後斷線
+			a.currConn.SetDisconnectTime(3)
+
 			// 指標指向下一個連線物件
 			a.preConn = a.currConn
 			a.currConn = a.currConn.Next
@@ -251,6 +254,9 @@ func (a *Anser) connectedHandler() {
 			// 連線狀態設為結束
 			a.currConn.State = define.Disconnect
 
+			// 設定 3 秒後斷線
+			a.currConn.SetDisconnectTime(3)
+
 			// 指標指向下一個連線物件
 			a.preConn = a.currConn
 			a.currConn = a.currConn.Next
@@ -268,6 +274,9 @@ func (a *Anser) connectedHandler() {
 		if a.shouldCloseFunc(err) {
 			// 連線狀態設為結束
 			a.currConn.State = define.Disconnect
+
+			// 設定 3 秒後斷線
+			a.currConn.SetDisconnectTime(3)
 		}
 
 		// 指標指向下一個連線物件
@@ -280,10 +289,10 @@ func (a *Anser) connectedHandler() {
 func (a *Anser) disconnectHandler() {
 	a.preConn = nil
 	a.currConn = a.conns
-	// hasDisconnect := false
+	now := time.Now()
 
 	for a.currConn != nil {
-		if a.currConn.State == define.Disconnect {
+		if a.currConn.State == define.Disconnect && a.currConn.DisconnectTime.Before(now) {
 			fmt.Printf("(a *Anser) disconnectHandler | cid: %d\n", a.currConn.GetId())
 			// hasDisconnect = true
 			a.nConn -= 1

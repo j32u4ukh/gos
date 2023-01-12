@@ -61,7 +61,7 @@ type R2 struct {
 	Index int32
 	Next  *R2
 	//////////////////////////////////////////////////
-	// 0: 讀取第一行, 1: 讀取 Header, 2: 讀取 Data
+	// 0: 讀取第一行, 1: 讀取 Header, 2: 讀取 Data, 3: 等待數據寫出(Response) 4. 完成數據複製到寫出緩存
 	State int8
 	*Request
 	*Response
