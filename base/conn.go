@@ -38,7 +38,7 @@ type Conn struct {
 	State define.ConnectState
 	// 連線模式(當 client 和 server 通信時對於長鏈接如何進行處理。)
 	Mode ConnMode
-	// 斷線時間戳
+	// 斷線時間戳(數秒後才切斷連線，預留時間給對方讀取數據)
 	DisconnectTime time.Time
 	// 下一個連線結構的指標
 	Next *Conn

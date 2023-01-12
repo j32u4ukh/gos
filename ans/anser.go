@@ -292,6 +292,7 @@ func (a *Anser) disconnectHandler() {
 	now := time.Now()
 
 	for a.currConn != nil {
+		// 標註為斷線的連線物件，數秒後才切斷連線，預留時間給對方讀取數據
 		if a.currConn.State == define.Disconnect && a.currConn.DisconnectTime.Before(now) {
 			fmt.Printf("(a *Anser) disconnectHandler | cid: %d\n", a.currConn.GetId())
 			// hasDisconnect = true
