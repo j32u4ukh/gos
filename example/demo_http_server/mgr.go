@@ -18,6 +18,36 @@ func (m *Mgr) Handler(router *ans.Router) {
 	r1.POST("/post", m.PostAbc)
 }
 
+func (m *Mgr) Handler2(router *ans.Router2) {
+	router.GET("/", func(c *ghttp.Context) {
+		c.Response2.Json(200, ghttp.H{
+			"index": 1,
+			"msg":   "GET | /",
+		})
+	})
+	router.POST("/", func(c *ghttp.Context) {
+		c.Response2.Json(200, ghttp.H{
+			"index": 2,
+			"msg":   "POST | /",
+		})
+	})
+
+	r1 := router.NewRouter("/abc")
+
+	r1.GET("/get", func(c *ghttp.Context) {
+		c.Response2.Json(200, ghttp.H{
+			"index": 3,
+			"msg":   "GET | /abc/get",
+		})
+	})
+	r1.POST("/post", func(c *ghttp.Context) {
+		c.Response2.Json(200, ghttp.H{
+			"index": 4,
+			"msg":   "POST | /abc/post",
+		})
+	})
+}
+
 func (m *Mgr) Get(req ghttp.Request, res *ghttp.Response) {
 	res.Json(200, ghttp.H{
 		"index": 1,

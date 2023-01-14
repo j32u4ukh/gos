@@ -57,9 +57,8 @@ var (
 // Request & Response
 // ====================================================================================================
 type R2 struct {
-	id    int32
-	Index int32
-	Next  *R2
+	id   int32
+	Next *R2
 	//////////////////////////////////////////////////
 	// 0: 讀取第一行, 1: 讀取 Header, 2: 讀取 Data, 3: 等待數據寫出(Response) 4. 完成數據複製到寫出緩存
 	State int8
@@ -78,7 +77,6 @@ type R2 struct {
 func NewR2(id int32) *R2 {
 	rr := &R2{
 		id:         id,
-		Index:      -1,
 		Next:       nil,
 		State:      0,
 		Header:     map[string][]string{},
@@ -176,7 +174,7 @@ func (rr *R2) FormResponse() []byte {
 	return buffer.Bytes()
 }
 
-func (rr *R2) SetBodyLength() {
+func (rr *R2) setBodyLength() {
 	rr.Header["Content-Length"] = []string{strconv.Itoa(len(rr.Body))}
 }
 
@@ -355,7 +353,7 @@ func (r Request) FormRequest() []byte {
 func (r *Request) Json(obj any) {
 	r.Header["Content-Type"] = jsonContentType
 	r.Body, _ = json.Marshal(obj)
-	r.SetBodyLength()
+	r.setBodyLength()
 }
 
 // ====================================================================================================
@@ -389,7 +387,7 @@ func (r *Response) Json(code int32, obj any) {
 
 	r.R2.Header["Content-Type"] = jsonContentType
 	r.Body, _ = json.Marshal(obj)
-	r.SetBodyLength()
+	r.setBodyLength()
 }
 
 // 解析第一行數據
