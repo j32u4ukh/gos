@@ -16,12 +16,15 @@ type goserver struct {
 	anserMap map[int32]ans.IAnswer
 	// key: site; value: *Asker
 	askerMap map[int32]ask.IAsker
+	// 啟動後，最大的 site 值 + 1，作為動態建立 Asker 時的 site 值
+	nextSite int32
 }
 
 func newGoserver() *goserver {
 	g := &goserver{
 		anserMap: map[int32]ans.IAnswer{},
 		askerMap: map[int32]ask.IAsker{},
+		nextSite: 0,
 	}
 	return g
 }

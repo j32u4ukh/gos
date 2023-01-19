@@ -60,6 +60,10 @@ func (c *Context) setBodyLength() {
 	c.Header["Content-Length"] = []string{strconv.Itoa(len(c.Body))}
 }
 
+func (c *Context) Json(code int32, obj any) {
+	c.Response2.Json(code, obj)
+}
+
 // ====================================================================================================
 // Request
 // ====================================================================================================
@@ -72,6 +76,23 @@ type Request2 struct {
 	Params map[string]string
 }
 
+func NewRequest2(method string, uri string, params map[string]string) (*Request2, error) {
+	c := NewContext(-1)
+	c.Method = method
+	c.Proto = "HTTP/1.1"
+	c.Params = params
+
+	var host string
+	var ok bool
+	host, c.Query, ok = strings.Cut(uri, "/")
+	if ok {
+		c.Query = fmt.Sprintf("/%s", c.Query)
+		fmt.Printf("NewRequest | Query: %s\n", c.Query)
+	}
+	c.Header["Host"] = []string{host}
+	return c.Request2, nil
+}
+
 func newRequest2(c *Context) *Request2 {
 	r := &Request2{
 		Context: c,
@@ -79,6 +100,20 @@ func newRequest2(c *Context) *Request2 {
 		Params:  map[string]string{},
 	}
 	return r
+}
+
+func (r *Request2) FormRequest(method string, uri string, params map[string]string) {
+	r.Method = method
+	r.Proto = "HTTP/1.1"
+	r.Params = params
+	var host string
+	var ok bool
+	host, r.Query, ok = strings.Cut(uri, "/")
+	if ok {
+		r.Query = fmt.Sprintf("/%s", r.Query)
+		fmt.Printf("NewRequest | Query: %s\n", r.Query)
+	}
+	r.Header["Host"] = []string{host}
 }
 
 func (r *Request2) HasLineData(buffer *[]byte, i int32, o int32, length int32) bool {
@@ -130,7 +165,7 @@ func (r *Request2) HasEnoughData(buffer *[]byte, i int32, o int32, length int32)
 
 // 解析第一行數據
 // parseRequestLine parses "GET /foo HTTP/1.1" into its three parts.
-func (r *Request2) ParseFirstLine(line string) bool {
+func (r *Request2) ParseFirstReqLine(line string) bool {
 	var ok bool
 	r.Method, r.Query, ok = strings.Cut(line, " ")
 
@@ -255,6 +290,20 @@ func (r *Request2) Json(obj any) {
 	r.setBodyLength()
 }
 
+func (r *Request2) Release() {
+	r.Method = ""
+	r.Query = ""
+	r.Proto = ""
+	r.Body = r.Body[:0]
+	r.ReadLength = 0
+	for k := range r.Params {
+		delete(r.Params, k)
+	}
+	for k := range r.Header {
+		delete(r.Header, k)
+	}
+}
+
 // ====================================================================================================
 // Response
 // ====================================================================================================
@@ -291,7 +340,7 @@ func (r *Response2) Json(code int32, obj any) {
 
 // 解析第一行數據
 // parseRequestLine parses "HTTP/1.1 200 OK" into its three parts.
-func (r *Response2) ParseFirstLine(line string) bool {
+func (r *Response2) ParseFirstResLine(line string) bool {
 	var ok bool
 	r.Proto, r.Message, ok = strings.Cut(line, " ")
 

@@ -192,21 +192,19 @@ type Request struct {
 
 func NewRequest(method string, uri string, params map[string]string) (*Request, error) {
 	r2 := NewR2(-1)
-	r := &Request{
-		R2:     r2,
-		Method: method,
-		Proto:  "HTTP/1.1",
-		Params: params,
-	}
+	r2.Request.Method = method
+	r2.Request.Proto = "HTTP/1.1"
+	r2.Request.Params = params
+
 	var host string
 	var ok bool
-	host, r.Query, ok = strings.Cut(uri, "/")
+	host, r2.Query, ok = strings.Cut(uri, "/")
 	if ok {
-		r.Query = fmt.Sprintf("/%s", r.Query)
-		fmt.Printf("NewRequest | Query: %s\n", r.Query)
+		r2.Query = fmt.Sprintf("/%s", r2.Query)
+		fmt.Printf("NewRequest | Query: %s\n", r2.Query)
 	}
-	r.R2.Header["Host"] = []string{host}
-	return r, nil
+	r2.Header["Host"] = []string{host}
+	return r2.Request, nil
 }
 
 func newRequest(r2 *R2) *Request {

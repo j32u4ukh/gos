@@ -81,6 +81,8 @@ func main() {
 		RunAns2(port)
 	} else if service_type == "ask" {
 		RunAsk("127.0.0.1", port)
+	} else if service_type == "ask2" {
+		RunAsk2("127.0.0.1", port)
 	} else if service_type == "nr" {
 		DemoNativeHttpRequest(port)
 	} else if service_type == "ns" {
@@ -174,6 +176,53 @@ func RunAsk(ip string, port int) {
 	err = gos.SendRequest(req, func(res *ghttp.Response) {
 		fmt.Printf("I'm response: %+v\n", res)
 	})
+
+	if err != nil {
+		fmt.Printf("SendRequestError: %+v\n", err)
+		return
+	}
+
+	var start time.Time
+	var during, frameTime time.Duration = 0, 200 * time.Millisecond
+
+	for {
+		start = time.Now()
+
+		gos.RunAsk()
+
+		during = time.Since(start)
+		if during < frameTime {
+			time.Sleep(frameTime - during)
+		}
+	}
+}
+
+func RunAsk2(ip string, port int) {
+	// demoNativeHttpRequest(ip, port)
+	asker, err := gos.Bind(0, ip, port, define.Http2)
+
+	if err != nil {
+		fmt.Printf("BindError: %+v\n", err)
+		return
+	}
+
+	http := asker.(*ask.HttpAsker2)
+	fmt.Printf("http: %+v\n", http)
+
+	req, err := ghttp.NewRequest2(ghttp.MethodGet, "127.0.0.1:1023/abc/get", nil)
+
+	if err != nil {
+		fmt.Printf("NewRequestError: %+v\n", err)
+		return
+	}
+
+	fmt.Printf("req: %+v\n", req)
+	var site int32
+	site, err = gos.SendRequest2(req, func(c *ghttp.Context) {
+		fmt.Printf("I'm Context, Query: %s\n", c.Query)
+	})
+
+	fmt.Printf("site: %d\n", site)
 
 	if err != nil {
 		fmt.Printf("SendRequestError: %+v\n", err)

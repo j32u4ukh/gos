@@ -99,10 +99,10 @@ func (a *HttpAnser2) read() bool {
 			a.lineString = strings.TrimRight(string(a.readBuffer[:a.httpConn.ReadLength]), "\r\n")
 			fmt.Printf("(a *HttpAnser) Read | firstLine: %s\n", a.lineString)
 
-			if a.httpConn.Request2.ParseFirstLine(a.lineString) {
-				if a.httpConn.Request2.Method == ghttp.MethodGet {
+			if a.httpConn.ParseFirstReqLine(a.lineString) {
+				if a.httpConn.Method == ghttp.MethodGet {
 					// 解析第一行數據中的請求路徑
-					a.httpConn.Request2.ParseQuery()
+					a.httpConn.ParseQuery()
 				}
 				a.httpConn.State = 1
 				fmt.Printf("(a *HttpAnser) Read | State: 0 -> 1\n")
@@ -248,8 +248,8 @@ func (a *HttpAnser2) SetWorkHandler() {
 }
 
 func (a *HttpAnser2) errorRequestHandler(w *base.Work, c *ghttp.Context, msg string) {
-	fmt.Printf("(s *Server) errorRequestHandler | method: %s, query: %s\n", c.Request2.Method, c.Request2.Query)
-	c.Response2.Json(400, ghttp.H{
+	fmt.Printf("(s *Server) errorRequestHandler | method: %s, query: %s\n", c.Method, c.Query)
+	c.Json(400, ghttp.H{
 		"code": 400,
 		"msg":  msg,
 	})
