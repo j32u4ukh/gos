@@ -189,8 +189,8 @@ func (a *Anser) checkConnection() {
 	for {
 		select {
 		case netConn = <-a.connBuffer:
-			fmt.Printf("(a *Anser) checkConnection | Conn(%d)\n", a.index)
-			a.emptyConn.Index = a.index
+			fmt.Printf("(a *Anser) checkConnection | Conn(%d)\n", a.emptyConn.GetId())
+			// a.emptyConn.Index = a.index
 			a.emptyConn.NetConn = netConn
 			a.emptyConn.State = define.Connected
 			go a.emptyConn.Handler()
@@ -223,12 +223,12 @@ func (a *Anser) connectedHandler() {
 			switch eType := packet.Error.(type) {
 			case net.Error:
 				if eType.Timeout() {
-					fmt.Printf("(a *Anser) Handler | Conn %d 發生 timeout error.\n", a.currConn.Index)
+					fmt.Printf("(a *Anser) Handler | Conn %d 發生 timeout error.\n", a.currConn.GetId())
 				} else {
-					fmt.Printf("(a *Anser) Handler | Conn %d 發生 net.Error.\n", a.currConn.Index)
+					fmt.Printf("(a *Anser) Handler | Conn %d 發生 net.Error.\n", a.currConn.GetId())
 				}
 			default:
-				fmt.Printf("(a *Anser) Handler | Conn %d 讀取 socket 時發生錯誤\nError: %+v\n", a.currConn.Index, packet.Error)
+				fmt.Printf("(a *Anser) Handler | Conn %d 讀取 socket 時發生錯誤\nError: %+v\n", a.currConn.GetId(), packet.Error)
 			}
 
 			// 連線狀態設為結束
@@ -432,7 +432,7 @@ func (a *Anser) getConn(cid int32) *base.Conn {
 	c := a.conns
 
 	for c != nil {
-		if c.Index == cid {
+		if c.GetId() == cid {
 			return c
 		}
 		c = c.Next

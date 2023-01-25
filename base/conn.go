@@ -31,8 +31,6 @@ type Conn struct {
 	// ==================================================
 	// 連線結構
 	// ==================================================
-	// 連線編號
-	Index int32
 	// 連線物件
 	NetConn net.Conn
 	// 連線狀態
@@ -97,7 +95,6 @@ type Conn struct {
 func NewConn(id int32, size int32) *Conn {
 	c := &Conn{
 		id:             id,
-		Index:          -1,
 		NetConn:        nil,
 		State:          define.Unused,
 		Next:           nil,
@@ -273,8 +270,8 @@ func (c *Conn) Write() error {
 			c.nWrite, c.writeErr = c.NetConn.Write(c.writeBuffer[c.writeOutput:c.writeInput])
 
 			if c.writeErr != nil {
-				fmt.Printf("(c *Conn) write | Failed to write data to conn(%d)\nwriteErr: %+v\n", c.Index, c.writeErr)
-				return errors.Wrapf(c.writeErr, "Failed to write data to conn(%d)", c.Index)
+				fmt.Printf("(c *Conn) write | Failed to write data to conn(%d)\nwriteErr: %+v\n", c.id, c.writeErr)
+				return errors.Wrapf(c.writeErr, "Failed to write data to conn(%d)", c.id)
 			}
 
 		} else {
@@ -282,8 +279,8 @@ func (c *Conn) Write() error {
 			c.nWrite, c.writeErr = c.NetConn.Write(c.writeBuffer[c.writeOutput:])
 
 			if c.writeErr != nil {
-				fmt.Printf("(c *Conn) write | Failed to write data to conn(%d)\nwriteErr: %+v\n", c.Index, c.writeErr)
-				return errors.Wrapf(c.writeErr, "Failed to write data to conn(%d)", c.Index)
+				fmt.Printf("(c *Conn) write | Failed to write data to conn(%d)\nwriteErr: %+v\n", c.id, c.writeErr)
+				return errors.Wrapf(c.writeErr, "Failed to write data to conn(%d)", c.id)
 			}
 
 		}
@@ -320,9 +317,6 @@ func (c *Conn) SetDisconnectTime(second time.Duration) {
 }
 
 func (c *Conn) Release() {
-	// 重置 Index
-	c.Index = -1
-
 	// 停止原本的 goroutine
 	c.stopCh <- true
 
@@ -345,7 +339,7 @@ func (c *Conn) Release() {
 
 func (c *Conn) String() string {
 	var b bytes.Buffer
-	b.WriteString(fmt.Sprintf("Conn(id: %d, Index: %d, ", c.id, c.Index))
+	b.WriteString(fmt.Sprintf("Conn(id: %d, ", c.id))
 	b.WriteString(fmt.Sprintf("NetConn: %+v, State: %s, Next: %+v, ", c.NetConn, c.State, c.Next))
 	b.WriteString(fmt.Sprintf("readInput: %d, readOutput: %d, ReadableLength: %d", c.readInput, c.readOutput, c.ReadableLength))
 	b.WriteString(fmt.Sprintf("writeInput: %d, writeOutput: %d)", c.writeInput, c.writeOutput))
