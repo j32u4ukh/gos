@@ -13,7 +13,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-type HandlerFunc func(req ghttp.Request, res *ghttp.Response)
+type HandlerFunc func(c *ghttp.Context)
 type HandlerChain []HandlerFunc
 
 // ====================================================================================================
@@ -29,11 +29,11 @@ type HttpAnser struct {
 
 	// ==================================================
 	// Request & Response
-	// 個數與 Anser 的 nConnect 相同，因此可利用 Conn 中的 id 作為索引值，來存取 rrStates, Request 與 Response
+	// 個數與 Anser 的 nConnect 相同，因此可利用 Conn 中的 id 作為索引值，來存取 , Request 與 Response
 	// 由於是使用 Conn 的 id 作為索引值，因此可以不用從第一個開始使用，結束使用後也不需要對順序進行調整
 	// ==================================================
-	r2s    []*ghttp.R2
-	currR2 *ghttp.R2
+	httpConns []*ghttp.Context
+	httpConn  *ghttp.Context
 
 	// Temp variables
 	lineString string
@@ -46,8 +46,8 @@ func NewHttpAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, err
 			ghttp.MethodGet:  {},
 			ghttp.MethodPost: {},
 		},
-		r2s:    make([]*ghttp.R2, nConnect),
-		currR2: nil,
+		httpConns: make([]*ghttp.Context, nConnect),
+		httpConn:  nil,
 	}
 
 	// ===== Anser =====
@@ -65,10 +65,10 @@ func NewHttpAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, err
 		Handlers:  HandlerChain{},
 	}
 
-	// ===== R2 =====
+	// ===== Context =====
 	var i int32
 	for i = 0; i < nConnect; i++ {
-		a.r2s[i] = ghttp.NewR2(i)
+		a.httpConns[i] = ghttp.NewContext(i)
 	}
 
 	//////////////////////////////////////////////////
@@ -88,63 +88,63 @@ func (a *HttpAnser) Listen() {
 }
 
 func (a *HttpAnser) read() bool {
-	// 根據 Conn 的 Id，存取對應的 R2
-	a.currR2 = a.r2s[a.currConn.GetId()]
+	// 根據 Conn 的 Id，存取對應的 httpConn
+	a.httpConn = a.httpConns[a.currConn.GetId()]
 
 	// 讀取 第一行
-	if a.currR2.State == 0 {
-		if a.currConn.CheckReadable(a.currR2.HasLineData) {
-			a.currConn.Read(&a.readBuffer, a.currR2.ReadLength)
+	if a.httpConn.State == 0 {
+		if a.currConn.CheckReadable(a.httpConn.HasLineData) {
+			a.currConn.Read(&a.readBuffer, a.httpConn.ReadLength)
 
 			// 拆分第一行數據
-			a.lineString = strings.TrimRight(string(a.readBuffer[:a.currR2.ReadLength]), "\r\n")
+			a.lineString = strings.TrimRight(string(a.readBuffer[:a.httpConn.ReadLength]), "\r\n")
 			fmt.Printf("(a *HttpAnser) Read | firstLine: %s\n", a.lineString)
 
-			if a.currR2.Request.ParseFirstLine(a.lineString) {
-				if a.currR2.Request.Method == ghttp.MethodGet {
+			if a.httpConn.ParseFirstReqLine(a.lineString) {
+				if a.httpConn.Method == ghttp.MethodGet {
 					// 解析第一行數據中的請求路徑
-					a.currR2.Request.ParseQuery()
+					a.httpConn.ParseQuery()
 				}
-				a.currR2.State = 1
+				a.httpConn.State = 1
 				fmt.Printf("(a *HttpAnser) Read | State: 0 -> 1\n")
 			}
 		}
 	}
 
 	// 讀取 Header 數據
-	if a.currR2.State == 1 {
+	if a.httpConn.State == 1 {
 		var key, value string
 		var ok bool
 
-		for a.currConn.CheckReadable(a.currR2.HasLineData) && a.currR2.State == 1 {
+		for a.currConn.CheckReadable(a.httpConn.HasLineData) && a.httpConn.State == 1 {
 			// 讀取一行數據
-			a.currConn.Read(&a.readBuffer, a.currR2.ReadLength)
+			a.currConn.Read(&a.readBuffer, a.httpConn.ReadLength)
 
 			// mustHaveFieldNameColon ensures that, per RFC 7230, the field-name is on a single line,
 			// so the first line must contain a colon.
 			// 將讀到的數據從冒號拆分成 key, value
-			// k, v, ok := bytes.Cut(a.readBuffer[:a.currR2.ReadLength], COLON)
-			a.lineString = strings.TrimRight(string(a.readBuffer[:a.currR2.ReadLength]), "\r\n")
+			// k, v, ok := bytes.Cut(a.readBuffer[:a.currContext.ReadLength], COLON)
+			a.lineString = strings.TrimRight(string(a.readBuffer[:a.httpConn.ReadLength]), "\r\n")
 			key, value, ok = strings.Cut(a.lineString, ghttp.COLON)
 
 			if ok {
 				// 持續讀取 Header
 				// key := string(k)
 
-				if _, ok := a.currR2.Header[key]; !ok {
-					a.currR2.Header[key] = []string{}
+				if _, ok := a.httpConn.Header[key]; !ok {
+					a.httpConn.Header[key] = []string{}
 				}
 
 				value = strings.TrimLeft(value, " \t")
 				// value = strings.TrimRight(value, "\r\n")
-				a.currR2.Header[key] = append(a.currR2.Header[key], value)
+				a.httpConn.Header[key] = append(a.httpConn.Header[key], value)
 				fmt.Printf("(a *HttpAnser) Read | Header, key: %s, value: %s\n", key, value)
 
 			} else {
 				// 當前這行數據不包含":"，結束 Header 的讀取
 
 				// Header 中包含 Content-Length，狀態值設為 2，等待讀取後續數據
-				if contentLength, ok := a.currR2.Header["Content-Length"]; ok {
+				if contentLength, ok := a.httpConn.Header["Content-Length"]; ok {
 					length, err := strconv.Atoi(contentLength[0])
 					fmt.Printf("(a *HttpAnser) Read | Content-Length: %d\n", length)
 
@@ -153,8 +153,8 @@ func (a *HttpAnser) read() bool {
 						return false
 					}
 
-					a.currR2.ReadLength = int32(length)
-					a.currR2.State = 2
+					a.httpConn.ReadLength = int32(length)
+					a.httpConn.State = 2
 					fmt.Printf("(a *HttpAnser) Read | State: 1 -> 2\n")
 
 				} else {
@@ -168,7 +168,7 @@ func (a *HttpAnser) read() bool {
 					a.currWork = a.currWork.Next
 
 					// 等待數據寫出
-					a.currR2.State = 3
+					a.httpConn.State = 3
 					return true
 				}
 			}
@@ -176,27 +176,27 @@ func (a *HttpAnser) read() bool {
 	}
 
 	// 讀取 Body 數據
-	if a.currR2.State == 2 {
-		if a.currConn.CheckReadable(a.currR2.HasEnoughData) {
+	if a.httpConn.State == 2 {
+		if a.currConn.CheckReadable(a.httpConn.HasEnoughData) {
 			// ==========
 			// 讀取 data
 			// ==========
 			// 將傳入的數據，加入工作緩存中
-			a.currConn.Read(&a.readBuffer, a.currR2.ReadLength)
-			fmt.Printf("(a *HttpAnser) Read | %s\n", string(a.readBuffer[:a.currR2.ReadLength]))
+			a.currConn.Read(&a.readBuffer, a.httpConn.ReadLength)
+			fmt.Printf("(a *HttpAnser) Read | %s\n", string(a.readBuffer[:a.httpConn.ReadLength]))
 
 			// 考慮分包問題，收到完整一包數據傳完才傳到應用層
 			a.currWork.Index = a.currConn.GetId()
 			a.currWork.RequestTime = time.Now().UTC()
 			a.currWork.State = 1
-			a.currWork.Body.AddRawData(a.readBuffer[:a.currR2.ReadLength])
+			a.currWork.Body.AddRawData(a.readBuffer[:a.httpConn.ReadLength])
 			a.currWork.Body.ResetIndex()
 
 			// 指向下一個工作結構
 			a.currWork = a.currWork.Next
 
 			// 等待數據寫出
-			a.currR2.State = 3
+			a.httpConn.State = 3
 
 			return false
 		}
@@ -216,48 +216,48 @@ func (a *HttpAnser) write(cid int32, data *[]byte, length int32) error {
 	a.currConn.SetWriteBuffer(data, length)
 
 	// 等待數據寫出
-	a.currR2.State = 4
+	a.httpConn.State = 4
 	return nil
 }
 
 // 由外部定義 workHandler，定義如何處理工作
 func (a *HttpAnser) SetWorkHandler() {
 	a.workHandler = func(w *base.Work) {
-		r2 := a.r2s[w.Index]
+		a.httpConn = a.httpConns[w.Index]
 
-		if handler, ok := a.Handlers[r2.Request.Method]; ok {
-			if functions, ok := handler[r2.Request.Query]; ok {
+		if handler, ok := a.Handlers[a.httpConn.Method]; ok {
+			if functions, ok := handler[a.httpConn.Query]; ok {
 				for _, f := range functions {
 
-					f(*r2.Request, r2.Response)
+					f(a.httpConn)
 
-					r2.SetHeader("Connection", "close")
+					a.httpConn.SetHeader("Connection", "close")
 
 					// 將 Response 回傳數據轉換成 Work 傳遞的格式
-					bs := r2.FormResponse()
+					bs := a.httpConn.ToResponseData()
 					fmt.Printf("Response: %s\n", string(bs))
 					w.Body.AddRawData(bs)
 					w.Send()
 				}
 			} else {
-				a.errorRequestHandler(w, r2, "Unregistered http query.")
+				a.errorRequestHandler(w, a.httpConn, "Unregistered http query.")
 			}
 		} else {
-			a.errorRequestHandler(w, r2, "Unregistered http method.")
+			a.errorRequestHandler(w, a.httpConn, "Unregistered http method.")
 		}
 	}
 }
 
-func (a *HttpAnser) errorRequestHandler(w *base.Work, r2 *ghttp.R2, msg string) {
-	fmt.Printf("(s *Server) errorRequestHandler | method: %s, query: %s\n", r2.Request.Method, r2.Request.Query)
-	r2.Response.Json(400, ghttp.H{
+func (a *HttpAnser) errorRequestHandler(w *base.Work, c *ghttp.Context, msg string) {
+	fmt.Printf("(s *Server) errorRequestHandler | method: %s, query: %s\n", c.Method, c.Query)
+	c.Json(400, ghttp.H{
 		"code": 400,
 		"msg":  msg,
 	})
-	r2.SetHeader("Connection", "close")
+	c.SetHeader("Connection", "close")
 
 	// 將 Response 回傳數據轉換成 Work 傳遞的格式
-	bs := r2.FormResponse()
+	bs := c.ToResponseData()
 	fmt.Printf("Response: %s\n", string(bs))
 	w.Body.AddRawData(bs)
 	w.Send()
@@ -268,10 +268,10 @@ func (a *HttpAnser) shouldClose(err error) bool {
 	if a.Anser.shouldClose(err) {
 		return true
 	}
-	a.currR2 = a.r2s[a.currConn.GetId()]
-	if a.currR2.State == 4 && a.currConn.WritableLength == 0 {
+	a.httpConn = a.httpConns[a.currConn.GetId()]
+	if a.httpConn.State == 4 && a.currConn.WritableLength == 0 {
 		fmt.Printf("(a *HttpAnser) shouldClose | Conn(%d) 完成數據寫出，準備關閉連線\n", a.currConn.GetId())
-		a.currR2.State = 0
+		a.httpConn.State = 0
 		return true
 	}
 	return false

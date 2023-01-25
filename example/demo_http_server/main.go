@@ -89,7 +89,7 @@ func main() {
 }
 
 func RunAns(port int) {
-	anser, err := gos.Listen(define.Http2, int32(port))
+	anser, err := gos.Listen(define.Http, int32(port))
 	fmt.Printf("RunAns | Listen to port %d\n", port)
 
 	if err != nil {
@@ -97,9 +97,9 @@ func RunAns(port int) {
 		return
 	}
 
-	httpAnswer := anser.(*ans.HttpAnser2)
+	httpAnswer := anser.(*ans.HttpAnser)
 	mrg := &Mgr{}
-	mrg.Handler2(httpAnswer.Router2)
+	mrg.Handler(httpAnswer.Router)
 
 	fmt.Printf("(s *Service) RunAns | 伺服器初始化完成\n")
 	gos.StartListen()
@@ -121,17 +121,17 @@ func RunAns(port int) {
 
 func RunAsk(ip string, port int) {
 	// demoNativeHttpRequest(ip, port)
-	asker, err := gos.Bind(0, ip, port, define.Http2)
+	asker, err := gos.Bind(0, ip, port, define.Http)
 
 	if err != nil {
 		fmt.Printf("BindError: %+v\n", err)
 		return
 	}
 
-	http := asker.(*ask.HttpAsker2)
+	http := asker.(*ask.HttpAsker)
 	fmt.Printf("http: %+v\n", http)
 
-	req, err := ghttp.NewRequest2(ghttp.MethodGet, "127.0.0.1:1023/abc/get", nil)
+	req, err := ghttp.NewRequest(ghttp.MethodGet, "127.0.0.1:1023/abc/get", nil)
 
 	if err != nil {
 		fmt.Printf("NewRequestError: %+v\n", err)

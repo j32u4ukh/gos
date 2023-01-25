@@ -122,7 +122,7 @@ func SendToServer(site int32, data *[]byte, length int32) error {
 }
 
 // 傳送 http 訊息
-func SendRequest2(req *ghttp.Request2, callback func(*ghttp.Context)) (int32, error) {
+func SendRequest2(req *ghttp.Request, callback func(*ghttp.Context)) (int32, error) {
 	fmt.Printf("SendRequest | Request: %+v\n", req)
 	var asker ask.IAsker
 	var site int32
@@ -133,7 +133,7 @@ func SendRequest2(req *ghttp.Request2, callback func(*ghttp.Context)) (int32, er
 		host := fmt.Sprintf("%s/%d", ip, port)
 
 		if host == req.Header["Host"][0] {
-			httpAsker := asker.(*ask.HttpAsker2)
+			httpAsker := asker.(*ask.HttpAsker)
 			httpAsker.Send(req, callback)
 			return site, nil
 		}
@@ -149,14 +149,14 @@ func SendRequest2(req *ghttp.Request2, callback func(*ghttp.Context)) (int32, er
 		var err error
 
 		port, _ := strconv.Atoi(p)
-		asker, err = Bind(server.nextSite, ip, port, define.Http2)
+		asker, err = Bind(server.nextSite, ip, port, define.Http)
 		defer func() { server.nextSite++ }()
 
 		if err != nil {
 			return -1, errors.Wrapf(err, "Failed to bind to host: %s", host[0])
 		}
 
-		httpAsker := asker.(*ask.HttpAsker2)
+		httpAsker := asker.(*ask.HttpAsker)
 		httpAsker.Send(req, callback)
 		return server.nextSite, nil
 	}

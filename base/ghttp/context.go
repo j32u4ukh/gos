@@ -23,8 +23,8 @@ type Context struct {
 	// 0: 讀取第一行, 1: 讀取 Header, 2: 讀取 Data, 3: 等待數據寫出(Response) 4. 完成數據複製到寫出緩存
 	State int8
 	Header
-	*Request2
-	*Response2
+	*Request
+	*Response
 
 	// 讀取長度
 	ReadLength int32
@@ -43,8 +43,8 @@ func NewContext(id int32) *Context {
 		Body:       make([]byte, 64*1024),
 		BodyLength: 0,
 	}
-	c.Request2 = newRequest2(c)
-	c.Response2 = newResponse2(c)
+	c.Request = newRequest(c)
+	c.Response = newResponse(c)
 	return c
 }
 
@@ -61,13 +61,13 @@ func (c *Context) setBodyLength() {
 }
 
 func (c *Context) Json(code int32, obj any) {
-	c.Response2.Json(code, obj)
+	c.Response.Json(code, obj)
 }
 
 // ====================================================================================================
 // Request
 // ====================================================================================================
-type Request2 struct {
+type Request struct {
 	*Context
 	Method string
 	Query  string
@@ -76,7 +76,7 @@ type Request2 struct {
 	Params map[string]string
 }
 
-func NewRequest2(method string, uri string, params map[string]string) (*Request2, error) {
+func NewRequest(method string, uri string, params map[string]string) (*Request, error) {
 	c := NewContext(-1)
 	c.Method = method
 	c.Proto = "HTTP/1.1"
@@ -90,11 +90,11 @@ func NewRequest2(method string, uri string, params map[string]string) (*Request2
 		fmt.Printf("NewRequest | Query: %s\n", c.Query)
 	}
 	c.Header["Host"] = []string{host}
-	return c.Request2, nil
+	return c.Request, nil
 }
 
-func newRequest2(c *Context) *Request2 {
-	r := &Request2{
+func newRequest(c *Context) *Request {
+	r := &Request{
 		Context: c,
 		Proto:   "HTTP/1.1",
 		Params:  map[string]string{},
@@ -102,7 +102,7 @@ func newRequest2(c *Context) *Request2 {
 	return r
 }
 
-func (r *Request2) FormRequest(method string, uri string, params map[string]string) {
+func (r *Request) FormRequest(method string, uri string, params map[string]string) {
 	r.Method = method
 	r.Proto = "HTTP/1.1"
 	r.Params = params
@@ -116,7 +116,7 @@ func (r *Request2) FormRequest(method string, uri string, params map[string]stri
 	r.Header["Host"] = []string{host}
 }
 
-func (r *Request2) HasLineData(buffer *[]byte, i int32, o int32, length int32) bool {
+func (r *Request) HasLineData(buffer *[]byte, i int32, o int32, length int32) bool {
 	// fmt.Printf("(c *Context) HasLineData | i: %d, o: %d, length: %d\n", i, o, length)
 
 	if length == 0 {
@@ -158,14 +158,14 @@ func (r *Request2) HasLineData(buffer *[]byte, i int32, o int32, length int32) b
 	return false
 }
 
-func (r *Request2) HasEnoughData(buffer *[]byte, i int32, o int32, length int32) bool {
+func (r *Request) HasEnoughData(buffer *[]byte, i int32, o int32, length int32) bool {
 	fmt.Printf("(c *Context) HasEnoughData | length: %d, ReadLength: %d\n", length, r.ReadLength)
 	return length >= r.ReadLength
 }
 
 // 解析第一行數據
 // parseRequestLine parses "GET /foo HTTP/1.1" into its three parts.
-func (r *Request2) ParseFirstReqLine(line string) bool {
+func (r *Request) ParseFirstReqLine(line string) bool {
 	var ok bool
 	r.Method, r.Query, ok = strings.Cut(line, " ")
 
@@ -181,12 +181,12 @@ func (r *Request2) ParseFirstReqLine(line string) bool {
 
 	r.Query = strings.TrimPrefix(r.Query, "?")
 
-	fmt.Printf("(r *Request2) ParseFirstLine | Method: %s, Query: %s, Proto: %s\n", r.Method, r.Query, r.Proto)
+	fmt.Printf("(r *Request) ParseFirstLine | Method: %s, Query: %s, Proto: %s\n", r.Method, r.Query, r.Proto)
 	return true
 }
 
 // 解析第一行數據中的請求路徑
-func (r *Request2) ParseQuery() (bool, error) {
+func (r *Request) ParseQuery() (bool, error) {
 	var ok bool
 	var params string
 	r.Query, params, ok = strings.Cut(r.Query, "?")
@@ -195,19 +195,19 @@ func (r *Request2) ParseQuery() (bool, error) {
 		return false, nil
 	}
 
-	fmt.Printf("(r *Request2) ParseQuery | Query: %s, params: %s\n", r.Query, params)
+	fmt.Printf("(r *Request) ParseQuery | Query: %s, params: %s\n", r.Query, params)
 	err := r.ParseParams(params)
 
 	if err != nil {
 		return true, errors.Wrapf(err, "Failed to parse params: %s", params)
 	}
 
-	fmt.Printf("(r *Request2) ParseQuery | params: %+v\n", r.Params)
+	fmt.Printf("(r *Request) ParseQuery | params: %+v\n", r.Params)
 	return true, nil
 }
 
 // 解析第一行數據中的請求路徑中的 GET 參數
-func (r *Request2) ParseParams(params string) error {
+func (r *Request) ParseParams(params string) error {
 	var key, value string
 	var ok bool
 	var err error
@@ -216,12 +216,12 @@ func (r *Request2) ParseParams(params string) error {
 		key, params, _ = strings.Cut(params, "&")
 
 		if strings.Contains(key, ";") {
-			fmt.Printf("(r *Request2) ParseParams | invalid semicolon separator in query(%s)\n", key)
+			fmt.Printf("(r *Request) ParseParams | invalid semicolon separator in query(%s)\n", key)
 			continue
 		}
 
 		if key == "" {
-			fmt.Printf("(r *Request2) ParseParams | Empty query is found.\n")
+			fmt.Printf("(r *Request) ParseParams | Empty query is found.\n")
 			continue
 		}
 
@@ -238,14 +238,14 @@ func (r *Request2) ParseParams(params string) error {
 	return err
 }
 
-func (r Request2) GetParam(key string) (bool, string) {
+func (r Request) GetParam(key string) (bool, string) {
 	if param, ok := r.Params[key]; ok {
 		return true, param
 	}
 	return false, ""
 }
 
-func (r Request2) ToRequestData() []byte {
+func (r Request) ToRequestData() []byte {
 	// Accept: */*
 
 	var buffer bytes.Buffer
@@ -280,17 +280,17 @@ func (r Request2) ToRequestData() []byte {
 		buffer.Write(r.Body)
 	}
 	result := buffer.Bytes()
-	fmt.Printf("(r Request2) FormRequest2 | result: %s\n", string(result))
+	fmt.Printf("(r Request) FormRequest | result: %s\n", string(result))
 	return result
 }
 
-func (r *Request2) Json(obj any) {
+func (r *Request) Json(obj any) {
 	r.Header["Content-Type"] = jsonContentType
 	r.Body, _ = json.Marshal(obj)
 	r.setBodyLength()
 }
 
-func (r *Request2) Release() {
+func (r *Request) Release() {
 	r.Method = ""
 	r.Query = ""
 	r.Proto = ""
@@ -307,26 +307,26 @@ func (r *Request2) Release() {
 // ====================================================================================================
 // Response
 // ====================================================================================================
-type Response2 struct {
+type Response struct {
 	*Context
 	Code    int32
 	Message string
 }
 
-func newResponse2(c *Context) *Response2 {
-	r := &Response2{
+func newResponse(c *Context) *Response {
+	r := &Response{
 		Context: c,
 	}
 	return r
 }
 
 // Status sets the HTTP response code.
-func (r *Response2) Status(code int32) {
+func (r *Response) Status(code int32) {
 	r.Code = code
 	r.Message = StatusText(code)
 }
 
-func (r *Response2) Json(code int32, obj any) {
+func (r *Response) Json(code int32, obj any) {
 	r.Status(code)
 
 	for k := range r.Context.Header {
@@ -340,7 +340,7 @@ func (r *Response2) Json(code int32, obj any) {
 
 // 解析第一行數據
 // parseRequestLine parses "HTTP/1.1 200 OK" into its three parts.
-func (r *Response2) ParseFirstResLine(line string) bool {
+func (r *Response) ParseFirstResLine(line string) bool {
 	var ok bool
 	r.Proto, r.Message, ok = strings.Cut(line, " ")
 
@@ -363,12 +363,12 @@ func (r *Response2) ParseFirstResLine(line string) bool {
 	}
 
 	r.Code = int32(code)
-	fmt.Printf("(r *Response2) ParseFirstLine | Proto: %s, Code: %d, Message: %s\n", r.Proto, r.Code, r.Message)
+	fmt.Printf("(r *Response) ParseFirstLine | Proto: %s, Code: %d, Message: %s\n", r.Proto, r.Code, r.Message)
 	return true
 }
 
 // 生成 Response message
-func (r Response2) ToResponseData() []byte {
+func (r Response) ToResponseData() []byte {
 	var buffer bytes.Buffer
 	// HTTP/1.1 200 OK\r\n
 	buffer.WriteString(fmt.Sprintf("%s %d %s\r\n", r.Proto, r.Code, r.Message))
