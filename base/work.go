@@ -31,7 +31,6 @@ type Work struct {
 	Length int32
 	// 數據封裝容器
 	Body *TransData
-	*Protocol
 }
 
 func NewWork(id int32) *Work {
@@ -42,7 +41,6 @@ func NewWork(id int32) *Work {
 		Next:        nil,
 		Data:        make([]byte, define.BUFFER_SIZE*define.MTU),
 		Body:        NewTransData(),
-		Protocol:    &Protocol{Data: []byte{}},
 		State:       -1,
 	}
 	return c
@@ -92,19 +90,6 @@ func (w *Work) SendTransData() {
 	w.State = 2
 }
 
-func (w *Work) SendProtocol(p IProtocol) {
-	w.Body.Clear()
-	bs := p.Marshal()
-	w.Body.AddRawData(bs)
-	w.Body.ResetIndex()
-	w.State = 2
-}
-
-func (w *Work) ReadProtocol(p IProtocol) {
-	p.Unmarshal(w.Protocol, nil)
-	w.Body.Clear()
-}
-
 func (w *Work) Equals(other *Work) bool {
 	return w.id == other.id
 }
@@ -120,7 +105,6 @@ func (w *Work) Release() {
 	w.Length = 0
 	w.State = -1
 	w.Body.Clear()
-	w.Protocol.Data = []byte{}
 }
 
 func CheckWorks(works *Work) {

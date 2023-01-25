@@ -1,7 +1,8 @@
-package base
+package main
 
 import (
 	"fmt"
+	"gos/base"
 	"reflect"
 
 	"google.golang.org/protobuf/proto"
@@ -20,7 +21,7 @@ func (p *Protocol) String() string {
 
 func (p *Protocol) Unmarshal(data []byte) {
 	v := reflect.ValueOf(p).Elem()
-	td := LoadTransData(data)
+	td := base.LoadTransData(data)
 
 	field := v.FieldByIndex([]int{0})
 	field.SetUint(uint64(td.PopByte()))
@@ -34,14 +35,14 @@ func (p *Protocol) Unmarshal(data []byte) {
 
 type IProtocol interface {
 	Marshal() []byte
-	Unmarshal(p *Protocol, f func(reflect.Value, *TransData))
+	Unmarshal(p *Protocol, f func(reflect.Value, *base.TransData))
 }
 
 func Marshal(p IProtocol) []byte {
 	v := reflect.ValueOf(p).Elem()
 	t := reflect.TypeOf(p).Elem()
 	var kind string
-	td := NewTransData()
+	td := base.NewTransData()
 
 	field := v.FieldByIndex([]int{0})
 	protocol := field.Interface().(*Protocol)
@@ -99,8 +100,8 @@ func Marshal(p IProtocol) []byte {
 	return td.GetData()
 }
 
-func Unmarshal(ip IProtocol, p *Protocol, f func(reflect.Value, *TransData)) {
-	td := LoadTransData(p.Data)
+func Unmarshal(ip IProtocol, p *Protocol, f func(reflect.Value, *base.TransData)) {
+	td := base.LoadTransData(p.Data)
 	v := reflect.ValueOf(ip).Elem()
 	t := reflect.TypeOf(ip).Elem()
 	var field reflect.Value
