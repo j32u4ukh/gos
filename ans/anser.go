@@ -24,8 +24,6 @@ func NewAnser(socketType define.SocketType, laddr *net.TCPAddr, nConnect int32, 
 	switch socketType {
 	case define.Tcp0:
 		return NewTcp0Anser(laddr, nConnect, nWork)
-	case define.Http:
-		return NewHttpAnser(laddr, nConnect, nWork)
 	case define.Http2:
 		return NewHttpAnser2(laddr, nConnect, nWork)
 	default:

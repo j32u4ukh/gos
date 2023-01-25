@@ -121,48 +121,7 @@ func SendToServer(site int32, data *[]byte, length int32) error {
 	return errors.New(fmt.Sprintf("Unknown site: %d", site))
 }
 
-// 傳送 http 訊息，可透過 cid 指定使用的連線物件
-func SendRequest(req *ghttp.Request, callback func(*ghttp.Response)) error {
-	fmt.Printf("SendRequest | Request: %+v\n", req)
-	var asker ask.IAsker
-
-	// 檢查是否有相同 Address、已建立的 Asker
-	for _, asker = range server.askerMap {
-		ip, port := asker.GetAddress()
-		host := fmt.Sprintf("%s/%d", ip, port)
-
-		if host == req.Header["Host"][0] {
-			httpAsker := asker.(*ask.HttpAsker)
-			httpAsker.Send(req, callback)
-			return nil
-		}
-	}
-
-	if host, ok := req.Header["Host"]; ok {
-		// fmt.Printf("SendRequest | host: %s\n", host[0])
-
-		ip, p, _ := strings.Cut(host[0], ":")
-		// fmt.Printf("SendRequest | ip: %s, port: %s\n", ip, p)
-		// fmt.Printf("SendRequest | query: %s\n", req.Query)
-		var asker ask.IAsker
-		var err error
-
-		port, _ := strconv.Atoi(p)
-		asker, err = Bind(100, ip, port, define.Http)
-
-		if err != nil {
-			return errors.Wrapf(err, "Failed to bind to host: %s", host[0])
-		}
-
-		httpAsker := asker.(*ask.HttpAsker)
-		httpAsker.Send(req, callback)
-		return nil
-	}
-
-	return errors.New("Request 中未定義 uri")
-}
-
-// 傳送 http 訊息，可透過 cid 指定使用的連線物件
+// 傳送 http 訊息
 func SendRequest2(req *ghttp.Request2, callback func(*ghttp.Context)) (int32, error) {
 	fmt.Printf("SendRequest | Request: %+v\n", req)
 	var asker ask.IAsker
@@ -190,7 +149,7 @@ func SendRequest2(req *ghttp.Request2, callback func(*ghttp.Context)) (int32, er
 		var err error
 
 		port, _ := strconv.Atoi(p)
-		asker, err = Bind(server.nextSite, ip, port, define.Http)
+		asker, err = Bind(server.nextSite, ip, port, define.Http2)
 		defer func() { server.nextSite++ }()
 
 		if err != nil {

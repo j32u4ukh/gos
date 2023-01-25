@@ -13,7 +13,7 @@ func (s SocketType) String() string {
 	switch s {
 	case Tcp0:
 		return "Tcp0"
-	case Http:
+	case Http2:
 		return "Http"
 	default:
 		return "Null"

@@ -27,8 +27,6 @@ func NewAsker(socketType define.SocketType, site int32, laddr *net.TCPAddr, nWor
 	case define.Tcp0:
 		return NewTcp0Asker(site, laddr, 1, nWork)
 	// Chrome 一次最多可同時送出 6 個請求, HttpAsker nConnect = 6
-	case define.Http:
-		return NewHttpAsker(site, laddr, 6, nWork)
 	case define.Http2:
 		return NewHttpAsker2(site, laddr, 6, nWork)
 	default:

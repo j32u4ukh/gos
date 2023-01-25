@@ -77,12 +77,8 @@ func main() {
 
 	if service_type == "ans" {
 		RunAns(port)
-	} else if service_type == "ans2" {
-		RunAns2(port)
 	} else if service_type == "ask" {
 		RunAsk("127.0.0.1", port)
-	} else if service_type == "ask2" {
-		RunAsk2("127.0.0.1", port)
 	} else if service_type == "nr" {
 		DemoNativeHttpRequest(port)
 	} else if service_type == "ns" {
@@ -93,37 +89,6 @@ func main() {
 }
 
 func RunAns(port int) {
-	anser, err := gos.Listen(define.Http, int32(port))
-	fmt.Printf("RunAns | Listen to port %d\n", port)
-
-	if err != nil {
-		fmt.Printf("Error: %+v\n", err)
-		return
-	}
-
-	httpAnswer := anser.(*ans.HttpAnser)
-	mrg := &Mgr{}
-	mrg.Handler(httpAnswer.Router)
-
-	fmt.Printf("(s *Service) RunAns | 伺服器初始化完成\n")
-	gos.StartListen()
-	fmt.Printf("(s *Service) RunAns | 開始監聽\n")
-	var start time.Time
-	var during, frameTime time.Duration = 0, 200 * time.Millisecond
-
-	for {
-		start = time.Now()
-
-		gos.RunAns()
-
-		during = time.Since(start)
-		if during < frameTime {
-			time.Sleep(frameTime - during)
-		}
-	}
-}
-
-func RunAns2(port int) {
 	anser, err := gos.Listen(define.Http2, int32(port))
 	fmt.Printf("RunAns | Listen to port %d\n", port)
 
@@ -155,49 +120,6 @@ func RunAns2(port int) {
 }
 
 func RunAsk(ip string, port int) {
-	// demoNativeHttpRequest(ip, port)
-	asker, err := gos.Bind(0, ip, port, define.Http)
-
-	if err != nil {
-		fmt.Printf("BindError: %+v\n", err)
-		return
-	}
-	http := asker.(*ask.HttpAsker)
-	fmt.Printf("http: %+v\n", http)
-
-	req, err := ghttp.NewRequest(ghttp.MethodGet, "127.0.0.1:1023/abc/get", nil)
-
-	if err != nil {
-		fmt.Printf("NewRequestError: %+v\n", err)
-		return
-	}
-
-	fmt.Printf("req: %+v\n", req)
-	err = gos.SendRequest(req, func(res *ghttp.Response) {
-		fmt.Printf("I'm response: %+v\n", res)
-	})
-
-	if err != nil {
-		fmt.Printf("SendRequestError: %+v\n", err)
-		return
-	}
-
-	var start time.Time
-	var during, frameTime time.Duration = 0, 200 * time.Millisecond
-
-	for {
-		start = time.Now()
-
-		gos.RunAsk()
-
-		during = time.Since(start)
-		if during < frameTime {
-			time.Sleep(frameTime - during)
-		}
-	}
-}
-
-func RunAsk2(ip string, port int) {
 	// demoNativeHttpRequest(ip, port)
 	asker, err := gos.Bind(0, ip, port, define.Http2)
 
