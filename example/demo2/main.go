@@ -2,13 +2,14 @@ package main
 
 import (
 	"fmt"
-	"gos"
-	"gos/ans"
-	"gos/ask"
-	"gos/define"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/j32u4ukh/gos"
+	"github.com/j32u4ukh/gos/ans"
+	"github.com/j32u4ukh/gos/ask"
+	"github.com/j32u4ukh/gos/define"
 )
 
 type Service struct {

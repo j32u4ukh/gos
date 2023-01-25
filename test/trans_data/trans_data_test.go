@@ -1,8 +1,9 @@
 package test
 
 import (
-	"gos/base"
 	"testing"
+
+	"github.com/j32u4ukh/gos/base"
 )
 
 func TestBoolean(t *testing.T) {

@@ -1,4 +1,4 @@
-module gos
+module github.com/j32u4ukh/gos
 
 go 1.18
 

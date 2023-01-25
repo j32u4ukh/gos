@@ -2,11 +2,12 @@ package gos
 
 import (
 	"fmt"
-	"gos/ans"
-	"gos/ask"
-	"gos/base"
-	"gos/define"
 	"net"
+
+	"github.com/j32u4ukh/gos/ans"
+	"github.com/j32u4ukh/gos/ask"
+	"github.com/j32u4ukh/gos/base"
+	"github.com/j32u4ukh/gos/define"
 
 	"github.com/pkg/errors"
 )

@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	"gos"
-	"gos/base"
 	"time"
+
+	"github.com/j32u4ukh/gos"
+	"github.com/j32u4ukh/gos/base"
 )
 
 type Mgr struct {

@@ -3,10 +3,11 @@ package ask
 import (
 	"encoding/binary"
 	"fmt"
-	"gos/base"
-	"gos/define"
 	"net"
 	"time"
+
+	"github.com/j32u4ukh/gos/base"
+	"github.com/j32u4ukh/gos/define"
 
 	"github.com/pkg/errors"
 )

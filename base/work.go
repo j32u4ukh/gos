@@ -2,8 +2,9 @@ package base
 
 import (
 	"fmt"
-	"gos/define"
 	"time"
+
+	"github.com/j32u4ukh/gos/define"
 )
 
 // 封裝基本連線物件，提供給外部存取

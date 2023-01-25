@@ -2,7 +2,8 @@ package main
 
 import (
 	"fmt"
-	"gos/base"
+
+	"github.com/j32u4ukh/gos/base"
 )
 
 type Mgr struct {

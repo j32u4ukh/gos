@@ -2,13 +2,14 @@ package gos
 
 import (
 	"fmt"
-	"gos/ans"
-	"gos/ask"
-	"gos/base/ghttp"
-	"gos/define"
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/j32u4ukh/gos/ans"
+	"github.com/j32u4ukh/gos/ask"
+	"github.com/j32u4ukh/gos/base/ghttp"
+	"github.com/j32u4ukh/gos/define"
 
 	"github.com/pkg/errors"
 )

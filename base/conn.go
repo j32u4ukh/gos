@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"gos/define"
 	"net"
 	"time"
+
+	"github.com/j32u4ukh/gos/define"
 
 	"github.com/pkg/errors"
 )

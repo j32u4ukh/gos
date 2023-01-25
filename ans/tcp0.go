@@ -1,9 +1,10 @@
 package ans
 
 import (
-	"gos/base"
 	"net"
 	"time"
+
+	"github.com/j32u4ukh/gos/base"
 
 	"github.com/pkg/errors"
 )

@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"gos/base"
 	"reflect"
+
+	"github.com/j32u4ukh/gos/base"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"

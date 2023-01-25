@@ -2,13 +2,14 @@ package ans
 
 import (
 	"fmt"
-	"gos/base"
-	"gos/base/ghttp"
 	"net"
 	"path"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/j32u4ukh/gos/base"
+	"github.com/j32u4ukh/gos/base/ghttp"
 
 	"github.com/pkg/errors"
 )

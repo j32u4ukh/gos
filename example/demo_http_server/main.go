@@ -2,16 +2,17 @@ package main
 
 import (
 	"fmt"
-	"gos"
-	"gos/ans"
-	"gos/ask"
-	"gos/base/ghttp"
-	"gos/define"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/j32u4ukh/gos"
+	"github.com/j32u4ukh/gos/ans"
+	"github.com/j32u4ukh/gos/ask"
+	"github.com/j32u4ukh/gos/base/ghttp"
+	"github.com/j32u4ukh/gos/define"
 )
 
 /*
