@@ -141,7 +141,7 @@ func RunAsk(ip string, port int) {
 
 	fmt.Printf("req: %+v\n", req)
 	var site int32
-	site, err = gos.SendRequest2(req, func(c *ghttp.Context) {
+	site, err = gos.SendRequest(req, func(c *ghttp.Context) {
 		fmt.Printf("I'm Context, Query: %s\n", c.Query)
 	})
 
