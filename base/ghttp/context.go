@@ -16,9 +16,10 @@ type HandlerFunc func(*Context)
 type Context struct {
 	// Context 唯一碼
 	id int32
-	// 對應 連線物件/工作物件 的 id
-	Index int32
-
+	// 對應 連線結構 的 id
+	Cid int32
+	// 對應 工作結構 的 id
+	Wid int32
 	//////////////////////////////////////////////////
 	// 0: 讀取第一行, 1: 讀取 Header, 2: 讀取 Data, 3: 等待數據寫出(Response) 4. 完成數據複製到寫出緩存
 	State int8
@@ -37,7 +38,8 @@ type Context struct {
 func NewContext(id int32) *Context {
 	c := &Context{
 		id:         id,
-		Index:      -1,
+		Cid:        -1,
+		Wid:        -1,
 		State:      0,
 		Header:     map[string][]string{},
 		Body:       make([]byte, 64*1024),
@@ -46,6 +48,10 @@ func NewContext(id int32) *Context {
 	c.Request = newRequest(c)
 	c.Response = newResponse(c)
 	return c
+}
+
+func (c *Context) GetId() int32 {
+	return c.id
 }
 
 func (c *Context) SetHeader(key string, value string) {

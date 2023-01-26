@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -13,6 +14,7 @@ import (
 	"github.com/j32u4ukh/gos/ask"
 	"github.com/j32u4ukh/gos/base/ghttp"
 	"github.com/j32u4ukh/gos/define"
+	"github.com/j32u4ukh/gos/utils"
 )
 
 /*
@@ -82,6 +84,8 @@ func main() {
 		RunAsk("127.0.0.1", port)
 	} else if service_type == "nr" {
 		DemoNativeHttpRequest(port)
+	} else if service_type == "nr2" {
+		DemoNativeHttpRequest2(port)
 	} else if service_type == "ns" {
 		DemoNativeHttpServer("192.168.0.198", port)
 	}
@@ -184,7 +188,34 @@ func DemoNativeHttpRequest(port int) {
 
 	res, err := http.Get(requestURL)
 	if err != nil {
+		fmt.Printf("err: %+v\n", err)
+		return
+	}
+	defer res.Body.Close()
+	sitemap, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		fmt.Printf("err: %+v\n", err)
+		return
+	}
+
+	fmt.Printf("%s\n", sitemap)
+}
+
+func DemoNativeHttpRequest2(port int) {
+	client := &http.Client{}
+	jsonBody := []byte(`{"client_message": "hello, server!"}`)
+	bodyReader := bytes.NewReader(jsonBody)
+
+	//這邊可以任意變換 http method  GET、POST、PUT、DELETE
+	req, err := http.NewRequest("POST", fmt.Sprintf("%s:%d/abc/post", "http://127.0.0.1", port), bodyReader)
+	if err != nil {
 		fmt.Println(err)
+		return
+	}
+
+	res, err := client.Do(req)
+	if err != nil {
+		fmt.Printf("err: %+v\n", err)
 		return
 	}
 	defer res.Body.Close()
@@ -242,10 +273,10 @@ func handleRequest(conn net.Conn) {
 		53 13 10 13 10 123 13 10 32 32 32 32 34 105 100 34 58 48 44 13 10 32 32 32 32 34 109 115 103 34 58 34 116 101 115 116 34 13 10 125
 	*/
 	request := string(buf[:l])
-	fmt.Println(buf)
+	fmt.Println(utils.SliceToString(buf[:l]))
 	fmt.Println(request)
 
-	fmt.Println()
+	fmt.Println("================================================================")
 	// Accept: */*
 	/*
 		GET /end HTTP/1.1
