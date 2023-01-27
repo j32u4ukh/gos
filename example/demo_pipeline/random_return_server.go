@@ -16,6 +16,8 @@ func (rrs *RandomReturnServer) Handler(work *base.Work) {
 	switch cmd {
 	case 0:
 		rrs.handleSystemCommand(work)
+	case 1:
+		rrs.handleCommission(work)
 	default:
 		fmt.Printf("Unsupport command: %d\n", cmd)
 		work.Finish()
@@ -39,6 +41,26 @@ func (rrs *RandomReturnServer) handleSystemCommand(work *base.Work) {
 		work.SendTransData()
 	default:
 		fmt.Printf("Unsupport service: %d\n", service)
+		work.Finish()
+	}
+}
+
+func (rrs *RandomReturnServer) handleCommission(work *base.Work) {
+	commission := work.Body.PopUInt16()
+
+	switch commission {
+	case 1023:
+		cid := work.Body.PopInt32()
+		work.Body.Clear()
+
+		work.Body.AddByte(1)
+		work.Body.AddUInt16(1023)
+		work.Body.AddInt32(cid)
+		work.Body.AddString("Commission completed.")
+		work.SendTransData()
+
+	default:
+		fmt.Printf("Unsupport commission: %d\n", commission)
 		work.Finish()
 	}
 }

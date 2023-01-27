@@ -14,6 +14,8 @@ import (
 	"github.com/j32u4ukh/gos/define"
 )
 
+const ERandomReturnServer int32 = 0
+
 func main() {
 	service_type := os.Args[1]
 
@@ -28,6 +30,7 @@ func main() {
 	fmt.Println("[Example] Run | End of gos example.")
 }
 
+// MainServer 接受客戶端 http 請求，再將請求發送到 RandomReturnServer 做處理，RandomReturnServer 將結果返還 MainServer，再由 MainServer 回覆客戶端
 func RunMainServer(port int) {
 	anser, err := gos.Listen(define.Http, int32(port))
 	fmt.Printf("RunMainServer | Listen to port %d\n", port)
@@ -43,7 +46,7 @@ func RunMainServer(port int) {
 	mgr.HttpHandler(httpAnswer.Router)
 	fmt.Printf("RunMainServer | Http Anser 伺服器初始化完成\n")
 
-	asker, err := gos.Bind(0, "127.0.0.1", 1022, define.Tcp0)
+	asker, err := gos.Bind(ERandomReturnServer, "127.0.0.1", 1022, define.Tcp0)
 
 	if err != nil {
 		fmt.Printf("RunMainServer | Bind error: %+v\n", err)
@@ -71,13 +74,14 @@ func RunMainServer(port int) {
 
 	fmt.Printf("RunMainServer | 成功與 RandomReturnServer 連線\n")
 	var start time.Time
-	var during, frameTime time.Duration = 0, 200 * time.Millisecond
+	var during, frameTime time.Duration = 0, 20 * time.Millisecond
 
 	for {
 		start = time.Now()
 
 		gos.RunAns()
 		gos.RunAsk()
+		mgr.Run()
 
 		during = time.Since(start)
 		if during < frameTime {
@@ -138,7 +142,7 @@ func RunRandomReturnServer(port int) {
 	gos.StartListen()
 	fmt.Printf("RunRandomReturnServer | 開始監聽\n")
 	var start time.Time
-	var during, frameTime time.Duration = 0, 200 * time.Millisecond
+	var during, frameTime time.Duration = 0, 20 * time.Millisecond
 
 	for {
 		start = time.Now()

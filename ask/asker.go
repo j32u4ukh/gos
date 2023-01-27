@@ -308,7 +308,7 @@ func (a *Asker) connectedHandler() {
 			// 若當前時間已晚於發送心跳的時間戳
 			if time.Now().After(a.heartbeatTime) {
 				// 發送心跳包
-				fmt.Printf("(a *Asker) connectedHandler | Heartbeat: %+v\n", a.heartbeatTime)
+				fmt.Printf("(a *Asker) connectedHandler | Heartbeat: %v\n", a.heartbeatTime)
 
 				// TODO: 每隔數分鐘再印一次資訊即可
 				a.currWork.Index = 0
@@ -316,7 +316,6 @@ func (a *Asker) connectedHandler() {
 				a.currWork.Body.AddRawData(a.heartData)
 				a.currWork.Send()
 				a.heartbeatTime = time.Now().Add(1000 * time.Millisecond)
-				fmt.Printf("(a *Asker) connectedHandler | Next heartbeatTime: %+v\n", a.heartbeatTime)
 			}
 		}
 
