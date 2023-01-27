@@ -2,46 +2,74 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/j32u4ukh/gos"
 	"github.com/j32u4ukh/gos/ans"
 	"github.com/j32u4ukh/gos/ask"
-	"github.com/j32u4ukh/gos/base/ghttp"
 	"github.com/j32u4ukh/gos/define"
 )
 
 func main() {
 	service_type := os.Args[1]
-	var port int = 1023
 
-	if service_type == "ans" {
-		RunAns(port)
+	if service_type == "ms" {
+		RunMainServer(1023)
 	} else if service_type == "ask" {
-		RunAsk("127.0.0.1", port)
+		RunAsk(1023)
+	} else if service_type == "rrs" {
+		RunRandomReturnServer(1022)
 	}
 
 	fmt.Println("[Example] Run | End of gos example.")
 }
 
-func RunAns(port int) {
+func RunMainServer(port int) {
 	anser, err := gos.Listen(define.Http, int32(port))
-	fmt.Printf("RunAns | Listen to port %d\n", port)
+	fmt.Printf("RunMainServer | Listen to port %d\n", port)
 
 	if err != nil {
-		fmt.Printf("Error: %+v\n", err)
+		fmt.Printf("RunMainServer | Listen error: %+v\n", err)
 		return
 	}
 
-	mrg := &Mgr{}
+	mgr := &Mgr{}
 	httpAnswer := anser.(*ans.HttpAnser)
-	mrg.HttpAnswer = anser.(*ans.HttpAnser)
-	mrg.HttpHandler(httpAnswer.Router)
+	mgr.HttpAnswer = anser.(*ans.HttpAnser)
+	mgr.HttpHandler(httpAnswer.Router)
+	fmt.Printf("RunMainServer | Http Anser 伺服器初始化完成\n")
 
-	fmt.Printf("(s *Service) RunAns | 伺服器初始化完成\n")
+	asker, err := gos.Bind(0, "127.0.0.1", 1022, define.Tcp0)
+
+	if err != nil {
+		fmt.Printf("RunMainServer | Bind error: %+v\n", err)
+		return
+	}
+
+	tcp0Asker := asker.(*ask.Tcp0Asker)
+	tcp0Asker.SetWorkHandler(mgr.RandomReturnServerHandler)
+	fmt.Printf("RunMainServer | RandomReturnServer Asker 伺服器初始化完成\n")
+
+	fmt.Printf("RunMainServer | 伺服器初始化完成\n")
+
+	// =============================================
+	// 開始所有已註冊的監聽
+	// =============================================
 	gos.StartListen()
-	fmt.Printf("(s *Service) RunAns | 開始監聽\n")
+	fmt.Printf("RunMainServer | 開始監聽\n")
+
+	err = gos.StartConnect()
+
+	if err != nil {
+		fmt.Printf("RunMainServer | 與 RandomReturnServer 連線時發生錯誤, error: %+v\n", err)
+		return
+	}
+
+	fmt.Printf("RunMainServer | 成功與 RandomReturnServer 連線\n")
 	var start time.Time
 	var during, frameTime time.Duration = 0, 200 * time.Millisecond
 
@@ -49,6 +77,7 @@ func RunAns(port int) {
 		start = time.Now()
 
 		gos.RunAns()
+		gos.RunAsk()
 
 		during = time.Since(start)
 		if during < frameTime {
@@ -57,46 +86,65 @@ func RunAns(port int) {
 	}
 }
 
-func RunAsk(ip string, port int) {
-	asker, err := gos.Bind(0, ip, port, define.Http)
+func RunAsk(port int) {
+	method := "GET"
+	url := fmt.Sprintf("http://192.168.0.198:%d", port)
+	payload := strings.NewReader(`{"client_message": "hello, server!"}`)
+
+	client := &http.Client{}
+	req, err := http.NewRequest(method, url, payload)
 
 	if err != nil {
-		fmt.Printf("BindError: %+v\n", err)
+		fmt.Println(err)
 		return
 	}
 
-	http := asker.(*ask.HttpAsker)
-	fmt.Printf("http: %+v\n", http)
-
-	req, err := ghttp.NewRequest(ghttp.MethodGet, "127.0.0.1:1023/abc/get", nil)
+	req.Header.Add("Content-Type", "application/json")
+	res, err := client.Do(req)
 
 	if err != nil {
-		fmt.Printf("NewRequestError: %+v\n", err)
+		fmt.Println(err)
 		return
 	}
 
-	fmt.Printf("req: %+v\n", req)
-	var site int32
-	site, err = gos.SendRequest(req, func(c *ghttp.Context) {
-		fmt.Printf("I'm Context, Query: %s\n", c.Query)
-		res := string(c.Body[:c.BodyLength])
-		fmt.Printf("res: %s\n", res)
-	})
-
-	fmt.Printf("site: %d\n", site)
+	defer res.Body.Close()
+	body, err := ioutil.ReadAll(res.Body)
 
 	if err != nil {
-		fmt.Printf("SendRequestError: %+v\n", err)
+		fmt.Println(err)
 		return
 	}
 
+	fmt.Println(string(body))
+}
+
+func RunRandomReturnServer(port int) {
+	anser, err := gos.Listen(define.Tcp0, int32(port))
+	fmt.Printf("RunRandomReturnServer | Listen to port %d\n", port)
+
+	if err != nil {
+		fmt.Printf("RunRandomReturnServer | Error: %+v\n", err)
+		return
+	}
+
+	rrs := &RandomReturnServer{}
+	tcpAnser := anser.(*ans.Tcp0Anser)
+	tcpAnser.SetWorkHandler(rrs.Handler)
+	fmt.Printf("RunRandomReturnServer | 伺服器初始化完成\n")
+
+	// =============================================
+	// 開始所有已註冊的監聽
+	// =============================================
+	gos.StartListen()
+	fmt.Printf("RunRandomReturnServer | 開始監聽\n")
 	var start time.Time
 	var during, frameTime time.Duration = 0, 200 * time.Millisecond
 
 	for {
 		start = time.Now()
 
-		gos.RunAsk()
+		gos.RunAns()
+		rrs.Run()
 
 		during = time.Since(start)
 		if during < frameTime {

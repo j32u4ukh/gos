@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/j32u4ukh/gos/ans"
+	"github.com/j32u4ukh/gos/base"
 	"github.com/j32u4ukh/gos/base/ghttp"
 )
 
@@ -65,5 +67,37 @@ func (m *Mgr) CommissionHandler(site int32, cid int32) {
 			"msg":   "POST | /abc/delay_response",
 		})
 		m.HttpAnswer.Send(c)
+	}
+}
+
+func (m *Mgr) RandomReturnServerHandler(work *base.Work) {
+	cmd := work.Body.PopByte()
+
+	switch cmd {
+	case 0:
+		m.handleSystemCommand(work)
+	default:
+		fmt.Printf("Unsupport command: %d\n", cmd)
+		work.Finish()
+	}
+}
+
+func (m *Mgr) Run() {
+
+}
+
+func (m *Mgr) handleSystemCommand(work *base.Work) {
+	service := work.Body.PopUInt16()
+
+	switch service {
+	case 0:
+		// data := work.Body.GetData()
+		// fmt.Printf("response data: %s\n%v", data, data)
+		response := work.Body.PopString()
+		fmt.Printf("Heart beat response: %s\n", response)
+		work.Finish()
+	default:
+		fmt.Printf("Unsupport service: %d\n", service)
+		work.Finish()
 	}
 }
