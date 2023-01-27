@@ -28,7 +28,7 @@ func NewTcp0Anser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, err
 
 	// ===== Anser =====
 	a.Anser, err = newAnser(laddr, nConnect, nWork)
-	a.Anser.ReadTimeout = 3000 * time.Millisecond
+	a.Anser.ReadTimeout = 5000 * time.Millisecond
 
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to new Tcp0Anser.")

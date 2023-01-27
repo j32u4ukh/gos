@@ -143,7 +143,12 @@ func (c *Conn) Add(conn *Conn) {
 }
 
 func (c *Conn) Handler() {
-	// fmt.Printf("(c *Conn) handler, c.readErr: %+v\n", c.readErr)
+	fmt.Printf("(c *Conn) handler | Start, c.readErr: %+v\n", c.readErr)
+	// 確保 stopCh 為空
+	select {
+	case <-c.stopCh:
+	default:
+	}
 
 	for c.readErr == nil {
 		select {
@@ -177,6 +182,8 @@ func (c *Conn) Handler() {
 			}
 		}
 	}
+
+	fmt.Printf("(c *Conn) handler | Stop, c.readErr: %+v\n", c.readErr)
 }
 
 // 讀取封包數據，並寫入 readBuffer
@@ -301,11 +308,13 @@ func (c *Conn) Write() error {
 func (c *Conn) Reconnect() {
 	fmt.Printf("(c *Conn) Reconnect | cid: %d\n", c.id)
 
-	// 關閉當前連線
-	c.NetConn.Close()
+	if c.NetConn != nil {
+		// 關閉當前連線
+		c.NetConn.Close()
 
-	// 清空連線物件
-	c.NetConn = nil
+		// 清空連線物件
+		c.NetConn = nil
+	}
 
 	c.nRead = 0
 	c.readErr = nil
@@ -331,6 +340,10 @@ func (c *Conn) Release() {
 
 	// 釋放子節點
 	c.Next = nil
+
+	c.nRead = 0
+	c.readErr = nil
+	c.writeErr = nil
 
 	// 重置讀取用索引值
 	c.readInput = 0

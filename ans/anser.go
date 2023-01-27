@@ -3,6 +3,7 @@ package ans
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
 	"net"
 	"time"
 
@@ -192,14 +193,14 @@ func (a *Anser) checkConnection() {
 			fmt.Printf("(a *Anser) checkConnection | Conn(%d)\n", a.emptyConn.GetId())
 			// a.emptyConn.Index = a.index
 			a.emptyConn.NetConn = netConn
+			a.emptyConn.NetConn.SetReadDeadline(time.Now().Add(a.ReadTimeout))
 			a.emptyConn.State = define.Connected
 			go a.emptyConn.Handler()
 
 			// 更新空連線指標位置
-			a.emptyConn = a.emptyConn.Next
+			a.updateEmptyConn()
 
 			// 更新連線數與連線物件的索引值
-			// TODO: a.nConnect == a.maxConnect, 檢查有沒有可以踢掉的連線
 			a.nConn += 1
 			a.index += 1
 		default:
@@ -228,7 +229,13 @@ func (a *Anser) connectedHandler() {
 					fmt.Printf("(a *Anser) Handler | Conn %d 發生 net.Error.\n", a.currConn.GetId())
 				}
 			default:
-				fmt.Printf("(a *Anser) Handler | Conn %d 讀取 socket 時發生錯誤\nError: %+v\n", a.currConn.GetId(), packet.Error)
+				switch packet.Error {
+				// 沒有數據可讀取，對方已關閉連線
+				case io.EOF:
+					fmt.Printf("(a *Anser) Handler | Conn %d 沒有數據可讀取，對方已關閉連線\nError(%v): %+v\n", a.currConn.GetId(), eType, packet.Error)
+				default:
+					fmt.Printf("(a *Anser) Handler | Conn %d 讀取 socket 時發生錯誤\nError(%v): %+v\n", a.currConn.GetId(), eType, packet.Error)
+				}
 			}
 
 			// 連線狀態設為結束
@@ -457,6 +464,18 @@ func (a *Anser) getConn(cid int32) *base.Conn {
 		}
 	}
 	return nil
+}
+
+// 更新空連線指標位置
+func (a *Anser) updateEmptyConn() {
+	if a.emptyConn.Next != nil {
+		a.emptyConn = a.emptyConn.Next
+	} else {
+		a.emptyConn = a.conns
+		for a.emptyConn.NetConn != nil {
+			a.emptyConn = a.emptyConn.Next
+		}
+	}
 }
 
 // 將處理後的 work 移到所屬分類的鏈式結構 destination 之下
