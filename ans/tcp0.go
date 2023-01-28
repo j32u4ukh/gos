@@ -28,7 +28,7 @@ func NewTcp0Anser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, err
 
 	// ===== Anser =====
 	a.Anser, err = newAnser(laddr, nConnect, nWork)
-	a.Anser.ReadTimeout = 3000 * time.Millisecond
+	a.Anser.ReadTimeout = 5000 * time.Millisecond
 
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to new Tcp0Anser.")
@@ -75,7 +75,7 @@ func (a *Tcp0Anser) read() bool {
 			a.currConn.Read(&a.readBuffer, a.currTcp0.ReadLength)
 
 			// 考慮分包問題，收到完整一包數據傳完才傳到應用層
-			a.currWork.Index = a.currConn.Index
+			a.currWork.Index = a.currConn.GetId()
 			a.currWork.RequestTime = time.Now().UTC()
 			a.currWork.State = 1
 			a.currWork.Body.AddRawData(a.readBuffer[:a.currTcp0.ReadLength])

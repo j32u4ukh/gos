@@ -123,7 +123,7 @@ func SendToServer(site int32, data *[]byte, length int32) error {
 }
 
 // 傳送 http 訊息
-func SendRequest2(req *ghttp.Request, callback func(*ghttp.Context)) (int32, error) {
+func SendRequest(req *ghttp.Request, callback func(*ghttp.Context)) (int32, error) {
 	fmt.Printf("SendRequest | Request: %+v\n", req)
 	var asker ask.IAsker
 	var site int32

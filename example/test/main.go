@@ -2,29 +2,38 @@ package main
 
 import (
 	"fmt"
-	"sync"
+	"io/ioutil"
+	"net/http"
+	"strings"
 )
 
-type Obj struct {
-	Id   int
-	Name string
-}
-
-var idx int = 0
-
-var objPool = sync.Pool{
-	New: func() interface{} {
-		idx++
-		return &Obj{Id: idx}
-	},
-}
-
 func main() {
-	for i := 0; i < 10; i++ {
-		go func() {
-			obj := objPool.Get().(*Obj)
-			fmt.Printf("obj: %+v\n", obj)
-			objPool.Put(obj)
-		}()
+
+	url := "http://192.168.0.198:1023"
+	method := "GET"
+
+	payload := strings.NewReader(`{"client_message": "hello, server!"}`)
+
+	client := &http.Client{}
+	req, err := http.NewRequest(method, url, payload)
+
+	if err != nil {
+		fmt.Println(err)
+		return
 	}
+	req.Header.Add("Content-Type", "application/json")
+
+	res, err := client.Do(req)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer res.Body.Close()
+
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println(string(body))
 }

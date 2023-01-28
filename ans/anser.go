@@ -3,6 +3,7 @@ package ans
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
 	"net"
 	"time"
 
@@ -159,7 +160,7 @@ func (a *Anser) Handler() {
 
 	a.preConn = nil
 	a.currConn = a.conns
-	a.currWork = a.getEmptyWork()
+	a.currWork = a.getWork(-1)
 
 	// 依序檢查有被使用的連線物件(State 不是 Unused)
 	// 未使用 Unused, 嘗試連線中 Connecting, 連線中 Connected, 超時斷線 Timeout, 斷線 Disconnected, 重新連線中 Reconnect
@@ -189,17 +190,17 @@ func (a *Anser) checkConnection() {
 	for {
 		select {
 		case netConn = <-a.connBuffer:
-			fmt.Printf("(a *Anser) checkConnection | Conn(%d)\n", a.index)
-			a.emptyConn.Index = a.index
+			fmt.Printf("(a *Anser) checkConnection | Conn(%d)\n", a.emptyConn.GetId())
+			// a.emptyConn.Index = a.index
 			a.emptyConn.NetConn = netConn
+			a.emptyConn.NetConn.SetReadDeadline(time.Now().Add(a.ReadTimeout))
 			a.emptyConn.State = define.Connected
 			go a.emptyConn.Handler()
 
 			// 更新空連線指標位置
-			a.emptyConn = a.emptyConn.Next
+			a.updateEmptyConn()
 
 			// 更新連線數與連線物件的索引值
-			// TODO: a.nConnect == a.maxConnect, 檢查有沒有可以踢掉的連線
 			a.nConn += 1
 			a.index += 1
 		default:
@@ -223,12 +224,18 @@ func (a *Anser) connectedHandler() {
 			switch eType := packet.Error.(type) {
 			case net.Error:
 				if eType.Timeout() {
-					fmt.Printf("(a *Anser) Handler | Conn %d 發生 timeout error.\n", a.currConn.Index)
+					fmt.Printf("(a *Anser) Handler | Conn %d 發生 timeout error.\n", a.currConn.GetId())
 				} else {
-					fmt.Printf("(a *Anser) Handler | Conn %d 發生 net.Error.\n", a.currConn.Index)
+					fmt.Printf("(a *Anser) Handler | Conn %d 發生 net.Error.\n", a.currConn.GetId())
 				}
 			default:
-				fmt.Printf("(a *Anser) Handler | Conn %d 讀取 socket 時發生錯誤\nError: %+v\n", a.currConn.Index, packet.Error)
+				switch packet.Error {
+				// 沒有數據可讀取，對方已關閉連線
+				case io.EOF:
+					fmt.Printf("(a *Anser) Handler | Conn %d 沒有數據可讀取，對方已關閉連線\nError(%v): %+v\n", a.currConn.GetId(), eType, packet.Error)
+				default:
+					fmt.Printf("(a *Anser) Handler | Conn %d 讀取 socket 時發生錯誤\nError(%v): %+v\n", a.currConn.GetId(), eType, packet.Error)
+				}
 			}
 
 			// 連線狀態設為結束
@@ -338,15 +345,25 @@ func (a *Anser) disconnectHandler() {
 	}
 }
 
-// 尋找空閒的工作結構
-func (a *Anser) getEmptyWork() *base.Work {
+// 尋找工作結構(若 widx 為 -1，返回空閒的工作結構)
+func (a *Anser) getWork(wid int32) *base.Work {
 	work := a.works
-	for work != nil {
-		if work.State == -1 {
-			return work
-		}
+	if wid == -1 {
+		for work != nil {
+			if work.State == -1 {
+				return work
+			}
 
-		work = work.Next
+			work = work.Next
+		}
+	} else {
+		for work != nil {
+			if work.GetId() == wid {
+				return work
+			}
+
+			work = work.Next
+		}
 	}
 	return nil
 }
@@ -357,7 +374,7 @@ func (a *Anser) dealWork() {
 	var finished, yet *base.Work = nil, nil
 
 	for a.currWork.State != -1 {
-		// fmt.Printf("(a *Anser) dealWork | work: %+v\n", a.currWork)
+		fmt.Printf("(a *Anser) dealWork | work: %+v\n", a.currWork)
 
 		switch a.currWork.State {
 		// 工作已完成
@@ -387,6 +404,9 @@ func (a *Anser) dealWork() {
 
 			// 將完成的工作加入 finished，並更新 work 所指向的工作結構
 			finished = a.relinkWork(finished, true)
+		// case 3:
+		// 	// 將工作接入待處理的區塊，下次回圈再行處理
+		// 	yet = a.relinkWork(yet, false)
 		default:
 			fmt.Printf("(a *Anser) dealWork | 連線 %d 發生異常工作 state(%d)，直接將工作結束\n", a.currWork.Index, a.currWork.State)
 
@@ -402,16 +422,13 @@ func (a *Anser) dealWork() {
 		if yet != nil {
 			yet.Add(finished)
 			a.works = yet
-
 		} else {
 			a.works = finished
-
 		}
 
 	} else if yet != nil {
 		yet.Add(a.works)
 		a.works = yet
-
 	}
 }
 
@@ -430,15 +447,35 @@ func (a *Anser) Write(cid int32, data *[]byte, length int32) error {
 
 func (a *Anser) getConn(cid int32) *base.Conn {
 	c := a.conns
-
-	for c != nil {
-		if c.Index == cid {
-			return c
+	if cid == -1 {
+		for c != nil {
+			if c.State == define.Unused {
+				return c
+			}
+			c = c.Next
 		}
-		c = c.Next
+	} else {
+		for c != nil {
+			// fmt.Printf("(a *Asker) getConn | GetId: %d\n", c.GetId())
+			if c.GetId() == cid {
+				return c
+			}
+			c = c.Next
+		}
 	}
-
 	return nil
+}
+
+// 更新空連線指標位置
+func (a *Anser) updateEmptyConn() {
+	if a.emptyConn.Next != nil {
+		a.emptyConn = a.emptyConn.Next
+	} else {
+		a.emptyConn = a.conns
+		for a.emptyConn.NetConn != nil {
+			a.emptyConn = a.emptyConn.Next
+		}
+	}
 }
 
 // 將處理後的 work 移到所屬分類的鏈式結構 destination 之下
