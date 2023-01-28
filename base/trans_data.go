@@ -2,7 +2,6 @@ package base
 
 import (
 	"encoding/binary"
-	"fmt"
 )
 
 const (
@@ -95,10 +94,10 @@ func addDatas(t *TransData, bs []byte) {
 
 	// 若新增數據後將超出容量
 	if t.index+t.temp1 >= t.capacity {
-		fmt.Printf("[TransData] addDatas | 更新容器大小, 原始容量: %d\n", t.capacity)
+		// fmt.Printf("[TransData] addDatas | 更新容器大小, 原始容量: %d\n", t.capacity)
 		// 更新容器大小
 		t.SetCapacity(t.index + t.temp1)
-		fmt.Printf("[TransData] addDatas | 更新容器大小, 更新後容量: %d\n", t.capacity)
+		// fmt.Printf("[TransData] addDatas | 更新容器大小, 更新後容量: %d\n", t.capacity)
 	}
 
 	// 寫入數據
@@ -113,7 +112,7 @@ func addDatas(t *TransData, bs []byte) {
 func addData(t *TransData, b byte) {
 	if t.index == t.capacity {
 		// 更新容器大小
-		fmt.Printf("[TransData] addData | 更新容器屬性 | t.index: %d, t.capacity: %d\n", t.index, t.capacity)
+		// fmt.Printf("[TransData] addData | 更新容器屬性 | t.index: %d, t.capacity: %d\n", t.index, t.capacity)
 		t.SetCapacity(t.capacity + 1)
 	}
 

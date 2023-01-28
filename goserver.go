@@ -66,7 +66,8 @@ func (g *goserver) bind(site int32, ip string, port int, socketType define.Socke
 func CheckWorks(msg string, root *base.Work) {
 	work := root
 	for work != nil {
-		fmt.Printf("CheckWorks | %s %s\n", msg, work)
+		// fmt.Printf("CheckWorks | %s %s\n", msg, work)
+		logger.Debug("CheckWorks | %s %s", msg, work)
 		work = work.Next
 	}
 	fmt.Println()

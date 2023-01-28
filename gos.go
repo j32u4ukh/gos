@@ -6,21 +6,25 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/j32u4ukh/glog"
 	"github.com/j32u4ukh/gos/ans"
 	"github.com/j32u4ukh/gos/ask"
 	"github.com/j32u4ukh/gos/base/ghttp"
 	"github.com/j32u4ukh/gos/define"
-
 	"github.com/pkg/errors"
 )
 
 var server *goserver
 var once sync.Once
+var logger *glog.Logger
 
 func init() {
 	if server == nil {
 		once.Do(func() {
 			server = newGoserver()
+			option1 := glog.BasicOption(glog.DebugLevel, true, true, true)
+			option2 := glog.BasicOption(glog.InfoLevel, true, true, true)
+			logger = glog.GetLogger("log", "package-gos", glog.DebugLevel, false, option1, option2)
 		})
 	}
 }
@@ -115,7 +119,8 @@ func SendToServer(site int32, data *[]byte, length int32) error {
 			return errors.Wrap(err, "Failed to send to client.")
 		}
 
-		fmt.Printf("SendToServer | Send to site: %d, length: %d, data: %+v\n", site, length, (*data)[:length])
+		// fmt.Printf("SendToServer | Send to site: %d, length: %d, data: %+v\n", site, length, (*data)[:length])
+		logger.Info("Send to site: %d, length: %d, data: %+v", site, length, (*data)[:length])
 
 		return nil
 	}
@@ -124,7 +129,8 @@ func SendToServer(site int32, data *[]byte, length int32) error {
 
 // 傳送 http 訊息
 func SendRequest(req *ghttp.Request, callback func(*ghttp.Context)) (int32, error) {
-	fmt.Printf("SendRequest | Request: %+v\n", req)
+	// fmt.Printf("SendRequest | Request: %+v\n", req)
+	logger.Info("Request: %+v", req)
 	var asker ask.IAsker
 	var site int32
 

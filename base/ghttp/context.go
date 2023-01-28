@@ -93,7 +93,8 @@ func NewRequest(method string, uri string, params map[string]string) (*Request, 
 	host, c.Query, ok = strings.Cut(uri, "/")
 	if ok {
 		c.Query = fmt.Sprintf("/%s", c.Query)
-		fmt.Printf("NewRequest | Query: %s\n", c.Query)
+		// fmt.Printf("NewRequest | Query: %s\n", c.Query)
+		logger.Debug("Query: %s", c.Query)
 	}
 	c.Header["Host"] = []string{host}
 	return c.Request, nil
@@ -117,7 +118,8 @@ func (r *Request) FormRequest(method string, uri string, params map[string]strin
 	host, r.Query, ok = strings.Cut(uri, "/")
 	if ok {
 		r.Query = fmt.Sprintf("/%s", r.Query)
-		fmt.Printf("NewRequest | Query: %s\n", r.Query)
+		// fmt.Printf("NewRequest | Query: %s\n", r.Query)
+		logger.Debug("Query: %s", r.Query)
 	}
 	r.Header["Host"] = []string{host}
 }
@@ -165,7 +167,8 @@ func (r *Request) HasLineData(buffer *[]byte, i int32, o int32, length int32) bo
 }
 
 func (r *Request) HasEnoughData(buffer *[]byte, i int32, o int32, length int32) bool {
-	fmt.Printf("(c *Context) HasEnoughData | length: %d, ReadLength: %d\n", length, r.ReadLength)
+	// fmt.Printf("(c *Context) HasEnoughData | length: %d, ReadLength: %d\n", length, r.ReadLength)
+	logger.Debug("length: %d, ReadLength: %d", length, r.ReadLength)
 	return length >= r.ReadLength
 }
 
@@ -187,7 +190,8 @@ func (r *Request) ParseFirstReqLine(line string) bool {
 
 	r.Query = strings.TrimPrefix(r.Query, "?")
 
-	fmt.Printf("(r *Request) ParseFirstLine | Method: %s, Query: %s, Proto: %s\n", r.Method, r.Query, r.Proto)
+	// fmt.Printf("(r *Request) ParseFirstLine | Method: %s, Query: %s, Proto: %s\n", r.Method, r.Query, r.Proto)
+	logger.Debug("Method: %s, Query: %s, Proto: %s", r.Method, r.Query, r.Proto)
 	return true
 }
 
@@ -201,14 +205,16 @@ func (r *Request) ParseQuery() (bool, error) {
 		return false, nil
 	}
 
-	fmt.Printf("(r *Request) ParseQuery | Query: %s, params: %s\n", r.Query, params)
+	// fmt.Printf("(r *Request) ParseQuery | Query: %s, params: %s\n", r.Query, params)
+	logger.Debug("Query: %s, params: %s", r.Query, params)
 	err := r.ParseParams(params)
 
 	if err != nil {
 		return true, errors.Wrapf(err, "Failed to parse params: %s", params)
 	}
 
-	fmt.Printf("(r *Request) ParseQuery | params: %+v\n", r.Params)
+	// fmt.Printf("(r *Request) ParseQuery | params: %+v\n", r.Params)
+	logger.Debug("params: %+v", r.Params)
 	return true, nil
 }
 
@@ -222,12 +228,14 @@ func (r *Request) ParseParams(params string) error {
 		key, params, _ = strings.Cut(params, "&")
 
 		if strings.Contains(key, ";") {
-			fmt.Printf("(r *Request) ParseParams | invalid semicolon separator in query(%s)\n", key)
+			// fmt.Printf("(r *Request) ParseParams | invalid semicolon separator in query(%s)\n", key)
+			logger.Warn("invalid semicolon separator in query(%s)", key)
 			continue
 		}
 
 		if key == "" {
-			fmt.Printf("(r *Request) ParseParams | Empty query is found.\n")
+			// fmt.Printf("(r *Request) ParseParams | Empty query is found.\n")
+			logger.Warn("Empty query is found.")
 			continue
 		}
 
@@ -286,7 +294,8 @@ func (r Request) ToRequestData() []byte {
 		buffer.Write(r.Body)
 	}
 	result := buffer.Bytes()
-	fmt.Printf("(r Request) FormRequest | result: %s\n", string(result))
+	// fmt.Printf("(r Request) FormRequest | result: %s\n", string(result))
+	logger.Debug("result: %s", string(result))
 	return result
 }
 
@@ -369,7 +378,8 @@ func (r *Response) ParseFirstResLine(line string) bool {
 	}
 
 	r.Code = int32(code)
-	fmt.Printf("(r *Response) ParseFirstLine | Proto: %s, Code: %d, Message: %s\n", r.Proto, r.Code, r.Message)
+	// fmt.Printf("(r *Response) ParseFirstLine | Proto: %s, Code: %d, Message: %s\n", r.Proto, r.Code, r.Message)
+	logger.Debug("Proto: %s, Code: %d, Message: %s", r.Proto, r.Code, r.Message)
 	return true
 }
 

@@ -7,6 +7,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/j32u4ukh/glog"
 	"github.com/j32u4ukh/gos/base"
 	"github.com/j32u4ukh/gos/define"
 
@@ -40,6 +41,8 @@ type Anser struct {
 	listener *net.TCPListener
 	// 讀取超時
 	ReadTimeout time.Duration
+	// Log 寫出用結構體
+	logger *glog.Logger
 	// ==================================================
 	// 連線列表
 	// ==================================================
@@ -112,6 +115,10 @@ func newAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (*Anser, error) {
 		works:      base.NewWork(0),
 	}
 
+	option1 := glog.BasicOption(glog.DebugLevel, true, true, true)
+	option2 := glog.BasicOption(glog.InfoLevel, true, true, true)
+	a.logger = glog.GetLogger("log", "Anser", glog.DebugLevel, false, option1, option2)
+
 	var i int32
 	var nextConn *base.Conn
 	var nextWork *base.Work
@@ -141,11 +148,13 @@ func (a *Anser) Listen() {
 		conn, err := a.listener.AcceptTCP()
 
 		if err != nil {
-			fmt.Printf("(a *Anser) | 接受客戶端連接異常: %+v\n", err.Error())
+			// fmt.Printf("(a *Anser) | 接受客戶端連接異常: %+v\n", err.Error())
+			a.logger.Error("接受客戶端連接異常: %+v", err.Error())
 			continue
 		}
 
-		fmt.Printf("(a *Anser) | 客戶端連接來自: %s\n", conn.RemoteAddr())
+		// fmt.Printf("(a *Anser) | 客戶端連接來自: %s\n", conn.RemoteAddr())
+		a.logger.Info("客戶端連接來自: %s", conn.RemoteAddr())
 
 		// 註冊連線通道
 		a.connBuffer <- conn
@@ -190,7 +199,8 @@ func (a *Anser) checkConnection() {
 	for {
 		select {
 		case netConn = <-a.connBuffer:
-			fmt.Printf("(a *Anser) checkConnection | Conn(%d)\n", a.emptyConn.GetId())
+			// fmt.Printf("(a *Anser) checkConnection | Conn(%d)\n", a.emptyConn.GetId())
+			a.logger.Info("Conn(%d)", a.emptyConn.GetId())
 			// a.emptyConn.Index = a.index
 			a.emptyConn.NetConn = netConn
 			a.emptyConn.NetConn.SetReadDeadline(time.Now().Add(a.ReadTimeout))
@@ -224,17 +234,22 @@ func (a *Anser) connectedHandler() {
 			switch eType := packet.Error.(type) {
 			case net.Error:
 				if eType.Timeout() {
-					fmt.Printf("(a *Anser) Handler | Conn %d 發生 timeout error.\n", a.currConn.GetId())
+					// fmt.Printf("(a *Anser) Handler | Conn %d 發生 timeout error.\n", a.currConn.GetId())
+					a.logger.Error("Conn %d 發生 timeout error.", a.currConn.GetId())
 				} else {
-					fmt.Printf("(a *Anser) Handler | Conn %d 發生 net.Error.\n", a.currConn.GetId())
+					// fmt.Printf("(a *Anser) Handler | Conn %d 發生 net.Error.\n", a.currConn.GetId())
+					a.logger.Error("Conn %d 發生 net.Error.", a.currConn.GetId())
 				}
 			default:
 				switch packet.Error {
 				// 沒有數據可讀取，對方已關閉連線
 				case io.EOF:
-					fmt.Printf("(a *Anser) Handler | Conn %d 沒有數據可讀取，對方已關閉連線\nError(%v): %+v\n", a.currConn.GetId(), eType, packet.Error)
+					// fmt.Printf("(a *Anser) Handler | Conn %d 沒有數據可讀取，對方已關閉連線\nError(%v): %+v\n", a.currConn.GetId(), eType, packet.Error)
+					a.logger.Warn("Conn %d 沒有數據可讀取，對方已關閉連線\nError(%v): %+v", a.currConn.GetId(), eType, packet.Error)
 				default:
-					fmt.Printf("(a *Anser) Handler | Conn %d 讀取 socket 時發生錯誤\nError(%v): %+v\n", a.currConn.GetId(), eType, packet.Error)
+					// fmt.Printf("(a *Anser) Handler | Conn %d 讀取 socket 時發生錯誤\nError(%v): %+v\n", a.currConn.GetId(), eType, packet.Error)
+					a.logger.Error("Conn %d 讀取 socket 時發生錯誤, Error(%v): %+v", a.currConn.GetId())
+					a.logger.Error("Error(%v): %+v", eType, packet.Error)
 				}
 			}
 
@@ -257,7 +272,8 @@ func (a *Anser) connectedHandler() {
 		err = a.currConn.NetConn.SetReadDeadline(time.Now().Add(a.ReadTimeout))
 
 		if err != nil {
-			fmt.Printf("(a *Anser) handler | DeadlineError: %+v\n", err)
+			// fmt.Printf("(a *Anser) handler | DeadlineError: %+v\n", err)
+			a.logger.Error("DeadlineError: %+v", err)
 
 			// 連線狀態設為結束
 			a.currConn.State = define.Disconnect
@@ -302,7 +318,8 @@ func (a *Anser) disconnectHandler() {
 	for a.currConn != nil {
 		// 標註為斷線的連線物件，數秒後才切斷連線，預留時間給對方讀取數據
 		if a.currConn.State == define.Disconnect && a.currConn.DisconnectTime.Before(now) {
-			fmt.Printf("(a *Anser) disconnectHandler | cid: %d\n", a.currConn.GetId())
+			// fmt.Printf("(a *Anser) disconnectHandler | cid: %d\n", a.currConn.GetId())
+			a.logger.Info(" cid: %d", a.currConn.GetId())
 			// hasDisconnect = true
 			a.nConn -= 1
 
@@ -374,7 +391,8 @@ func (a *Anser) dealWork() {
 	var finished, yet *base.Work = nil, nil
 
 	for a.currWork.State != -1 {
-		fmt.Printf("(a *Anser) dealWork | work: %+v\n", a.currWork)
+		// fmt.Printf("(a *Anser) dealWork | work: %+v\n", a.currWork)
+		a.logger.Debug("work: %+v", a.currWork)
 
 		switch a.currWork.State {
 		// 工作已完成
@@ -408,7 +426,8 @@ func (a *Anser) dealWork() {
 		// 	// 將工作接入待處理的區塊，下次回圈再行處理
 		// 	yet = a.relinkWork(yet, false)
 		default:
-			fmt.Printf("(a *Anser) dealWork | 連線 %d 發生異常工作 state(%d)，直接將工作結束\n", a.currWork.Index, a.currWork.State)
+			// fmt.Printf("(a *Anser) dealWork | 連線 %d 發生異常工作 state(%d)，直接將工作結束\n", a.currWork.Index, a.currWork.State)
+			a.logger.Error("連線 %d 發生異常工作 state(%d)，直接將工作結束", a.currWork.Index, a.currWork.State)
 
 			// 將完成的工作加入 finished，並更新 work 所指向的工作結構
 			finished = a.relinkWork(finished, true)
@@ -505,7 +524,8 @@ func (a *Anser) relinkWork(destination *base.Work, done bool) *base.Work {
 // 當前連線是否應斷線
 func (a *Anser) shouldClose(err error) bool {
 	if err != nil {
-		fmt.Printf("(a *Anser) shouldClose | Conn(%d) failed to write: %+v\n", a.currConn.GetId(), err)
+		// fmt.Printf("(a *Anser) shouldClose | Conn(%d) failed to write: %+v\n", a.currConn.GetId(), err)
+		a.logger.Error(" Conn(%d) failed to write: %+v", a.currConn.GetId(), err)
 		return true
 	}
 	return false

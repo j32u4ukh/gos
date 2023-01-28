@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/j32u4ukh/glog"
 	"github.com/j32u4ukh/gos"
 	"github.com/j32u4ukh/gos/ans"
 	"github.com/j32u4ukh/gos/ask"
@@ -15,6 +16,14 @@ import (
 )
 
 const ERandomReturnServer int32 = 0
+
+var logger *glog.Logger
+
+func init() {
+	option1 := glog.BasicOption(glog.DebugLevel, true, true, true)
+	option2 := glog.BasicOption(glog.InfoLevel, true, true, true)
+	logger = glog.GetLogger("log", "DemoPipeline", glog.DebugLevel, false, option1, option2)
+}
 
 func main() {
 	service_type := os.Args[1]
@@ -27,16 +36,19 @@ func main() {
 		RunRandomReturnServer(1022)
 	}
 
-	fmt.Println("[Example] Run | End of gos example.")
+	// fmt.Println("[Example] Run | End of gos example.")
+	logger.Info("End of gos example.")
 }
 
 // MainServer 接受客戶端 http 請求，再將請求發送到 RandomReturnServer 做處理，RandomReturnServer 將結果返還 MainServer，再由 MainServer 回覆客戶端
 func RunMainServer(port int) {
 	anser, err := gos.Listen(define.Http, int32(port))
-	fmt.Printf("RunMainServer | Listen to port %d\n", port)
+	// fmt.Printf("RunMainServer | Listen to port %d\n", port)
+	logger.Debug("Listen to port %d", port)
 
 	if err != nil {
-		fmt.Printf("RunMainServer | Listen error: %+v\n", err)
+		// fmt.Printf("RunMainServer | Listen error: %+v\n", err)
+		logger.Error("Listen error: %+v", err)
 		return
 	}
 
@@ -44,35 +56,41 @@ func RunMainServer(port int) {
 	httpAnswer := anser.(*ans.HttpAnser)
 	mgr.HttpAnswer = anser.(*ans.HttpAnser)
 	mgr.HttpHandler(httpAnswer.Router)
-	fmt.Printf("RunMainServer | Http Anser 伺服器初始化完成\n")
+	// fmt.Printf("RunMainServer | Http Anser 伺服器初始化完成\n")
+	logger.Debug("Http Anser 伺服器初始化完成")
 
 	asker, err := gos.Bind(ERandomReturnServer, "127.0.0.1", 1022, define.Tcp0)
 
 	if err != nil {
-		fmt.Printf("RunMainServer | Bind error: %+v\n", err)
+		// fmt.Printf("RunMainServer | Bind error: %+v\n", err)
+		logger.Error("Bind error: %+v", err)
 		return
 	}
 
 	tcp0Asker := asker.(*ask.Tcp0Asker)
 	tcp0Asker.SetWorkHandler(mgr.RandomReturnServerHandler)
-	fmt.Printf("RunMainServer | RandomReturnServer Asker 伺服器初始化完成\n")
-
-	fmt.Printf("RunMainServer | 伺服器初始化完成\n")
+	// fmt.Printf("RunMainServer | RandomReturnServer Asker 伺服器初始化完成\n")
+	// fmt.Printf("RunMainServer | 伺服器初始化完成\n")
+	logger.Debug("RandomReturnServer Asker 伺服器初始化完成")
+	logger.Debug("伺服器初始化完成")
 
 	// =============================================
 	// 開始所有已註冊的監聽
 	// =============================================
 	gos.StartListen()
-	fmt.Printf("RunMainServer | 開始監聽\n")
+	// fmt.Printf("RunMainServer | 開始監聽\n")
+	logger.Debug("開始監聽")
 
 	err = gos.StartConnect()
 
 	if err != nil {
-		fmt.Printf("RunMainServer | 與 RandomReturnServer 連線時發生錯誤, error: %+v\n", err)
+		// fmt.Printf("RunMainServer | 與 RandomReturnServer 連線時發生錯誤, error: %+v\n", err)
+		logger.Error("與 RandomReturnServer 連線時發生錯誤, error: %+v", err)
 		return
 	}
 
-	fmt.Printf("RunMainServer | 成功與 RandomReturnServer 連線\n")
+	// fmt.Printf("RunMainServer | 成功與 RandomReturnServer 連線\n")
+	logger.Debug("成功與 RandomReturnServer 連線")
 	var start time.Time
 	var during, frameTime time.Duration = 0, 20 * time.Millisecond
 
@@ -100,6 +118,7 @@ func RunAsk(port int) {
 
 	if err != nil {
 		fmt.Println(err)
+		logger.Error("error: %+v", err)
 		return
 	}
 
@@ -107,7 +126,8 @@ func RunAsk(port int) {
 	res, err := client.Do(req)
 
 	if err != nil {
-		fmt.Println(err)
+		// fmt.Println(err)
+		logger.Error("error: %+v", err)
 		return
 	}
 
@@ -115,7 +135,8 @@ func RunAsk(port int) {
 	body, err := ioutil.ReadAll(res.Body)
 
 	if err != nil {
-		fmt.Println(err)
+		// fmt.Println(err)
+		logger.Error("error: %+v", err)
 		return
 	}
 
@@ -124,23 +145,27 @@ func RunAsk(port int) {
 
 func RunRandomReturnServer(port int) {
 	anser, err := gos.Listen(define.Tcp0, int32(port))
-	fmt.Printf("RunRandomReturnServer | Listen to port %d\n", port)
+	// fmt.Printf("RunRandomReturnServer | Listen to port %d\n", port)
+	logger.Debug("Listen to port %d", port)
 
 	if err != nil {
-		fmt.Printf("RunRandomReturnServer | Error: %+v\n", err)
+		// fmt.Printf("RunRandomReturnServer | Error: %+v\n", err)
+		logger.Error("Listen error: %+v", err)
 		return
 	}
 
 	rrs := &RandomReturnServer{}
 	tcpAnser := anser.(*ans.Tcp0Anser)
 	tcpAnser.SetWorkHandler(rrs.Handler)
-	fmt.Printf("RunRandomReturnServer | 伺服器初始化完成\n")
+	// fmt.Printf("RunRandomReturnServer | 伺服器初始化完成\n")
+	logger.Debug("伺服器初始化完成")
 
 	// =============================================
 	// 開始所有已註冊的監聽
 	// =============================================
 	gos.StartListen()
-	fmt.Printf("RunRandomReturnServer | 開始監聽\n")
+	// fmt.Printf("RunRandomReturnServer | 開始監聽\n")
+	logger.Debug("開始監聽")
 	var start time.Time
 	var during, frameTime time.Duration = 0, 20 * time.Millisecond
 

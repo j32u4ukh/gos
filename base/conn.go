@@ -7,6 +7,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/j32u4ukh/glog"
 	"github.com/j32u4ukh/gos/define"
 
 	"github.com/pkg/errors"
@@ -27,7 +28,8 @@ type ConnBuffer struct {
 type Conn struct {
 	// 連線物件編號
 	id int32
-
+	// Log 寫出用結構體
+	logger *glog.Logger
 	// ==================================================
 	// 連線結構
 	// ==================================================
@@ -121,6 +123,10 @@ func NewConn(id int32, size int32) *Conn {
 	c.readBuffer = make([]byte, c.BufferLength)
 	c.writeBuffer = make([]byte, c.BufferLength)
 
+	option1 := glog.BasicOption(glog.DebugLevel, true, true, true)
+	option2 := glog.BasicOption(glog.InfoLevel, true, true, true)
+	c.logger = glog.GetLogger("log", "Conn", glog.DebugLevel, false, option1, option2)
+
 	var i int32
 	for i = 0; i < size; i++ {
 		c.readPackets = append(c.readPackets, NewPacket())
@@ -143,7 +149,8 @@ func (c *Conn) Add(conn *Conn) {
 }
 
 func (c *Conn) Handler() {
-	fmt.Printf("(c *Conn) handler | Start, c.readErr: %+v\n", c.readErr)
+	// fmt.Printf("(c *Conn) handler | Start, c.readErr: %+v\n", c.readErr)
+	c.logger.Debug("Start, c.readErr: %+v", c.readErr)
 	// 確保 stopCh 為空
 	select {
 	case <-c.stopCh:
@@ -153,7 +160,8 @@ func (c *Conn) Handler() {
 	for c.readErr == nil {
 		select {
 		case <-c.stopCh:
-			fmt.Printf("(c *Conn) handler | <-c.stopCh\n")
+			// fmt.Printf("(c *Conn) handler | <-c.stopCh\n")
+			c.logger.Info("<-c.stopCh")
 			return
 
 		default:
@@ -183,7 +191,8 @@ func (c *Conn) Handler() {
 		}
 	}
 
-	fmt.Printf("(c *Conn) handler | Stop, c.readErr: %+v\n", c.readErr)
+	// fmt.Printf("(c *Conn) handler | Stop, c.readErr: %+v\n", c.readErr)
+	c.logger.Debug("Stop, c.readErr: %+v", c.readErr)
 }
 
 // 讀取封包數據，並寫入 readBuffer
@@ -277,7 +286,9 @@ func (c *Conn) Write() error {
 			c.nWrite, c.writeErr = c.NetConn.Write(c.writeBuffer[c.writeOutput:c.writeInput])
 
 			if c.writeErr != nil {
-				fmt.Printf("(c *Conn) write | Failed to write data to conn(%d)\nwriteErr: %+v\n", c.id, c.writeErr)
+				// fmt.Printf("(c *Conn) write | Failed to write data to conn(%d)\nwriteErr: %+v\n", c.id, c.writeErr)
+				c.logger.Error("Failed to write data to conn(%d)", c.id)
+				c.logger.Error("writeErr: %+v", c.writeErr)
 				return errors.Wrapf(c.writeErr, "Failed to write data to conn(%d)", c.id)
 			}
 
@@ -286,7 +297,9 @@ func (c *Conn) Write() error {
 			c.nWrite, c.writeErr = c.NetConn.Write(c.writeBuffer[c.writeOutput:])
 
 			if c.writeErr != nil {
-				fmt.Printf("(c *Conn) write | Failed to write data to conn(%d)\nwriteErr: %+v\n", c.id, c.writeErr)
+				// fmt.Printf("(c *Conn) write | Failed to write data to conn(%d)\nwriteErr: %+v\n", c.id, c.writeErr)
+				c.logger.Error("Failed to write data to conn(%d)", c.id)
+				c.logger.Error("writeErr: %+v", c.writeErr)
 				return errors.Wrapf(c.writeErr, "Failed to write data to conn(%d)", c.id)
 			}
 
@@ -306,7 +319,8 @@ func (c *Conn) Write() error {
 
 // 當有需要重新連線的情況下，首先就會發生 Socket 讀取異常，並導致 Handler 的 goroutine 結束，因此無須再利用 c.stopCh 將 Handler 結束
 func (c *Conn) Reconnect() {
-	fmt.Printf("(c *Conn) Reconnect | cid: %d\n", c.id)
+	// fmt.Printf("(c *Conn) Reconnect | cid: %d\n", c.id)
+	c.logger.Info("cid: %d", c.id)
 
 	if c.NetConn != nil {
 		// 關閉當前連線
