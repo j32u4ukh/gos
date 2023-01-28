@@ -92,14 +92,13 @@ func (t *TransData) FormData() []byte {
 
 func addDatas(t *TransData, bs []byte) {
 	t.temp1 = int32(len(bs))
-	// fmt.Printf("[TransData] 更新容器大小 | t.temp1: %d, t.index: %d, t.length: %d\n", t.temp1, t.index, t.length)
 
 	// 若新增數據後將超出容量
 	if t.index+t.temp1 >= t.capacity {
-		fmt.Printf("[TransData] 更新容器大小 | 原始容量: %d\n", t.capacity)
+		fmt.Printf("[TransData] addDatas | 更新容器大小, 原始容量: %d\n", t.capacity)
 		// 更新容器大小
 		t.SetCapacity(t.index + t.temp1)
-		fmt.Printf("[TransData] 更新容器大小 | 更新後容量: %d\n", t.capacity)
+		fmt.Printf("[TransData] addDatas | 更新容器大小, 更新後容量: %d\n", t.capacity)
 	}
 
 	// 寫入數據
@@ -108,12 +107,13 @@ func addDatas(t *TransData, bs []byte) {
 	// 更新容器屬性
 	t.index += t.temp1
 	t.length += t.temp1
-	// fmt.Printf("[TransData] 更新容器屬性 | t.temp1: %d, t.index: %d, t.length: %d\n", t.temp1, t.index, t.length)
+	// fmt.Printf("[TransData] addDatas | 更新容器屬性, t.temp1: %d, t.index: %d, t.length: %d\n", t.temp1, t.index, t.length)
 }
 
 func addData(t *TransData, b byte) {
 	if t.index == t.capacity {
 		// 更新容器大小
+		fmt.Printf("[TransData] addData | 更新容器屬性 | t.index: %d, t.capacity: %d\n", t.index, t.capacity)
 		t.SetCapacity(t.capacity + 1)
 	}
 

@@ -6,10 +6,12 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/j32u4ukh/gos/base"
 	"github.com/j32u4ukh/gos/base/ghttp"
+	"github.com/j32u4ukh/gos/utils"
 
 	"github.com/pkg/errors"
 )
@@ -29,12 +31,15 @@ type HttpAnser struct {
 	Handlers map[string]map[string]HandlerChain
 
 	// ==================================================
-	// Request & Response
-	// 個數與 Anser 的 nConnect 相同，因此可利用 Conn 中的 id 作為索引值，來存取 , Request 與 Response
-	// 由於是使用 Conn 的 id 作為索引值，因此可以不用從第一個開始使用，結束使用後也不需要對順序進行調整
+	// Context
+	// 個數與 Anser 的 nConnect 相同，因此可利用 Conn 中的 id 作為索引值，來存取,
+	// 由於 Context 是使用 Conn 的 id 作為索引值，因此可以不用從第一個開始使用，結束使用後也不需要對順序進行調整
 	// ==================================================
 	httpConns []*ghttp.Context
 	httpConn  *ghttp.Context
+
+	contextPool sync.Pool
+	context     *ghttp.Context
 
 	// Temp variables
 	lineString string
@@ -47,8 +52,10 @@ func NewHttpAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, err
 			ghttp.MethodGet:  {},
 			ghttp.MethodPost: {},
 		},
-		httpConns: make([]*ghttp.Context, nConnect),
-		httpConn:  nil,
+		httpConns:   make([]*ghttp.Context, nConnect),
+		httpConn:    nil,
+		contextPool: sync.Pool{New: func() any { return ghttp.NewContext(-1) }},
+		context:     nil,
 	}
 
 	// ===== Anser =====
@@ -117,7 +124,7 @@ func (a *HttpAnser) read() bool {
 		var key, value string
 		var ok bool
 
-		for a.currConn.CheckReadable(a.httpConn.HasLineData) && a.httpConn.State == 1 {
+		for a.httpConn.State == 1 && a.currConn.CheckReadable(a.httpConn.HasLineData) {
 			// 讀取一行數據
 			a.currConn.Read(&a.readBuffer, a.httpConn.ReadLength)
 
@@ -130,8 +137,6 @@ func (a *HttpAnser) read() bool {
 
 			if ok {
 				// 持續讀取 Header
-				// key := string(k)
-
 				if _, ok := a.httpConn.Header[key]; !ok {
 					a.httpConn.Header[key] = []string{}
 				}
@@ -170,6 +175,7 @@ func (a *HttpAnser) read() bool {
 
 					// 等待數據寫出
 					a.httpConn.State = 3
+					fmt.Printf("(a *HttpAnser) Read | State: 1 -> 3\n")
 					return true
 				}
 			}
@@ -198,7 +204,7 @@ func (a *HttpAnser) read() bool {
 
 			// 等待數據寫出
 			a.httpConn.State = 3
-
+			fmt.Printf("(a *HttpAnser) Read | State: 2 -> 3\n")
 			return false
 		}
 	}
@@ -207,7 +213,7 @@ func (a *HttpAnser) read() bool {
 }
 
 func (a *HttpAnser) write(cid int32, data *[]byte, length int32) error {
-	// 取得對應的連線物件
+	// 取得對應的連線結構
 	a.currConn = a.getConn(cid)
 
 	if a.currConn == nil {
@@ -216,7 +222,7 @@ func (a *HttpAnser) write(cid int32, data *[]byte, length int32) error {
 
 	a.currConn.SetWriteBuffer(data, length)
 
-	// 等待數據寫出
+	// 完成數據複製到寫出緩存
 	a.httpConn.State = 4
 	return nil
 }
@@ -225,20 +231,14 @@ func (a *HttpAnser) write(cid int32, data *[]byte, length int32) error {
 func (a *HttpAnser) SetWorkHandler() {
 	a.workHandler = func(w *base.Work) {
 		a.httpConn = a.httpConns[w.Index]
+		a.httpConn.Cid = w.Index
+		a.httpConn.Wid = w.GetId()
+		fmt.Printf("(a *HttpAnser) SetWorkHandler | Cid: %d, Wid: %d\n", a.httpConn.Cid, a.httpConn.Wid)
 
 		if handler, ok := a.Handlers[a.httpConn.Method]; ok {
 			if functions, ok := handler[a.httpConn.Query]; ok {
-				for _, f := range functions {
-
-					f(a.httpConn)
-
-					a.httpConn.SetHeader("Connection", "close")
-
-					// 將 Response 回傳數據轉換成 Work 傳遞的格式
-					bs := a.httpConn.ToResponseData()
-					fmt.Printf("Response: %s\n", string(bs))
-					w.Body.AddRawData(bs)
-					w.Send()
+				for _, handlerFunc := range functions {
+					handlerFunc(a.httpConn)
 				}
 			} else {
 				a.errorRequestHandler(w, a.httpConn, "Unregistered http query.")
@@ -276,6 +276,42 @@ func (a *HttpAnser) shouldClose(err error) bool {
 		return true
 	}
 	return false
+}
+
+func (a *HttpAnser) GetContext(cid int32) *ghttp.Context {
+	if cid == -1 {
+		a.context = a.contextPool.Get().(*ghttp.Context)
+		return a.context
+	} else {
+		return a.httpConns[cid]
+	}
+}
+
+func (a *HttpAnser) Send(c *ghttp.Context) {
+	c.SetHeader("Connection", "close")
+
+	// 將 Response 回傳數據轉換成 Work 傳遞的格式
+	bs := c.ToResponseData()
+	fmt.Printf("Response: %s\n", string(bs))
+	fmt.Printf("Raw Response: %+v\n", utils.SliceToString(bs))
+	w := a.getWork(c.Wid)
+	fmt.Printf("Wid: %d, w: %+v\n", c.Wid, w)
+	w.Index = c.Cid
+	fmt.Printf("c.Cid: %d, w.Index: %d\n", c.Cid, w.Index)
+	w.Body.AddRawData(bs)
+	w.Send()
+	fmt.Printf("Wid: %d, w: %+v\n", c.Wid, w)
+
+	// 若 Context 是從 contextPool 中取得，id 會是 -1，因此需要回收
+	if c.GetId() == -1 {
+		a.contextPool.Put(c)
+	}
+}
+
+func (a *HttpAnser) Finish(c *ghttp.Context) {
+	fmt.Printf("(a *HttpAnser) Finish | Context %d, c.Wid: %d\n", c.GetId(), c.Wid)
+	w := a.getWork(c.Wid)
+	w.Finish()
 }
 
 // ====================================================================================================

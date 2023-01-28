@@ -6,6 +6,13 @@ import (
 	"github.com/j32u4ukh/gos/base"
 )
 
+func main() {
+	// demo1()
+	// demo2()
+	// demo3()
+	demo4()
+}
+
 func demo1() {
 	td := base.NewTransData()
 
@@ -69,8 +76,20 @@ func demo3() {
 	fmt.Printf("FormData: %+v\n", bs)
 }
 
-func main() {
-	// demo1()
-	// demo2()
-	demo3()
+func demo4() {
+	td := base.NewTransData()
+	td.AddByte(0)
+	td.AddUInt16(0)
+	heartbeat := td.GetData()
+	fmt.Printf("heartbeat: %+v\n", heartbeat)
+	td.Clear()
+
+	td.AddInt32(97)
+	td.AddString("Test")
+	td.ResetIndex()
+	result := td.GetData()
+	fmt.Printf("result: %+v\n", result)
+	i32 := td.PopInt32()
+	str := td.PopString()
+	fmt.Printf("i32: %d, str: %s\n", i32, str)
 }

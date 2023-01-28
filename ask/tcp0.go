@@ -74,15 +74,13 @@ func (a *Tcp0Asker) read() {
 			a.currWork.Index = a.currConn.GetId()
 			a.currWork.RequestTime = time.Now().UTC()
 			a.currWork.State = 1
+
 			// fmt.Printf("(a *Asker) handler | 將傳入的數據，加入工作緩存中, Index: %d, state: %d\n", work.Index, work.state)
 			a.currWork.Body.AddRawData(a.readBuffer[:a.currTcp0.ReadLength])
 			a.currWork.Body.ResetIndex()
 
 			// 指向下一個工作結構
 			a.currWork = a.currWork.Next
-
-			// // 重置 封包長度
-			// a.currConn.PacketLength = -1
 
 			// 重置 欲讀取長度 以及 狀態值
 			a.currTcp0.ResetReadLength()
