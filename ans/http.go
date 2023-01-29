@@ -106,7 +106,8 @@ func (a *HttpAnser) read() bool {
 
 			// 拆分第一行數據
 			a.lineString = strings.TrimRight(string(a.readBuffer[:a.httpConn.ReadLength]), "\r\n")
-			fmt.Printf("(a *HttpAnser) Read | firstLine: %s\n", a.lineString)
+			// fmt.Printf("(a *HttpAnser) Read | firstLine: %s\n", a.lineString)
+			a.logger.Info("firstLine: %s", a.lineString)
 
 			if a.httpConn.ParseFirstReqLine(a.lineString) {
 				if a.httpConn.Method == ghttp.MethodGet {
@@ -114,7 +115,8 @@ func (a *HttpAnser) read() bool {
 					a.httpConn.ParseQuery()
 				}
 				a.httpConn.State = 1
-				fmt.Printf("(a *HttpAnser) Read | State: 0 -> 1\n")
+				// fmt.Printf("(a *HttpAnser) Read | State: 0 -> 1\n")
+				a.logger.Debug("State: 0 -> 1")
 			}
 		}
 	}
@@ -144,7 +146,8 @@ func (a *HttpAnser) read() bool {
 				value = strings.TrimLeft(value, " \t")
 				// value = strings.TrimRight(value, "\r\n")
 				a.httpConn.Header[key] = append(a.httpConn.Header[key], value)
-				fmt.Printf("(a *HttpAnser) Read | Header, key: %s, value: %s\n", key, value)
+				// fmt.Printf("(a *HttpAnser) Read | Header, key: %s, value: %s\n", key, value)
+				a.logger.Debug("Header, key: %s, value: %s", key, value)
 
 			} else {
 				// 當前這行數據不包含":"，結束 Header 的讀取
@@ -152,16 +155,19 @@ func (a *HttpAnser) read() bool {
 				// Header 中包含 Content-Length，狀態值設為 2，等待讀取後續數據
 				if contentLength, ok := a.httpConn.Header["Content-Length"]; ok {
 					length, err := strconv.Atoi(contentLength[0])
-					fmt.Printf("(a *HttpAnser) Read | Content-Length: %d\n", length)
+					// fmt.Printf("(a *HttpAnser) Read | Content-Length: %d\n", length)
+					a.logger.Debug("Content-Length: %d", length)
 
 					if err != nil {
-						fmt.Printf("(a *HttpAnser) Read | Content-Length err: %+v\n", err)
+						// fmt.Printf("(a *HttpAnser) Read | Content-Length err: %+v\n", err)
+						a.logger.Error("Content-Length err: %+v", err)
 						return false
 					}
 
 					a.httpConn.ReadLength = int32(length)
 					a.httpConn.State = 2
-					fmt.Printf("(a *HttpAnser) Read | State: 1 -> 2\n")
+					// fmt.Printf("(a *HttpAnser) Read | State: 1 -> 2\n")
+					a.logger.Debug("State: 1 -> 2")
 
 				} else {
 					// 考慮分包問題，收到完整一包數據傳完才傳到應用層
@@ -175,7 +181,8 @@ func (a *HttpAnser) read() bool {
 
 					// 等待數據寫出
 					a.httpConn.State = 3
-					fmt.Printf("(a *HttpAnser) Read | State: 1 -> 3\n")
+					// fmt.Printf("(a *HttpAnser) Read | State: 1 -> 3\n")
+					a.logger.Debug("State: 1 -> 3")
 					return true
 				}
 			}
@@ -190,7 +197,8 @@ func (a *HttpAnser) read() bool {
 			// ==========
 			// 將傳入的數據，加入工作緩存中
 			a.currConn.Read(&a.readBuffer, a.httpConn.ReadLength)
-			fmt.Printf("(a *HttpAnser) Read | %s\n", string(a.readBuffer[:a.httpConn.ReadLength]))
+			// fmt.Printf("(a *HttpAnser) Read | %s\n", string(a.readBuffer[:a.httpConn.ReadLength]))
+			a.logger.Debug("Body 數據: %s", string(a.readBuffer[:a.httpConn.ReadLength]))
 
 			// 考慮分包問題，收到完整一包數據傳完才傳到應用層
 			a.currWork.Index = a.currConn.GetId()
@@ -204,7 +212,8 @@ func (a *HttpAnser) read() bool {
 
 			// 等待數據寫出
 			a.httpConn.State = 3
-			fmt.Printf("(a *HttpAnser) Read | State: 2 -> 3\n")
+			// fmt.Printf("(a *HttpAnser) Read | State: 2 -> 3\n")
+			a.logger.Debug("State: 2 -> 3")
 			return false
 		}
 	}
@@ -233,7 +242,8 @@ func (a *HttpAnser) SetWorkHandler() {
 		a.httpConn = a.httpConns[w.Index]
 		a.httpConn.Cid = w.Index
 		a.httpConn.Wid = w.GetId()
-		fmt.Printf("(a *HttpAnser) SetWorkHandler | Cid: %d, Wid: %d\n", a.httpConn.Cid, a.httpConn.Wid)
+		// fmt.Printf("(a *HttpAnser) SetWorkHandler | Cid: %d, Wid: %d\n", a.httpConn.Cid, a.httpConn.Wid)
+		a.logger.Debug("Cid: %d, Wid: %d", a.httpConn.Cid, a.httpConn.Wid)
 
 		if handler, ok := a.Handlers[a.httpConn.Method]; ok {
 			if functions, ok := handler[a.httpConn.Query]; ok {
@@ -250,7 +260,9 @@ func (a *HttpAnser) SetWorkHandler() {
 }
 
 func (a *HttpAnser) errorRequestHandler(w *base.Work, c *ghttp.Context, msg string) {
-	fmt.Printf("(s *Server) errorRequestHandler | method: %s, query: %s\n", c.Method, c.Query)
+	// fmt.Printf("(s *Server) errorRequestHandler | method: %s, query: %s\n", c.Method, c.Query)
+	a.logger.Debug("method: %s, query: %s", c.Method, c.Query)
+
 	c.Json(400, ghttp.H{
 		"code": 400,
 		"msg":  msg,
@@ -259,7 +271,9 @@ func (a *HttpAnser) errorRequestHandler(w *base.Work, c *ghttp.Context, msg stri
 
 	// 將 Response 回傳數據轉換成 Work 傳遞的格式
 	bs := c.ToResponseData()
-	fmt.Printf("Response: %s\n", string(bs))
+	// fmt.Printf("Response: %s\n", string(bs))
+	a.logger.Debug("Response: %s", string(bs))
+
 	w.Body.AddRawData(bs)
 	w.Send()
 }
@@ -271,7 +285,8 @@ func (a *HttpAnser) shouldClose(err error) bool {
 	}
 	a.httpConn = a.httpConns[a.currConn.GetId()]
 	if a.httpConn.State == 4 && a.currConn.WritableLength == 0 {
-		fmt.Printf("(a *HttpAnser) shouldClose | Conn(%d) 完成數據寫出，準備關閉連線\n", a.currConn.GetId())
+		// fmt.Printf("(a *HttpAnser) shouldClose | Conn(%d) 完成數據寫出，準備關閉連線\n", a.currConn.GetId())
+		a.logger.Info("Conn(%d) 完成數據寫出，準備關閉連線", a.currConn.GetId())
 		a.httpConn.State = 0
 		return true
 	}
@@ -292,15 +307,24 @@ func (a *HttpAnser) Send(c *ghttp.Context) {
 
 	// 將 Response 回傳數據轉換成 Work 傳遞的格式
 	bs := c.ToResponseData()
-	fmt.Printf("Response: %s\n", string(bs))
-	fmt.Printf("Raw Response: %+v\n", utils.SliceToString(bs))
+
+	// fmt.Printf("Response: %s\n", string(bs))
+	// fmt.Printf("Raw Response: %+v\n", utils.SliceToString(bs))
+	a.logger.Debug("Response: %s", string(bs))
+	a.logger.Debug("Raw Response: %s", utils.SliceToString(bs))
+
 	w := a.getWork(c.Wid)
-	fmt.Printf("Wid: %d, w: %+v\n", c.Wid, w)
+	// fmt.Printf("Wid: %d, w: %+v\n", c.Wid, w)
+	a.logger.Debug("Wid: %d, w: %+v", c.Wid, w)
+
 	w.Index = c.Cid
-	fmt.Printf("c.Cid: %d, w.Index: %d\n", c.Cid, w.Index)
+	// fmt.Printf("c.Cid: %d, w.Index: %d\n", c.Cid, w.Index)
+	a.logger.Debug("c.Cid: %d, w.Index: %d", c.Cid, w.Index)
+
 	w.Body.AddRawData(bs)
 	w.Send()
-	fmt.Printf("Wid: %d, w: %+v\n", c.Wid, w)
+	// fmt.Printf("Wid: %d, w: %+v\n", c.Wid, w)
+	a.logger.Debug("Wid: %d, w: %+v", c.Wid, w)
 
 	// 若 Context 是從 contextPool 中取得，id 會是 -1，因此需要回收
 	if c.GetId() == -1 {
@@ -309,7 +333,8 @@ func (a *HttpAnser) Send(c *ghttp.Context) {
 }
 
 func (a *HttpAnser) Finish(c *ghttp.Context) {
-	fmt.Printf("(a *HttpAnser) Finish | Context %d, c.Wid: %d\n", c.GetId(), c.Wid)
+	// fmt.Printf("(a *HttpAnser) Finish | Context %d, c.Wid: %d\n", c.GetId(), c.Wid)
+	a.logger.Info("Context %d, c.Wid: %d", c.GetId(), c.Wid)
 	w := a.getWork(c.Wid)
 	w.Finish()
 }
@@ -345,7 +370,8 @@ func (r *Router) handle(method string, path string, handlers ...HandlerFunc) {
 		path = r.combinePath(path)
 
 		if _, ok := routers[path]; ok {
-			fmt.Printf("(r *Router) handle | Duplicate handler, method: %v, path: %s\n", method, path)
+			// fmt.Printf("(r *Router) handle | Duplicate handler, method: %v, path: %s\n", method, path)
+			r.logger.Warn("Duplicate handler, method: %v, path: %s", method, path)
 			return
 		}
 

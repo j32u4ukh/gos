@@ -1,16 +1,24 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"strconv"
 	"time"
 
+	"github.com/j32u4ukh/glog"
 	"github.com/j32u4ukh/gos"
 	"github.com/j32u4ukh/gos/ans"
 	"github.com/j32u4ukh/gos/ask"
 	"github.com/j32u4ukh/gos/define"
 )
+
+var logger *glog.Logger
+
+func init() {
+	option1 := glog.BasicOption(glog.DebugLevel, true, true, true)
+	option2 := glog.BasicOption(glog.InfoLevel, true, true, true)
+	logger = glog.GetLogger("log", "Demo1", glog.DebugLevel, false, option1, option2)
+}
 
 type Service struct {
 	// 總管整個服務的關閉流程(可能有不同原因會觸發關閉流程)
@@ -36,7 +44,8 @@ func (s *Service) Run(args []string) {
 		s.RunAsk("127.0.0.1", port)
 	}
 
-	fmt.Println("[Example] Run | End of gos example.")
+	// fmt.Println("[Example] Run | End of gos example.")
+	logger.Info("End of gos example.")
 }
 
 func (s *Service) Stop() {
@@ -45,10 +54,12 @@ func (s *Service) Stop() {
 
 func (s *Service) RunAns(port int) {
 	anser, err := gos.Listen(define.Tcp0, int32(port))
-	fmt.Printf("(s *Service) RunAns | Listen to port %d\n", port)
+	// fmt.Printf("(s *Service) RunAns | Listen to port %d\n", port)
+	logger.Debug("Listen to port %d", port)
 
 	if err != nil {
-		fmt.Printf("Error: %+v\n", err)
+		// fmt.Printf("Error: %+v\n", err)
+		logger.Error("ListenError: %+v", err)
 		return
 	}
 
@@ -56,9 +67,13 @@ func (s *Service) RunAns(port int) {
 	tcp0Answer := anser.(*ans.Tcp0Anser)
 	tcp0Answer.SetWorkHandler(mgr.Handler)
 
-	fmt.Printf("(s *Service) RunAns | 伺服器初始化完成\n")
+	// fmt.Printf("(s *Service) RunAns | 伺服器初始化完成\n")
+	logger.Debug("伺服器初始化完成")
+
 	gos.StartListen()
-	fmt.Printf("(s *Service) RunAns | 開始監聽\n")
+	// fmt.Printf("(s *Service) RunAns | 開始監聽\n")
+	logger.Debug("開始監聽")
+
 	var start time.Time
 	var during, frameTime time.Duration = 0, 200 * time.Millisecond
 
@@ -78,29 +93,37 @@ func (s *Service) RunAsk(ip string, port int) {
 	asker, err := gos.Bind(0, ip, port, define.Tcp0)
 
 	if err != nil {
-		fmt.Printf("Error: %+v\n", err)
+		// fmt.Printf("Error: %+v\n", err)
+		logger.Error("BindError: %+v", err)
 		return
 	}
 
 	mgr := NewMgr()
 	tcp0Asker := asker.(*ask.Tcp0Asker)
 	tcp0Asker.SetWorkHandler(mgr.Handler)
-	fmt.Printf("(s *Service) RunAsk | 伺服器初始化完成\n")
+	// fmt.Printf("(s *Service) RunAsk | 伺服器初始化完成\n")
+	logger.Debug("伺服器初始化完成")
+
 	err = gos.StartConnect()
 
 	if err != nil {
-		fmt.Printf("Error: %+v\n", err)
+		// fmt.Printf("Error: %+v\n", err)
+		logger.Error("ConnectError: %+v", err)
 		return
 	}
 
-	fmt.Printf("(s *Service) RunAsk | 開始連線\n")
+	// fmt.Printf("(s *Service) RunAsk | 開始連線\n")
+	logger.Debug("開始連線")
+
 	var start time.Time
 	var during, frameTime time.Duration = 0, 200 * time.Millisecond
 
 	// TODO: 暫緩一般數據傳送，先實作心跳包機制
 	go func() {
 		time.Sleep(2 * time.Second)
-		fmt.Printf("(s *Service) RunAsk | After 2 Second.\n")
+		// fmt.Printf("(s *Service) RunAsk | After 2 Second.\n")
+		logger.Info("After 2 Second.")
+
 		var data []byte
 		temp := []byte{}
 
@@ -118,7 +141,8 @@ func (s *Service) RunAsk(ip string, port int) {
 		}
 
 		time.Sleep(5 * time.Second)
-		fmt.Printf("(s *Service) RunAsk | After 5 Second.\n")
+		// fmt.Printf("(s *Service) RunAsk | After 5 Second.\n")
+		logger.Info("After 5 Second.")
 
 		for i := 55; i < 60; i++ {
 			temp = append(temp, byte(i))
@@ -134,7 +158,8 @@ func (s *Service) RunAsk(ip string, port int) {
 		}
 	}()
 
-	fmt.Printf("(s *Service) RunAsk | 開始 gos.RunAsk()\n")
+	// fmt.Printf("(s *Service) RunAsk | 開始 gos.RunAsk()\n")
+	logger.Info("開始 gos.RunAsk()")
 
 	for {
 		start = time.Now()

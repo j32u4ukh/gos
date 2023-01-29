@@ -9,6 +9,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/j32u4ukh/glog"
 	"github.com/j32u4ukh/gos"
 	"github.com/j32u4ukh/gos/ans"
 	"github.com/j32u4ukh/gos/ask"
@@ -71,6 +72,14 @@ func shouldClose(major, minor int, header Header, removeCloseHeader bool) bool {
 
 */
 
+var logger *glog.Logger
+
+func init() {
+	option1 := glog.BasicOption(glog.DebugLevel, true, true, true)
+	option2 := glog.BasicOption(glog.InfoLevel, true, true, true)
+	logger = glog.GetLogger("log", "DemoPipeline", glog.DebugLevel, false, option1, option2)
+}
+
 func main() {
 	service_type := os.Args[1]
 	var port int = 1023
@@ -90,15 +99,18 @@ func main() {
 		DemoNativeHttpServer("192.168.0.198", port)
 	}
 
-	fmt.Println("[Example] Run | End of gos example.")
+	// fmt.Println("[Example] Run | End of gos example.")
+	logger.Debug("End of gos example.")
 }
 
 func RunAns(port int) {
 	anser, err := gos.Listen(define.Http, int32(port))
-	fmt.Printf("RunAns | Listen to port %d\n", port)
+	// fmt.Printf("RunAns | Listen to port %d\n", port)
+	logger.Debug("Listen to port %d", port)
 
 	if err != nil {
-		fmt.Printf("Error: %+v\n", err)
+		// fmt.Printf("Error: %+v\n", err)
+		logger.Error("ListenError: %+v", err)
 		return
 	}
 
@@ -106,9 +118,11 @@ func RunAns(port int) {
 	mrg := &Mgr{}
 	mrg.Handler(httpAnswer.Router)
 
-	fmt.Printf("(s *Service) RunAns | 伺服器初始化完成\n")
+	// fmt.Printf("(s *Service) RunAns | 伺服器初始化完成\n")
+	logger.Debug("伺服器初始化完成")
 	gos.StartListen()
-	fmt.Printf("(s *Service) RunAns | 開始監聽\n")
+	// fmt.Printf("(s *Service) RunAns | 開始監聽\n")
+	logger.Debug("開始監聽")
 	var start time.Time
 	var during, frameTime time.Duration = 0, 200 * time.Millisecond
 
@@ -129,30 +143,37 @@ func RunAsk(ip string, port int) {
 	asker, err := gos.Bind(0, ip, port, define.Http)
 
 	if err != nil {
-		fmt.Printf("BindError: %+v\n", err)
+		// fmt.Printf("BindError: %+v\n", err)
+		logger.Error("BindError: %+v", err)
 		return
 	}
 
 	http := asker.(*ask.HttpAsker)
-	fmt.Printf("http: %+v\n", http)
+	// fmt.Printf("http: %+v\n", http)
+	logger.Debug("http: %+v", http)
 
 	req, err := ghttp.NewRequest(ghttp.MethodGet, "127.0.0.1:1023/abc/get", nil)
 
 	if err != nil {
-		fmt.Printf("NewRequestError: %+v\n", err)
+		// fmt.Printf("NewRequestError: %+v\n", err)
+		logger.Error("NewRequestError: %+v", err)
 		return
 	}
 
-	fmt.Printf("req: %+v\n", req)
+	// fmt.Printf("req: %+v\n", req)
+	logger.Debug("req: %+v", req)
 	var site int32
 	site, err = gos.SendRequest(req, func(c *ghttp.Context) {
-		fmt.Printf("I'm Context, Query: %s\n", c.Query)
+		// fmt.Printf("I'm Context, Query: %s\n", c.Query)
+		logger.Info("I'm Context, Query: %s", c.Query)
 	})
 
-	fmt.Printf("site: %d\n", site)
+	// fmt.Printf("site: %d\n", site)
+	logger.Debug("site: %d", site)
 
 	if err != nil {
-		fmt.Printf("SendRequestError: %+v\n", err)
+		// fmt.Printf("SendRequestError: %+v\n", err)
+		logger.Error("SendRequestError: %+v", err)
 		return
 	}
 
@@ -188,17 +209,20 @@ func DemoNativeHttpRequest(port int) {
 
 	res, err := http.Get(requestURL)
 	if err != nil {
-		fmt.Printf("err: %+v\n", err)
+		// fmt.Printf("err: %+v\n", err)
+		logger.Error("err: %+v", err)
 		return
 	}
 	defer res.Body.Close()
 	sitemap, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		fmt.Printf("err: %+v\n", err)
+		// fmt.Printf("err: %+v\n", err)
+		logger.Error("err: %+v", err)
 		return
 	}
 
-	fmt.Printf("%s\n", sitemap)
+	// fmt.Printf("%s\n", sitemap)
+	logger.Info("sitemap: %s", sitemap)
 }
 
 func DemoNativeHttpRequest2(port int) {
@@ -209,42 +233,50 @@ func DemoNativeHttpRequest2(port int) {
 	//這邊可以任意變換 http method  GET、POST、PUT、DELETE
 	req, err := http.NewRequest("POST", fmt.Sprintf("%s:%d/abc/post", "http://127.0.0.1", port), bodyReader)
 	if err != nil {
-		fmt.Println(err)
+		// fmt.Println(err)
+		logger.Error("err: %+v", err)
 		return
 	}
 
 	res, err := client.Do(req)
 	if err != nil {
-		fmt.Printf("err: %+v\n", err)
+		// fmt.Printf("err: %+v\n", err)
+		logger.Error("err: %+v", err)
 		return
 	}
 	defer res.Body.Close()
 	sitemap, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		fmt.Printf("err: %+v\n", err)
+		// fmt.Printf("err: %+v\n", err)
+		logger.Error("err: %+v", err)
 		return
 	}
 
-	fmt.Printf("%s\n", sitemap)
+	// fmt.Printf("%s\n", sitemap)
+	logger.Info("sitemap: %s", sitemap)
 }
 
 func DemoNativeHttpServer(ip string, port int) {
 	// Listen for incoming connections
 	l, err := net.Listen("tcp", fmt.Sprintf("%s:%d", ip, port))
 	if err != nil {
-		fmt.Println("Error listening:", err.Error())
+		// fmt.Println("Error listening:", err.Error())
+		logger.Error("Error listening: %+v", err.Error())
 		os.Exit(1)
 	}
 
 	// Close the listener when the application closes.
 	defer l.Close()
 
-	fmt.Println("Start listening...")
+	// fmt.Println("Start listening...")
+	logger.Debug("Start listening...")
+
 	for {
 		// Listen for an incoming connection.
 		conn, err := l.Accept()
 		if err != nil {
-			fmt.Println("Error accepting: ", err.Error())
+			// fmt.Println("Error accepting: ", err.Error())
+			logger.Error("Error accepting: %+v", err.Error())
 			os.Exit(1)
 		}
 		// Handle connections
@@ -258,9 +290,11 @@ func handleRequest(conn net.Conn) {
 	// Read the incoming connection into the buffer.
 	l, err := conn.Read(buf)
 	if err != nil {
-		fmt.Println("Error reading:", err.Error())
+		// fmt.Println("Error reading:", err.Error())
+		logger.Error("Error reading: %+v", err.Error())
 	}
-	fmt.Println(l)
+	// fmt.Println(l)
+	logger.Debug("%v", l)
 
 	/*
 		71 69 84 32 47 101 110 100 63 100 49 61 51 50 38 100 50 61 119 111 114 100 32 72 84 84 80 47 49 46 49 13 10 67 111 110 116 101 110
@@ -273,8 +307,10 @@ func handleRequest(conn net.Conn) {
 		53 13 10 13 10 123 13 10 32 32 32 32 34 105 100 34 58 48 44 13 10 32 32 32 32 34 109 115 103 34 58 34 116 101 115 116 34 13 10 125
 	*/
 	request := string(buf[:l])
-	fmt.Println(utils.SliceToString(buf[:l]))
-	fmt.Println(request)
+	// fmt.Println(utils.SliceToString(buf[:l]))
+	logger.Debug(utils.SliceToString(buf[:l]))
+	// fmt.Println(request)
+	logger.Debug(request)
 
 	fmt.Println("================================================================")
 	// Accept: */*

@@ -84,9 +84,6 @@ func (a *Tcp0Anser) read() bool {
 			// 指向下一個工作結構
 			a.currWork = a.currWork.Next
 
-			// // 重置 封包長度
-			// a.currConn.PacketLength = -1
-
 			// 重置 欲讀取長度 以及 狀態值
 			a.currTcp0.ResetReadLength()
 		}
@@ -105,8 +102,5 @@ func (a *Tcp0Anser) SetWorkHandler(handler func(*base.Work)) {
 
 // 當前連線是否應斷線
 func (a *Tcp0Anser) shouldClose(err error) bool {
-	// if a.Anser.shouldClose(err) {
-	// 	return true
-	// }
 	return a.Anser.shouldClose(err)
 }

@@ -1,7 +1,6 @@
 package ask
 
 import (
-	"fmt"
 	"net"
 	"strconv"
 	"strings"
@@ -81,7 +80,8 @@ func (a *HttpAsker) Connect() error {
 func (a *HttpAsker) read() {
 	// 根據 Conn 的 Id，存取對應的 httpConn
 	a.httpConn = a.httpConns[a.currConn.GetId()]
-	fmt.Printf("(a *HttpAsker) Read | Conn(%d), State: %d\n", a.currConn.GetId(), a.httpConn.State)
+	// fmt.Printf("(a *HttpAsker) Read | Conn(%d), State: %d\n", a.currConn.GetId(), a.httpConn.State)
+	a.logger.Debug("Conn(%d), State: %d", a.currConn.GetId(), a.httpConn.State)
 
 	// 讀取 第一行
 	if a.httpConn.State == 0 {
@@ -90,10 +90,13 @@ func (a *HttpAsker) read() {
 
 			// 拆分第一行數據 HTTP/1.1 200 OK\r\n
 			firstLine := strings.TrimRight(string(a.readBuffer[:a.httpConn.ReadLength]), "\r\n")
-			fmt.Printf("(a *HttpAsker) Read | firstLine: %s\n", firstLine)
+			// fmt.Printf("(a *HttpAsker) Read | firstLine: %s\n", firstLine)
+			a.logger.Debug("firstLine: %s", firstLine)
+
 			a.httpConn.ParseFirstResLine(firstLine)
 			a.httpConn.State = 1
-			fmt.Printf("(a *HttpAsker) Read | State: 0 -> 1\n")
+			// fmt.Printf("(a *HttpAsker) Read | State: 0 -> 1\n")
+			a.logger.Debug("State: 0 -> 1")
 		}
 	}
 
@@ -123,26 +126,33 @@ func (a *HttpAsker) read() {
 				value = strings.TrimLeft(value, " \t")
 				// value = strings.TrimRight(value, "\r\n")
 				a.httpConn.Header[key] = append(a.httpConn.Header[key], value)
-				fmt.Printf("(a *HttpAsker) Read | Header, key: %s, value: %s\n", key, value)
+				// fmt.Printf("(a *HttpAsker) Read | Header, key: %s, value: %s\n", key, value)
+				a.logger.Debug("Header, key: %s, value: %s", key, value)
 
 			} else {
 				// 當前這行數據不包含":"，結束 Header 的讀取
-				fmt.Printf("(a *HttpAsker) Read | Empty line\n")
+				// fmt.Printf("(a *HttpAsker) Read | Empty line\n")
+				a.logger.Debug("Empty line")
 
 				// Header 中包含 Content-Length，狀態值設為 2，等待讀取後續數據
 				if contentLength, ok := a.httpConn.Header["Content-Length"]; ok {
 					length, err := strconv.Atoi(contentLength[0])
-					fmt.Printf("(a *HttpAsker) Read | Content-Length: %d\n", length)
+					// fmt.Printf("(a *HttpAsker) Read | Content-Length: %d\n", length)
+					a.logger.Debug("Content-Length: %d", length)
 
 					if err != nil {
-						fmt.Printf("(a *HttpAsker) Read | Content-Length err: %+v\n", err)
+						// fmt.Printf("(a *HttpAsker) Read | Content-Length err: %+v\n", err)
+						a.logger.Error("Content-Length err: %+v", err)
 						return
 					}
 
 					a.httpConn.ReadLength = int32(length)
-					fmt.Printf("(a *HttpAsker) Read | a.httpConn.ReadLength: %d\n", a.httpConn.ReadLength)
+					// fmt.Printf("(a *HttpAsker) Read | a.httpConn.ReadLength: %d\n", a.httpConn.ReadLength)
+					a.logger.Debug("a.httpConn.ReadLength: %d", a.httpConn.ReadLength)
+
 					a.httpConn.State = 2
-					fmt.Printf("(a *HttpAsker) Read | State: 1 -> 2\n")
+					// fmt.Printf("(a *HttpAsker) Read | State: 1 -> 2\n")
+					a.logger.Debug("State: 1 -> 2")
 
 				} else {
 					// Header 中不包含 Content-Length，狀態值恢復為 0
@@ -160,14 +170,18 @@ func (a *HttpAsker) read() {
 
 	// 讀取 Body 數據
 	if a.httpConn.State == 2 {
-		fmt.Printf("(a *HttpAsker) Read | State 2, a.httpConn.ReadLength: %d\n", a.httpConn.ReadLength)
+		// fmt.Printf("(a *HttpAsker) Read | State 2, a.httpConn.ReadLength: %d\n", a.httpConn.ReadLength)
+		a.logger.Debug("State 2, a.httpConn.ReadLength: %d", a.httpConn.ReadLength)
+
 		if a.currConn.CheckReadable(a.httpConn.HasEnoughData) {
 			// ==========
 			// 讀取 data
 			// ==========
 			// 將傳入的數據，加入工作緩存中
 			a.currConn.Read(&a.readBuffer, a.httpConn.ReadLength)
-			fmt.Printf("(a *HttpAsker) Read | State 2, data: %s\n", string(a.readBuffer[:a.httpConn.ReadLength]))
+			// fmt.Printf("(a *HttpAsker) Read | State 2, data: %s\n", string(a.readBuffer[:a.httpConn.ReadLength]))
+			a.logger.Debug("State 2, data: %s", string(a.readBuffer[:a.httpConn.ReadLength]))
+
 			a.httpConn.BodyLength = a.httpConn.ReadLength
 			copy(a.httpConn.Body[:a.httpConn.ReadLength], a.readBuffer[:a.httpConn.ReadLength])
 
@@ -186,33 +200,41 @@ func (a *HttpAsker) read() {
 }
 
 func (a *HttpAsker) write(id int32, data *[]byte, length int32) error {
-	fmt.Printf("(a *HttpAsker) writeFunc | work id: %d\n", id)
+	// fmt.Printf("(a *HttpAsker) writeFunc | work id: %d\n", id)
+	a.logger.Debug("work id: %d", id)
 
 	// 取得連線物件(若 id 為 -1，表示尋找空閒的連線物件)
 	a.currConn = a.getConn(id)
 
 	// 目前沒有空閒的連線物件，等待下次迴圈再處理
 	if a.currConn == nil {
-		fmt.Printf("(a *HttpAsker) writeFunc | currConn is nil\n")
+		// fmt.Printf("(a *HttpAsker) writeFunc | currConn is nil\n")
+		a.logger.Error("currConn is nil")
 		return nil
 	}
 
 	if a.currConn.State == define.Unused {
-		fmt.Printf("(a *HttpAsker) writeFunc | currConn.State is Unused\n")
+		// fmt.Printf("(a *HttpAsker) writeFunc | currConn.State is Unused\n")
+		a.logger.Debug("currConn.State is Unused")
 		a.currConn.State = define.Connecting
 
 		// 設置當前工作結構對應的連線物件
 		a.currWork.Index = a.currConn.GetId()
-		fmt.Printf("(a *HttpAsker) writeFunc | a.currWork.Index <- %d\n", a.currConn.GetId())
+		// fmt.Printf("(a *HttpAsker) writeFunc | a.currWork.Index <- %d\n", a.currConn.GetId())
+		a.logger.Debug("a.currWork.Index <- %d", a.currConn.GetId())
+
 		a.Asker.Connect(a.currConn.GetId())
 		return nil
 	} else if a.currConn.State == define.Connecting {
-		fmt.Printf("(a *HttpAsker) writeFunc | currConn.State is Connecting\n")
+		// fmt.Printf("(a *HttpAsker) writeFunc | currConn.State is Connecting\n")
+		a.logger.Debug("currConn.State is Connecting")
 		return nil
 	}
 
 	// 將數據寫入連線物件的緩存
-	fmt.Printf("(a *HttpAsker) writeFunc | WriteBuffer, length: %d, data: %+v\n", length, (*data)[:length])
+	// fmt.Printf("(a *HttpAsker) writeFunc | WriteBuffer, length: %d, data: %+v\n", length, (*data)[:length])
+	a.logger.Debug("WriteBuffer, length: %d, data: %+v", length, (*data)[:length])
+
 	a.currConn.SetWriteBuffer(data, length)
 	a.currWork.State = 0
 	return nil
@@ -227,7 +249,8 @@ func (a *HttpAsker) Write(data *[]byte, length int32) error {
 	w.Body.AddRawData((*data)[:length])
 
 	a.Handlers[w.GetId()] = func(c *ghttp.Context) {
-		fmt.Printf("Response: %+v\n", c)
+		// fmt.Printf("Response: %+v\n", c)
+		a.logger.Info("Response: %+v", c)
 	}
 
 	w.Send()
@@ -237,14 +260,15 @@ func (a *HttpAsker) Write(data *[]byte, length int32) error {
 
 // [Work State: 1] 由外部定義 workHandler，定義如何處理工作
 func (a *HttpAsker) SetWorkHandler() {
-	fmt.Printf("(a *HttpAsker) SetWorkHandler\n")
+	// fmt.Printf("(a *HttpAsker) SetWorkHandler\n")
 
 	a.Asker.workHandler = func(w *base.Work) {
 		if w.Index == -1 {
 			return
 		}
 
-		fmt.Printf("(a *HttpAsker) SetWorkHandler | work: %+v\n", w)
+		// fmt.Printf("(a *HttpAsker) SetWorkHandler | work: %+v\n", w)
+		a.logger.Debug("work: %+v", w)
 
 		// 取得連線物件
 		a.currConn = a.getConn(w.Index)
@@ -269,7 +293,8 @@ func (a *HttpAsker) NewRequest(method string, uri string, params map[string]stri
 
 // 供外部傳送 Http 請求
 func (a *HttpAsker) Send(req *ghttp.Request, callback func(*ghttp.Context)) error {
-	fmt.Printf("(a *HttpAsker) Send | req: %+v\n", req)
+	// fmt.Printf("(a *HttpAsker) Send | req: %+v\n", req)
+	a.logger.Debug("req: %+v", req)
 
 	if callback == nil {
 		return errors.New("callback 函式不可為 nil")
@@ -282,7 +307,8 @@ func (a *HttpAsker) Send(req *ghttp.Request, callback func(*ghttp.Context)) erro
 	w.Body.AddRawData(req.ToRequestData())
 	a.Handlers[w.GetId()] = callback
 	w.Send()
-	fmt.Printf("(a *HttpAsker) Send | work: %+v\n", w)
+	// fmt.Printf("(a *HttpAsker) Send | work: %+v\n", w)
+	a.logger.Debug("work: %+v", w)
 	// 釋放 req *ghttp.Request
 	req.Release()
 	// 將 Request 放回物件池

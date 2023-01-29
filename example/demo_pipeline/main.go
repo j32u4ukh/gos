@@ -117,7 +117,7 @@ func RunAsk(port int) {
 	req, err := http.NewRequest(method, url, payload)
 
 	if err != nil {
-		fmt.Println(err)
+		// fmt.Println(err)
 		logger.Error("error: %+v", err)
 		return
 	}
@@ -140,7 +140,8 @@ func RunAsk(port int) {
 		return
 	}
 
-	fmt.Println(string(body))
+	// fmt.Println(string(body))
+	logger.Info("Response: %s", string(body))
 }
 
 func RunRandomReturnServer(port int) {

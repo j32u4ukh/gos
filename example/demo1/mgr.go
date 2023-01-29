@@ -23,31 +23,37 @@ func (m *Mgr) Handler(work *base.Work) {
 	// fmt.Printf("(m *Mgr) Handler | index: %d, kind: %d, serivce: %d\n", work.Index, kind, serivce)
 
 	if kind == 0 && serivce == 0 {
-		fmt.Println("(m *Mgr) Handler | Heartbeat")
+		// fmt.Println("(m *Mgr) Handler | Heartbeat")
+		logger.Info("Heartbeat")
 
 		// 標註當前工作已完成，將該工作結構回收
 		work.Finish()
 
 	} else if kind == 1 && serivce == 0 {
 		data := work.Body.GetData()
-		fmt.Printf("(m *Mgr) Handler | data from asker: %+v\n", data)
+		// fmt.Printf("(m *Mgr) Handler | data from asker: %+v\n", data)
+		logger.Debug("data from asker: %+v", data)
+
 		work.Body.Clear()
 
 		work.Body.AddByte(2)
 		work.Body.AddUInt16(32)
 		work.Body.AddString(fmt.Sprintf("Message from (m *Mgr) Handler(work *gos.Work), #data: %d", len(data)))
 		work.SendTransData()
-		fmt.Printf("(m *Mgr) Handler | SendTransData back, work: %+v\n", work)
+		// fmt.Printf("(m *Mgr) Handler | SendTransData back, work: %+v\n", work)
+		logger.Debug("SendTransData back, work: %+v", work)
 
 	} else if kind == 2 && serivce == 32 {
 		response := work.Body.PopString()
-		fmt.Printf("(m *Mgr) Handler | response: %s\n", response)
+		// fmt.Printf("(m *Mgr) Handler | response: %s\n", response)
+		logger.Debug("response: %s", response)
 
 		// 標註當前工作已完成，將該工作結構回收
 		work.Finish()
 	} else {
 		data := work.Body.GetData()
-		fmt.Printf("(m *Mgr) Handler | data: %+v\n", data)
+		// fmt.Printf("(m *Mgr) Handler | data: %+v\n", data)
+		logger.Debug("data: %+v", data)
 
 		// 標註當前工作已完成，將該工作結構回收
 		work.Finish()
