@@ -123,9 +123,8 @@ func NewConn(id int32, size int32) *Conn {
 	c.readBuffer = make([]byte, c.BufferLength)
 	c.writeBuffer = make([]byte, c.BufferLength)
 
-	option1 := glog.BasicOption(glog.DebugLevel, true, true, true)
-	option2 := glog.BasicOption(glog.InfoLevel, true, true, true)
-	c.logger = glog.GetLogger("log", "Conn", glog.DebugLevel, false, option1, option2)
+	c.logger = glog.GetLogger("log", "gos", glog.DebugLevel, false)
+	c.logger.SetOptions(glog.DefaultOption(true, true), glog.UtcOption(8))
 
 	var i int32
 	for i = 0; i < size; i++ {

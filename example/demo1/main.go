@@ -15,9 +15,8 @@ import (
 var logger *glog.Logger
 
 func init() {
-	option1 := glog.BasicOption(glog.DebugLevel, true, true, true)
-	option2 := glog.BasicOption(glog.InfoLevel, true, true, true)
-	logger = glog.GetLogger("log", "Demo1", glog.DebugLevel, false, option1, option2)
+	logger = glog.GetLogger("log", "Demo1", glog.DebugLevel, false)
+	logger.SetOptions(glog.DefaultOption(true, true), glog.UtcOption(8))
 }
 
 type Service struct {

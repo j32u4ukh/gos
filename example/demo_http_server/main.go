@@ -75,9 +75,8 @@ func shouldClose(major, minor int, header Header, removeCloseHeader bool) bool {
 var logger *glog.Logger
 
 func init() {
-	option1 := glog.BasicOption(glog.DebugLevel, true, true, true)
-	option2 := glog.BasicOption(glog.InfoLevel, true, true, true)
-	logger = glog.GetLogger("log", "DemoPipeline", glog.DebugLevel, false, option1, option2)
+	logger = glog.GetLogger("log", "DemoPipeline", glog.DebugLevel, false)
+	logger.SetOptions(glog.DefaultOption(true, true), glog.UtcOption(8))
 }
 
 func main() {
@@ -115,8 +114,9 @@ func RunAns(port int) {
 	}
 
 	httpAnswer := anser.(*ans.HttpAnser)
-	mrg := &Mgr{}
-	mrg.Handler(httpAnswer.Router)
+	mgr := &Mgr{}
+	mgr.HttpAnswer = httpAnswer
+	mgr.Handler(httpAnswer.Router)
 
 	// fmt.Printf("(s *Service) RunAns | 伺服器初始化完成\n")
 	logger.Debug("伺服器初始化完成")
