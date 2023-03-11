@@ -204,8 +204,10 @@ func (a *HttpAnser) read() bool {
 			a.currWork.Index = a.currConn.GetId()
 			a.currWork.RequestTime = time.Now().UTC()
 			a.currWork.State = 1
-			a.currWork.Body.AddRawData(a.readBuffer[:a.httpConn.ReadLength])
-			a.currWork.Body.ResetIndex()
+			a.httpConn.BodyLength = a.httpConn.ReadLength
+			copy(a.httpConn.Body[:a.httpConn.ReadLength], a.readBuffer[:a.httpConn.ReadLength])
+			// a.currWork.Body.AddRawData(a.readBuffer[:a.httpConn.ReadLength])
+			// a.currWork.Body.ResetIndex()
 
 			// 指向下一個工作結構
 			a.currWork = a.currWork.Next

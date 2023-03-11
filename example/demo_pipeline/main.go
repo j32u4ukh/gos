@@ -20,11 +20,13 @@ const ERandomReturnServer int32 = 0
 var logger *glog.Logger
 
 func init() {
-	option1 := glog.BasicOption(glog.DebugLevel, true, true, true)
-	option2 := glog.BasicOption(glog.InfoLevel, true, true, true)
-	logger = glog.GetLogger("log", "DemoPipeline", glog.DebugLevel, false, option1, option2)
+	logger = glog.GetLogger("log", "DemoPipeline", glog.DebugLevel, false)
+	logger.SetOptions(glog.DefaultOption(true, true), glog.UtcOption(8))
+	logger.Warn("Test")
+	logger.Error("Test")
 }
 
+// TODO: 獲取關閉訊號，將 log 數據寫完再關閉程式
 func main() {
 	service_type := os.Args[1]
 
@@ -38,6 +40,7 @@ func main() {
 
 	// fmt.Println("[Example] Run | End of gos example.")
 	logger.Info("End of gos example.")
+	glog.Flush()
 }
 
 // MainServer 接受客戶端 http 請求，再將請求發送到 RandomReturnServer 做處理，RandomReturnServer 將結果返還 MainServer，再由 MainServer 回覆客戶端

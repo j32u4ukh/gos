@@ -115,9 +115,8 @@ func newAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (*Anser, error) {
 		works:      base.NewWork(0),
 	}
 
-	option1 := glog.BasicOption(glog.DebugLevel, true, true, true)
-	option2 := glog.BasicOption(glog.InfoLevel, true, true, true)
-	a.logger = glog.GetLogger("log", "Anser", glog.DebugLevel, false, option1, option2)
+	a.logger = glog.GetLogger("log", "gos", glog.DebugLevel, false)
+	a.logger.SetOptions(glog.DefaultOption(true, true), glog.UtcOption(8))
 
 	var i int32
 	var nextConn *base.Conn

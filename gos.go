@@ -22,9 +22,8 @@ func init() {
 	if server == nil {
 		once.Do(func() {
 			server = newGoserver()
-			option1 := glog.BasicOption(glog.DebugLevel, true, true, true)
-			option2 := glog.BasicOption(glog.InfoLevel, true, true, true)
-			logger = glog.GetLogger("log", "package-gos", glog.DebugLevel, false, option1, option2)
+			logger = glog.GetLogger("log", "gos", glog.DebugLevel, false)
+			logger.SetOptions(glog.DefaultOption(true, true), glog.UtcOption(8))
 		})
 	}
 }
@@ -169,4 +168,8 @@ func SendRequest(req *ghttp.Request, callback func(*ghttp.Context)) (int32, erro
 	}
 
 	return -1, errors.New("Request 中未定義 uri")
+}
+
+func SetLoggerOptions(options ...glog.Option) {
+
 }
