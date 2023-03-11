@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/j32u4ukh/gos/ans"
@@ -38,9 +39,11 @@ func (m *Mgr) Handler(router *ans.Router) {
 	})
 	r1.POST("/post", func(c *ghttp.Context) {
 		fmt.Printf("(m *Mgr) Handler | /abc/post Body: %v\n", c.Body[:c.BodyLength])
+		dict := map[string]string{}
+		json.Unmarshal(c.Body[:c.BodyLength], &dict)
 		c.Response.Json(200, ghttp.H{
 			"index": 4,
-			"msg":   "POST | /abc/post",
+			"msg":   fmt.Sprintf("POST | /abc/post | dict: %v", dict),
 		})
 		m.HttpAnswer.Send(c)
 	})
