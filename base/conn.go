@@ -318,7 +318,6 @@ func (c *Conn) Write() error {
 
 // 當有需要重新連線的情況下，首先就會發生 Socket 讀取異常，並導致 Handler 的 goroutine 結束，因此無須再利用 c.stopCh 將 Handler 結束
 func (c *Conn) Reconnect() {
-	// fmt.Printf("(c *Conn) Reconnect | cid: %d\n", c.id)
 	c.logger.Info("cid: %d", c.id)
 
 	if c.NetConn != nil {

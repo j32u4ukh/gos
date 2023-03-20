@@ -46,10 +46,10 @@ func (g *goserver) listen(socketType define.SocketType, port int32) (ans.IAnswer
 	return g.anserMap[port], nil
 }
 
-func (g *goserver) bind(site int32, ip string, port int, socketType define.SocketType) (ask.IAsker, error) {
+func (g *goserver) bind(site int32, ip string, port int, socketType define.SocketType, onConnect func()) (ask.IAsker, error) {
 	if _, ok := g.askerMap[site]; !ok {
 		laddr := &net.TCPAddr{IP: net.ParseIP(ip), Port: port, Zone: ""}
-		asker, err := ask.NewAsker(socketType, site, laddr, 10)
+		asker, err := ask.NewAsker(socketType, site, laddr, 10, onConnect)
 
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to create an Asker for %s:%d.", ip, port)

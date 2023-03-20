@@ -46,8 +46,8 @@ func StartListen() {
 	}
 }
 
-func Bind(site int32, ip string, port int, socketType define.SocketType) (ask.IAsker, error) {
-	asker, err := server.bind(site, ip, port, socketType)
+func Bind(site int32, ip string, port int, socketType define.SocketType, onConnect func()) (ask.IAsker, error) {
+	asker, err := server.bind(site, ip, port, socketType, onConnect)
 
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to bind with %s:%d.", ip, port)
@@ -155,7 +155,7 @@ func SendRequest(req *ghttp.Request, callback func(*ghttp.Context)) (int32, erro
 		var err error
 
 		port, _ := strconv.Atoi(p)
-		asker, err = Bind(server.nextSite, ip, port, define.Http)
+		asker, err = Bind(server.nextSite, ip, port, define.Http, nil)
 		defer func() { server.nextSite++ }()
 
 		if err != nil {
