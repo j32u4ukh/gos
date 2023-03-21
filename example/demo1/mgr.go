@@ -23,10 +23,16 @@ func (m *Mgr) Handler(work *base.Work) {
 	// fmt.Printf("(m *Mgr) Handler | index: %d, kind: %d, serivce: %d\n", work.Index, kind, serivce)
 
 	if kind == 0 && serivce == 0 {
-		// fmt.Println("(m *Mgr) Handler | Heartbeat")
-		logger.Info("Heartbeat")
+		logger.Debug("Heartbeat")
+		work.Body.Clear()
+		work.Body.AddByte(0)
+		work.Body.AddUInt16(1)
+		work.Body.AddString("OK")
+		work.SendTransData()
 
-		// 標註當前工作已完成，將該工作結構回收
+	} else if kind == 0 && serivce == 1 {
+		response := work.Body.PopString()
+		logger.Debug("Heartbeat response: %s", response)
 		work.Finish()
 
 	} else if kind == 1 && serivce == 0 {

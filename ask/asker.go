@@ -226,10 +226,11 @@ func (a *Asker) checkConnection() {
 				a.onConnect()
 			}
 
-			a.heartbeatTime = time.Now().Add(1000 * time.Millisecond)
+			a.heartbeatTime = time.Now().Add(3000 * time.Millisecond)
 			a.emptyConn.NetConn = connBuffer.Conn
 			a.emptyConn.State = define.Connected
 			a.emptyConn.NetConn.SetReadDeadline(a.heartbeatTime.Add(1000 * time.Millisecond))
+			a.logger.Debug("更新斷線時間 heartbeatTime: %+v", a.heartbeatTime)
 			go a.emptyConn.Handler()
 		default:
 			return
@@ -284,7 +285,7 @@ func (a *Asker) connectedHandler() {
 
 		// 延後下次發送心跳包的時間
 		a.heartbeatTime = time.Now().Add(3000 * time.Millisecond)
-		// fmt.Printf("(a *Asker) connectedHandler | 更新斷線時間 heartbeatTime: %+v\n", a.heartbeatTime)
+		a.logger.Debug("更新斷線時間 heartbeatTime: %+v", a.heartbeatTime)
 
 		// 更新連線維持時間
 		err = a.currConn.NetConn.SetReadDeadline(a.heartbeatTime.Add(1000 * time.Millisecond))
@@ -331,7 +332,6 @@ func (a *Asker) connectedHandler() {
 			// 若當前時間已晚於發送心跳的時間戳
 			if time.Now().After(a.heartbeatTime) {
 				// 發送心跳包
-				// fmt.Printf("(a *Asker) connectedHandler | Heartbeat: %v\n", a.heartbeatTime)
 				a.logger.Debug("Heartbeat: %v", a.heartbeatTime)
 
 				// TODO: 每隔數分鐘再印一次資訊即可
@@ -351,8 +351,7 @@ func (a *Asker) connectedHandler() {
 
 // 超時連線處理
 func (a *Asker) timeoutHandler() {
-	// fmt.Printf("(a *Asker) timeoutHandler | Conn %d\n", a.currConn.GetId())
-	a.logger.Debug(" Conn %d", a.currConn.GetId())
+	a.logger.Debug("Conn %d", a.currConn.GetId())
 	if a.currConn.Mode == base.KEEPALIVE {
 		a.currConn.State = define.Reconnect
 	} else {
@@ -366,8 +365,7 @@ func (a *Asker) timeoutHandler() {
 
 // 重新連線處理
 func (a *Asker) reconnectHandler() {
-	// fmt.Printf("(a *Asker) reconnectHandler | Conn %d\n", a.currConn.GetId())
-	a.logger.Info(" Conn %d", a.currConn.GetId())
+	a.logger.Info("Conn %d", a.currConn.GetId())
 
 	// 重新連線準備
 	a.currConn.Reconnect()
