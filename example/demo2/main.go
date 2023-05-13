@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -91,7 +92,11 @@ func (s *Service) RunAns(port int) {
 }
 
 func (s *Service) RunAsk(ip string, port int) {
-	asker, err := gos.Bind(0, ip, port, define.Tcp0)
+	asker, err := gos.Bind(0, ip, port, define.Tcp0, map[define.EventType]func(){
+		define.OnConnected: func() {
+			fmt.Printf("(s *Service) RunAsk | onConnect to %s:%d\n", ip, port)
+		},
+	})
 
 	if err != nil {
 		// fmt.Printf("Error: %+v\n", err)

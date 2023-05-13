@@ -15,17 +15,17 @@ import (
 type goserver struct {
 	// key: port; value: *Anser
 	anserMap map[int32]ans.IAnswer
-	// key: site; value: *Asker
+	// key: server id; value: *Asker
 	askerMap map[int32]ask.IAsker
-	// 啟動後，最大的 site 值 + 1，作為動態建立 Asker 時的 site 值
-	nextSite int32
+	// 啟動後，最大的 id 值 + 1，作為動態建立 Asker 時的 id 值
+	nextServerId int32
 }
 
 func newGoserver() *goserver {
 	g := &goserver{
-		anserMap: map[int32]ans.IAnswer{},
-		askerMap: map[int32]ask.IAsker{},
-		nextSite: 0,
+		anserMap:     map[int32]ans.IAnswer{},
+		askerMap:     map[int32]ask.IAsker{},
+		nextServerId: 0,
 	}
 	return g
 }
@@ -46,19 +46,24 @@ func (g *goserver) listen(socketType define.SocketType, port int32) (ans.IAnswer
 	return g.anserMap[port], nil
 }
 
-func (g *goserver) bind(site int32, ip string, port int, socketType define.SocketType) (ask.IAsker, error) {
-	if _, ok := g.askerMap[site]; !ok {
+// 向位置 ip:port 送出連線請求，利用 serverId 來識別多個連線
+// serverId: server id
+// ip: server ip
+// port: server port
+// socketType: 協定類型
+func (g *goserver) bind(serverId int32, ip string, port int, socketType define.SocketType, onEvents map[define.EventType]func()) (ask.IAsker, error) {
+	if _, ok := g.askerMap[serverId]; !ok {
 		laddr := &net.TCPAddr{IP: net.ParseIP(ip), Port: port, Zone: ""}
-		asker, err := ask.NewAsker(socketType, site, laddr, 10)
+		asker, err := ask.NewAsker(socketType, serverId, laddr, 10, onEvents)
 
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to create an Asker for %s:%d.", ip, port)
 		}
 
-		g.askerMap[site] = asker
+		g.askerMap[serverId] = asker
 	}
 
-	return g.askerMap[site], nil
+	return g.askerMap[serverId], nil
 }
 
 //

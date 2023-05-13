@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/j32u4ukh/gos/base"
+	"github.com/j32u4ukh/gos/define"
 
 	"github.com/pkg/errors"
 )
@@ -15,7 +16,7 @@ type Tcp0Asker struct {
 	currTcp0 *base.Tcp0
 }
 
-func NewTcp0Asker(site int32, laddr *net.TCPAddr, nConnect int32, nWork int32) (IAsker, error) {
+func NewTcp0Asker(site int32, laddr *net.TCPAddr, nConnect int32, nWork int32, onEvents map[define.EventType]func()) (IAsker, error) {
 	var err error
 	a := &Tcp0Asker{
 		tcp0s: make([]*base.Tcp0, nConnect),
@@ -25,6 +26,11 @@ func NewTcp0Asker(site int32, laddr *net.TCPAddr, nConnect int32, nWork int32) (
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to new Tcp0Asker.")
 	}
+
+	// 設置成功連線時的 callback
+	a.Asker.onEvents = onEvents
+
+	//
 	a.currConn = a.conns
 
 	// 設置連線的模式
