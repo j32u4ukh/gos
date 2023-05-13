@@ -24,10 +24,10 @@ type IAsker interface {
 	Write(*[]byte, int32) error
 }
 
-func NewAsker(socketType define.SocketType, site int32, laddr *net.TCPAddr, nWork int32, onConnect func()) (IAsker, error) {
+func NewAsker(socketType define.SocketType, site int32, laddr *net.TCPAddr, nWork int32, onEvents map[define.EventType]func()) (IAsker, error) {
 	switch socketType {
 	case define.Tcp0:
-		return NewTcp0Asker(site, laddr, 1, nWork, onConnect)
+		return NewTcp0Asker(site, laddr, 1, nWork, onEvents)
 	// Chrome 一次最多可同時送出 6 個請求, HttpAsker nConnect = 6
 	case define.Http:
 		return NewHttpAsker(site, laddr, 6, nWork)
@@ -89,7 +89,7 @@ type Asker struct {
 	readFunc    func()
 	writeFunc   func(int32, *[]byte, int32) error
 	// 當成功連線時，觸發此函式
-	onConnect func()
+	onEvents map[define.EventType]func()
 }
 
 func newAsker(site int32, laddr *net.TCPAddr, nConnect int32, nWork int32, needHeartbeat bool) (*Asker, error) {
@@ -103,7 +103,7 @@ func newAsker(site int32, laddr *net.TCPAddr, nConnect int32, nWork int32, needH
 		readBuffer:    make([]byte, 64*1024),
 		connBuffer:    make(chan base.ConnBuffer, nWork),
 		works:         base.NewWork(0),
-		onConnect:     nil,
+		onEvents:      nil,
 	}
 
 	a.logger = glog.GetLogger("log", "gos", glog.DebugLevel, false)
@@ -221,10 +221,8 @@ func (a *Asker) checkConnection() {
 			// fmt.Printf("(a *Asker) checkConnection | Conn(%d)\n", a.emptyConn.GetId())
 			a.logger.Info("Conn(%d)", a.emptyConn.GetId())
 
-			if a.onConnect != nil {
-				// 連線成功之 callback
-				a.onConnect()
-			}
+			// 連線成功之 callback
+			a.callEvent(define.OnConnected)
 
 			a.heartbeatTime = time.Now().Add(3000 * time.Millisecond)
 			a.emptyConn.NetConn = connBuffer.Conn
@@ -555,6 +553,14 @@ func (a *Asker) disconnectHandler() {
 		} else {
 			a.preConn = a.currConn
 			a.currConn = a.currConn.Next
+		}
+	}
+}
+
+func (a *Asker) callEvent(eventType define.EventType) {
+	if a.onEvents != nil {
+		if event, ok := a.onEvents[eventType]; ok {
+			event()
 		}
 	}
 }

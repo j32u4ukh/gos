@@ -46,8 +46,8 @@ func StartListen() {
 	}
 }
 
-func Bind(site int32, ip string, port int, socketType define.SocketType, onConnect func()) (ask.IAsker, error) {
-	asker, err := server.bind(site, ip, port, socketType, onConnect)
+func Bind(site int32, ip string, port int, socketType define.SocketType, onEvents map[define.EventType]func()) (ask.IAsker, error) {
+	asker, err := server.bind(site, ip, port, socketType, onEvents)
 
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to bind with %s:%d.", ip, port)
@@ -59,10 +59,10 @@ func Bind(site int32, ip string, port int, socketType define.SocketType, onConne
 // 開始所有已註冊的監聽
 func StartConnect() error {
 	var asker ask.IAsker
-	var site int32
+	var serverId int32
 	var err error
 
-	for site, asker = range server.askerMap {
+	for serverId, asker = range server.askerMap {
 		err = asker.Connect()
 
 		if err != nil {
@@ -70,13 +70,13 @@ func StartConnect() error {
 			return errors.Wrapf(err, "Failed to connect to %s:%d.", ip, port)
 		}
 
-		if server.nextSite < site {
-			server.nextSite = site
+		if server.nextServerId < serverId {
+			server.nextServerId = serverId
 		}
 	}
 
 	// 啟動後，最大的 site 值 + 1，作為動態建立 Asker 時的 site 值
-	server.nextSite++
+	server.nextServerId++
 	return nil
 }
 
@@ -110,8 +110,8 @@ func RunAsk() {
 	}
 }
 
-func SendToServer(site int32, data *[]byte, length int32) error {
-	if asker, ok := server.askerMap[site]; ok {
+func SendToServer(serverId int32, data *[]byte, length int32) error {
+	if asker, ok := server.askerMap[serverId]; ok {
 		err := asker.Write(data, length)
 
 		if err != nil {
@@ -119,11 +119,11 @@ func SendToServer(site int32, data *[]byte, length int32) error {
 		}
 
 		// fmt.Printf("SendToServer | Send to site: %d, length: %d, data: %+v\n", site, length, (*data)[:length])
-		logger.Info("Send to site: %d, length: %d, data: %+v", site, length, (*data)[:length])
+		logger.Info("Send to site: %d, length: %d, data: %+v", serverId, length, (*data)[:length])
 
 		return nil
 	}
-	return errors.New(fmt.Sprintf("Unknown site: %d", site))
+	return errors.New(fmt.Sprintf("Unknown site: %d", serverId))
 }
 
 // 傳送 http 訊息
@@ -131,17 +131,17 @@ func SendRequest(req *ghttp.Request, callback func(*ghttp.Context)) (int32, erro
 	// fmt.Printf("SendRequest | Request: %+v\n", req)
 	logger.Info("Request: %+v", req)
 	var asker ask.IAsker
-	var site int32
+	var serverId int32
 
 	// 檢查是否有相同 Address、已建立的 Asker
-	for site, asker = range server.askerMap {
+	for serverId, asker = range server.askerMap {
 		ip, port := asker.GetAddress()
 		host := fmt.Sprintf("%s/%d", ip, port)
 
 		if host == req.Header["Host"][0] {
 			httpAsker := asker.(*ask.HttpAsker)
 			httpAsker.Send(req, callback)
-			return site, nil
+			return serverId, nil
 		}
 	}
 
@@ -155,8 +155,8 @@ func SendRequest(req *ghttp.Request, callback func(*ghttp.Context)) (int32, erro
 		var err error
 
 		port, _ := strconv.Atoi(p)
-		asker, err = Bind(server.nextSite, ip, port, define.Http, nil)
-		defer func() { server.nextSite++ }()
+		asker, err = Bind(server.nextServerId, ip, port, define.Http, nil)
+		defer func() { server.nextServerId++ }()
 
 		if err != nil {
 			return -1, errors.Wrapf(err, "Failed to bind to host: %s", host[0])
@@ -164,7 +164,7 @@ func SendRequest(req *ghttp.Request, callback func(*ghttp.Context)) (int32, erro
 
 		httpAsker := asker.(*ask.HttpAsker)
 		httpAsker.Send(req, callback)
-		return server.nextSite, nil
+		return server.nextServerId, nil
 	}
 
 	return -1, errors.New("Request 中未定義 uri")

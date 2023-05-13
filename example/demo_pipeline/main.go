@@ -62,8 +62,10 @@ func RunMainServer(port int) {
 	// fmt.Printf("RunMainServer | Http Anser 伺服器初始化完成\n")
 	logger.Debug("Http Anser 伺服器初始化完成")
 
-	asker, err := gos.Bind(ERandomReturnServer, "127.0.0.1", 1022, define.Tcp0, func() {
-		fmt.Printf("(s *Service) RunAsk | onConnect to %s:%d\n", "127.0.0.1", 1022)
+	asker, err := gos.Bind(ERandomReturnServer, "127.0.0.1", 1022, define.Tcp0, map[define.EventType]func(){
+		define.OnConnected: func() {
+			fmt.Printf("(s *Service) RunAsk | onConnect to %s:%d\n", "127.0.0.1", port)
+		},
 	})
 
 	if err != nil {
