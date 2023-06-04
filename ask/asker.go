@@ -211,7 +211,7 @@ func (a *Asker) checkConnection() {
 			// fmt.Printf("(a *Asker) checkConnection | connBuffer: %+v\n", connBuffer)
 			a.logger.Debug("connBuffer: %+v", connBuffer)
 
-			// TODO: 檢查是否有空閒的連線物件可以使用
+			// 檢查是否有空閒的連線物件可以使用
 			a.emptyConn = a.getConn(connBuffer.Index)
 			if a.emptyConn == nil {
 				// fmt.Printf("(a *Asker) checkConnection | Conn is nil\n")
@@ -221,15 +221,15 @@ func (a *Asker) checkConnection() {
 			// fmt.Printf("(a *Asker) checkConnection | Conn(%d)\n", a.emptyConn.GetId())
 			a.logger.Info("Conn(%d)", a.emptyConn.GetId())
 
-			// 連線成功之 callback
-			a.callEvent(define.OnConnected)
-
 			a.heartbeatTime = time.Now().Add(3000 * time.Millisecond)
 			a.emptyConn.NetConn = connBuffer.Conn
 			a.emptyConn.State = define.Connected
 			a.emptyConn.NetConn.SetReadDeadline(a.heartbeatTime.Add(1000 * time.Millisecond))
 			a.logger.Debug("更新斷線時間 heartbeatTime: %+v", a.heartbeatTime)
 			go a.emptyConn.Handler()
+
+			// 連線成功之 callback
+			a.callEvent(define.OnConnected)
 		default:
 			return
 		}
