@@ -6,24 +6,22 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/j32u4ukh/glog"
 	"github.com/j32u4ukh/gos/ans"
 	"github.com/j32u4ukh/gos/ask"
 	"github.com/j32u4ukh/gos/base/ghttp"
 	"github.com/j32u4ukh/gos/define"
+	"github.com/j32u4ukh/gos/utils"
 	"github.com/pkg/errors"
 )
 
 var server *goserver
 var once sync.Once
-var logger *glog.Logger
+var LOGGER byte
 
-func init() {
+func Init() {
 	if server == nil {
 		once.Do(func() {
 			server = newGoserver()
-			logger = glog.GetLogger("log", "gos", glog.DebugLevel, false)
-			logger.SetOptions(glog.DefaultOption(true, true), glog.UtcOption(8))
 		})
 	}
 }
@@ -119,7 +117,7 @@ func SendToServer(site int32, data *[]byte, length int32) error {
 		}
 
 		// fmt.Printf("SendToServer | Send to site: %d, length: %d, data: %+v\n", site, length, (*data)[:length])
-		logger.Info("Send to site: %d, length: %d, data: %+v", site, length, (*data)[:length])
+		utils.Info("Send to site: %d, length: %d, data: %+v", site, length, (*data)[:length])
 
 		return nil
 	}
@@ -129,7 +127,7 @@ func SendToServer(site int32, data *[]byte, length int32) error {
 // 傳送 http 訊息
 func SendRequest(req *ghttp.Request, callback func(*ghttp.Context)) (int32, error) {
 	// fmt.Printf("SendRequest | Request: %+v\n", req)
-	logger.Info("Request: %+v", req)
+	utils.Info("Request: %+v", req)
 	var asker ask.IAsker
 	var site int32
 
@@ -168,8 +166,4 @@ func SendRequest(req *ghttp.Request, callback func(*ghttp.Context)) (int32, erro
 	}
 
 	return -1, errors.New("Request 中未定義 uri")
-}
-
-func SetLoggerOptions(options ...glog.Option) {
-
 }

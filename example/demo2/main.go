@@ -5,17 +5,21 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/j32u4ukh/glog"
+	"github.com/j32u4ukh/glog/v2"
 	"github.com/j32u4ukh/gos"
 	"github.com/j32u4ukh/gos/ans"
 	"github.com/j32u4ukh/gos/ask"
 	"github.com/j32u4ukh/gos/define"
+	"github.com/j32u4ukh/gos/utils"
 )
 
 var logger *glog.Logger
 
 func init() {
-	logger = glog.GetLogger("log", "Demo2", glog.DebugLevel, false)
+	utils.SetLogger(glog.SetLogger(0, "gos", glog.DebugLevel))
+	glog.GetLogger(0).SetFolder("log")
+	logger = glog.SetLogger(1, "Demo2", glog.DebugLevel)
+	logger.SetFolder("log")
 	logger.SetOptions(glog.DefaultOption(true, true), glog.UtcOption(8))
 }
 

@@ -1,7 +1,5 @@
 package ghttp
 
-import "github.com/j32u4ukh/glog"
-
 // A Header represents the key-value pairs in an HTTP header.
 //
 // The keys should be in canonical form, as returned by
@@ -44,10 +42,3 @@ const (
 var (
 	jsonContentType = []string{"application/json"}
 )
-
-var logger *glog.Logger
-
-func init() {
-	logger = glog.GetLogger("log", "gos", glog.DebugLevel, false)
-	logger.SetOptions(glog.DefaultOption(true, true), glog.UtcOption(8))
-}
