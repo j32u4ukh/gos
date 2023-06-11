@@ -8,6 +8,7 @@ import (
 
 	"github.com/j32u4ukh/gos/ans"
 	"github.com/j32u4ukh/gos/ask"
+	"github.com/j32u4ukh/gos/base"
 	"github.com/j32u4ukh/gos/base/ghttp"
 	"github.com/j32u4ukh/gos/define"
 	"github.com/j32u4ukh/gos/utils"
@@ -43,7 +44,7 @@ func StartListen() {
 	}
 }
 
-func Bind(site int32, ip string, port int, socketType define.SocketType, onEvents map[define.EventType]func()) (ask.IAsker, error) {
+func Bind(site int32, ip string, port int, socketType define.SocketType, onEvents base.OnEventsFunc) (ask.IAsker, error) {
 	asker, err := server.bind(site, ip, port, socketType, onEvents)
 
 	if err != nil {

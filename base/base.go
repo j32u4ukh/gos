@@ -3,8 +3,11 @@ package base
 import (
 	"bytes"
 	"fmt"
+
+	"github.com/j32u4ukh/gos/define"
 )
 
+type OnEventsFunc map[define.EventType]func(any)
 type LoopState byte
 
 const (
