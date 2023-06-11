@@ -1,12 +1,8 @@
 github.com/golang/protobuf v1.5.0/go.mod h1:FsONVRAS9T7sI+LIUmWTfcYkHO4aIWwzhcaSAoJOfIk=
 github.com/google/go-cmp v0.5.5 h1:Khx7svrCpmxxtHBq5j2mp/xVjsi8hQMfNLvJFAlrGgU=
 github.com/google/go-cmp v0.5.5/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/gNBxE=
-github.com/j32u4ukh/glog v1.0.0 h1:CsnpnCwlao6tdXKY+ixi6ggsTfffvVJkgF8k0L4lk6w=
-github.com/j32u4ukh/glog v1.0.0/go.mod h1:8E7STeA2S12P74yNLvFWAbAf2eE/iebmxa8ZxOz9SKY=
-github.com/j32u4ukh/glog v1.0.1 h1:CsS3ZV1qK96OSJaO+DChZzVbTiWMGXzo3GRl2veM0hE=
-github.com/j32u4ukh/glog v1.0.1/go.mod h1:8E7STeA2S12P74yNLvFWAbAf2eE/iebmxa8ZxOz9SKY=
-github.com/j32u4ukh/glog v1.1.1 h1:FtiLzoPmCMC08qakllooZf0HRYqHLLf3XQcIhBiHaJo=
-github.com/j32u4ukh/glog v1.1.1/go.mod h1:8E7STeA2S12P74yNLvFWAbAf2eE/iebmxa8ZxOz9SKY=
+github.com/j32u4ukh/glog/v2 v2.0.1 h1:a7ubtmdw1V1EXp1RWMfet+z6kaP6fxmFXh9DVlOcuC0=
+github.com/j32u4ukh/glog/v2 v2.0.1/go.mod h1:bTSp2wHDJWYRbf8b8oX/OmDjZ/Po0vQJdvZvH8/KsBA=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543 h1:E7g+9GITq07hpfrRu66IVDexMakfv52eLZ2CXBWiKr4=
