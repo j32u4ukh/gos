@@ -8,6 +8,7 @@ import (
 	"github.com/j32u4ukh/gos/ask"
 	"github.com/j32u4ukh/gos/base"
 	"github.com/j32u4ukh/gos/define"
+	"github.com/j32u4ukh/gos/utils"
 
 	"github.com/pkg/errors"
 )
@@ -72,7 +73,7 @@ func CheckWorks(msg string, root *base.Work) {
 	work := root
 	for work != nil {
 		// fmt.Printf("CheckWorks | %s %s\n", msg, work)
-		logger.Debug("CheckWorks | %s %s", msg, work)
+		utils.Debug("CheckWorks | %s %s", msg, work)
 		work = work.Next
 	}
 	fmt.Println()
