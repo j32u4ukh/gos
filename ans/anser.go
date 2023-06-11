@@ -193,20 +193,25 @@ func (a *Anser) checkConnection() {
 	for {
 		select {
 		case netConn = <-a.connBuffer:
-			// fmt.Printf("(a *Anser) checkConnection | Conn(%d)\n", a.emptyConn.GetId())
-			utils.Info("Conn(%d)", a.emptyConn.GetId())
-			// a.emptyConn.Index = a.index
-			a.emptyConn.NetConn = netConn
-			a.emptyConn.NetConn.SetReadDeadline(time.Now().Add(a.ReadTimeout))
-			a.emptyConn.State = define.Connected
-			go a.emptyConn.Handler()
+			// TODO: 若連線空間不足，可剔除過久沒請求的連線或是通知管理員或是觸發動態開新服等
+			if a.emptyConn != nil {
+				// fmt.Printf("(a *Anser) checkConnection | Conn(%d)\n", a.emptyConn.GetId())
+				utils.Info("Conn(%d)", a.emptyConn.GetId())
+				// a.emptyConn.Index = a.index
+				a.emptyConn.NetConn = netConn
+				a.emptyConn.NetConn.SetReadDeadline(time.Now().Add(a.ReadTimeout))
+				a.emptyConn.State = define.Connected
+				go a.emptyConn.Handler()
 
-			// 更新空連線指標位置
-			a.updateEmptyConn()
+				// 更新空連線指標位置
+				a.updateEmptyConn()
 
-			// 更新連線數與連線物件的索引值
-			a.nConn += 1
-			a.index += 1
+				// 更新連線數與連線物件的索引值
+				a.nConn += 1
+				a.index += 1
+			} else {
+				fmt.Printf("TODO: 需要加開伺服器")
+			}
 		default:
 			return
 		}
@@ -480,13 +485,24 @@ func (a *Anser) getConn(cid int32) *base.Conn {
 
 // 更新空連線指標位置
 func (a *Anser) updateEmptyConn() {
+	id := a.emptyConn.GetId()
+	// 將 a.emptyConn 指向下一個連線物件
 	if a.emptyConn.Next != nil {
 		a.emptyConn = a.emptyConn.Next
 	} else {
 		a.emptyConn = a.conns
-		for a.emptyConn.NetConn != nil {
+	}
+	// 檢查 a.emptyConn 是否為空(NetConn == nil)，並檢查 id，避免無窮迴圈
+	for (a.emptyConn.GetId() != id) && (a.emptyConn.NetConn != nil) {
+		if a.emptyConn.Next != nil {
 			a.emptyConn = a.emptyConn.Next
+		} else {
+			a.emptyConn = a.conns
 		}
+	}
+	// 若 a.emptyConn 為 nil，表示所有連線物件都在使用中，需要多開伺服器。
+	if a.emptyConn == nil {
+		fmt.Printf("TODO: 需要加開伺服器")
 	}
 }
 

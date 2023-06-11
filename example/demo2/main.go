@@ -10,6 +10,7 @@ import (
 	"github.com/j32u4ukh/gos"
 	"github.com/j32u4ukh/gos/ans"
 	"github.com/j32u4ukh/gos/ask"
+	"github.com/j32u4ukh/gos/base"
 	"github.com/j32u4ukh/gos/define"
 	"github.com/j32u4ukh/gos/utils"
 )
@@ -98,8 +99,8 @@ func (s *Service) RunAns(port int) {
 }
 
 func (s *Service) RunAsk(ip string, port int) {
-	asker, err := gos.Bind(0, ip, port, define.Tcp0, map[define.EventType]func(){
-		define.OnConnected: func() {
+	asker, err := gos.Bind(0, ip, port, define.Tcp0, base.OnEventsFunc{
+		define.OnConnected: func(any) {
 			fmt.Printf("(s *Service) RunAsk | onConnect to %s:%d\n", ip, port)
 		},
 	})

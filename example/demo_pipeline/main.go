@@ -12,6 +12,7 @@ import (
 	"github.com/j32u4ukh/gos"
 	"github.com/j32u4ukh/gos/ans"
 	"github.com/j32u4ukh/gos/ask"
+	"github.com/j32u4ukh/gos/base"
 	"github.com/j32u4ukh/gos/define"
 	"github.com/j32u4ukh/gos/utils"
 )
@@ -66,8 +67,8 @@ func RunMainServer(port int) {
 	// fmt.Printf("RunMainServer | Http Anser 伺服器初始化完成\n")
 	logger.Debug("Http Anser 伺服器初始化完成")
 
-	asker, err := gos.Bind(ERandomReturnServer, "127.0.0.1", 1022, define.Tcp0, map[define.EventType]func(){
-		define.OnConnected: func() {
+	asker, err := gos.Bind(ERandomReturnServer, "127.0.0.1", 1022, define.Tcp0, base.OnEventsFunc{
+		define.OnConnected: func(any) {
 			fmt.Printf("(s *Service) RunAsk | onConnect to %s:%d\n", "127.0.0.1", port)
 		},
 	})

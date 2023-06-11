@@ -24,7 +24,7 @@ type IAsker interface {
 	Write(*[]byte, int32) error
 }
 
-func NewAsker(socketType define.SocketType, site int32, laddr *net.TCPAddr, nWork int32, onEvents map[define.EventType]func()) (IAsker, error) {
+func NewAsker(socketType define.SocketType, site int32, laddr *net.TCPAddr, nWork int32, onEvents base.OnEventsFunc) (IAsker, error) {
 	switch socketType {
 	case define.Tcp0:
 		return NewTcp0Asker(site, laddr, 1, nWork, onEvents)
@@ -87,7 +87,7 @@ type Asker struct {
 	readFunc    func()
 	writeFunc   func(int32, *[]byte, int32) error
 	// 當成功連線時，觸發此函式
-	onEvents map[define.EventType]func()
+	onEvents base.OnEventsFunc
 }
 
 func newAsker(site int32, laddr *net.TCPAddr, nConnect int32, nWork int32, needHeartbeat bool) (*Asker, error) {
@@ -206,7 +206,7 @@ func (a *Asker) checkConnection() {
 			// fmt.Printf("(a *Asker) checkConnection | connBuffer: %+v\n", connBuffer)
 			utils.Debug("connBuffer: %+v", connBuffer)
 
-			// TODO: 檢查是否有空閒的連線物件可以使用
+			// 檢查是否有空閒的連線物件可以使用
 			a.emptyConn = a.getConn(connBuffer.Index)
 			if a.emptyConn == nil {
 				// fmt.Printf("(a *Asker) checkConnection | Conn is nil\n")
@@ -216,14 +216,15 @@ func (a *Asker) checkConnection() {
 			// fmt.Printf("(a *Asker) checkConnection | Conn(%d)\n", a.emptyConn.GetId())
 			utils.Info("Conn(%d)", a.emptyConn.GetId())
 
-			// 連線成功之 callback
-			a.callEvent(define.OnConnected)
-			a.heartbeatTime = time.Now().Add(1000 * time.Millisecond)
+			a.heartbeatTime = time.Now().Add(3000 * time.Millisecond)
 			a.emptyConn.NetConn = connBuffer.Conn
 			a.emptyConn.State = define.Connected
 			a.emptyConn.NetConn.SetReadDeadline(a.heartbeatTime.Add(1000 * time.Millisecond))
 			utils.Debug("更新斷線時間 heartbeatTime: %+v", a.heartbeatTime)
 			go a.emptyConn.Handler()
+
+			// 連線成功之 callback
+			a.callEvent(define.OnConnected, nil)
 		default:
 			return
 		}
@@ -253,8 +254,7 @@ func (a *Asker) connectedHandler() {
 				}
 			default:
 				// fmt.Printf("(a *Asker) connectedHandler | Conn %d 讀取 socket 時發生錯誤\nError: %+v\n", a.currConn.GetId(), packet.Error)
-				utils.Error("Conn %d 讀取 socket 時發生錯誤, Error(%v): %+v", a.currConn.GetId())
-				utils.Error("Error(%v): %+v", eType, packet.Error)
+				utils.Error("Conn %d 讀取 socket 時發生錯誤, Error(%v): %+v", a.currConn.GetId(), eType, packet.Error)
 			}
 
 			// 若需要維持連線
@@ -538,6 +538,9 @@ func (a *Asker) disconnectHandler() {
 				// 釋放連線物件
 				a.currConn.Release()
 
+				// 斷線事件之 callback
+				a.callEvent(define.OnDisconnect, nil)
+
 				// 將釋放後的 Conn 移到最後
 				a.lastConn.Next = a.currConn
 
@@ -554,10 +557,10 @@ func (a *Asker) disconnectHandler() {
 	}
 }
 
-func (a *Asker) callEvent(eventType define.EventType) {
+func (a *Asker) callEvent(eventType define.EventType, data any) {
 	if a.onEvents != nil {
 		if event, ok := a.onEvents[eventType]; ok {
-			event()
+			event(data)
 		}
 	}
 }

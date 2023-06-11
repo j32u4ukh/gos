@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/j32u4ukh/gos/base"
-	"github.com/j32u4ukh/gos/define"
 
 	"github.com/pkg/errors"
 )
@@ -16,7 +15,7 @@ type Tcp0Asker struct {
 	currTcp0 *base.Tcp0
 }
 
-func NewTcp0Asker(site int32, laddr *net.TCPAddr, nConnect int32, nWork int32, onEvents map[define.EventType]func()) (IAsker, error) {
+func NewTcp0Asker(site int32, laddr *net.TCPAddr, nConnect int32, nWork int32, onEvents base.OnEventsFunc) (IAsker, error) {
 	var err error
 	a := &Tcp0Asker{
 		tcp0s: make([]*base.Tcp0, nConnect),
