@@ -7,4 +7,4 @@ require (
 	google.golang.org/protobuf v1.28.1
 )
 
-require github.com/j32u4ukh/glog/v2 v2.0.1
+require github.com/j32u4ukh/glog/v2 v2.0.3
