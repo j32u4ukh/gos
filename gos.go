@@ -108,12 +108,22 @@ func RunAsk() {
 	}
 }
 
+func SendTransDataToServer(serverId int32, td *base.TransData) error {
+	data := td.GetData()
+	length := td.GetLength()
+	err := SendToServer(serverId, &data, length)
+	if err != nil {
+		return errors.Wrap(err, "Failed to send transdata to server.")
+	}
+	return nil
+}
+
 func SendToServer(serverId int32, data *[]byte, length int32) error {
 	if asker, ok := server.askerMap[serverId]; ok {
 		err := asker.Write(data, length)
 
 		if err != nil {
-			return errors.Wrap(err, "Failed to send to client.")
+			return errors.Wrap(err, "Failed to send to server.")
 		}
 
 		// fmt.Printf("SendToServer | Send to site: %d, length: %d, data: %+v\n", site, length, (*data)[:length])
