@@ -2,6 +2,8 @@ package base
 
 import (
 	"encoding/binary"
+	"encoding/json"
+	"fmt"
 )
 
 const (
@@ -181,6 +183,17 @@ func (t *TransData) AddFloat64(v float64) {
 	addNumber(t, v)
 }
 
+func (t *TransData) AddJson(v map[string]string) {
+	bs, err := json.Marshal(v)
+	if err != nil {
+		v = map[string]string{
+			"error": fmt.Sprintf("%+v", err),
+		}
+		bs, _ = json.Marshal(v)
+	}
+	t.AddByteArray(bs)
+}
+
 func (t *TransData) AddString(v string) {
 	t.AddByteArray([]byte(v))
 }
@@ -274,6 +287,16 @@ func (t *TransData) PopFloat32() float32 {
 
 func (t *TransData) PopFloat64() float64 {
 	return popNumber[float64](t, 8)
+}
+
+func (t *TransData) PopJson() map[string]string {
+	result := map[string]string{}
+	bs := t.PopByteArray()
+	err := json.Unmarshal(bs, &result)
+	if err != nil {
+		json.Unmarshal([]byte(fmt.Sprintf("{\"error\": \"%v\"}", err)), &result)
+	}
+	return result
 }
 
 func (t *TransData) PopString() string {
