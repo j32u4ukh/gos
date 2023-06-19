@@ -183,8 +183,9 @@ func (a *HttpAsker) read() {
 			// fmt.Printf("(a *HttpAsker) Read | State 2, data: %s\n", string(a.readBuffer[:a.httpConn.ReadLength]))
 			utils.Debug("State 2, data: %s", string(a.readBuffer[:a.httpConn.ReadLength]))
 
-			a.httpConn.BodyLength = a.httpConn.ReadLength
-			copy(a.httpConn.Body[:a.httpConn.ReadLength], a.readBuffer[:a.httpConn.ReadLength])
+			a.httpConn.SetBody(a.readBuffer, a.httpConn.ReadLength)
+			// a.httpConn.BodyLength = a.httpConn.ReadLength
+			// copy(a.httpConn.Body[:a.httpConn.ReadLength], a.readBuffer[:a.httpConn.ReadLength])
 
 			// 重置狀態值
 			a.httpConn.State = 0
