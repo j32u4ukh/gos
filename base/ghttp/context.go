@@ -71,6 +71,21 @@ func (c *Context) Json(code int32, obj any) {
 	c.Response.Json(code, obj)
 }
 
+func (c *Context) ReadJson(obj any) {
+	if c.BodyLength > 0 {
+		data := c.Body[:c.BodyLength]
+		json.Unmarshal(data, obj)
+	}
+}
+
+func (c *Context) ReadBytes() []byte {
+	if c.BodyLength > 0 {
+		result := make([]byte, c.BodyLength)
+		copy(result, c.Body[:c.BodyLength])
+	}
+	return nil
+}
+
 // ====================================================================================================
 // Request
 // ====================================================================================================
