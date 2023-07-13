@@ -32,6 +32,7 @@ type Context struct {
 	ReadLength int32
 
 	// Body 數據
+	// NOTE: Body 和 BodyLength 之後將改為私有變數，要存取的話需透過函式來操作。
 	Body       []byte
 	BodyLength int32
 }
@@ -63,12 +64,34 @@ func (c *Context) SetHeader(key string, value string) {
 	}
 }
 
-func (c *Context) setBodyLength() {
+// 供 HTTP 套件設置 Body 數據
+func (c *Context) SetBody(data []byte, length int32) {
+	c.BodyLength = length
+	copy(c.Body[:length], data[:length])
+}
+
+// 協助設置標頭檔的 Content-Length
+func (c *Context) setContentLength() {
 	c.Header["Content-Length"] = []string{strconv.Itoa(len(c.Body))}
 }
 
 func (c *Context) Json(code int32, obj any) {
 	c.Response.Json(code, obj)
+}
+
+func (c *Context) ReadJson(obj any) {
+	if c.BodyLength > 0 {
+		data := c.Body[:c.BodyLength]
+		json.Unmarshal(data, obj)
+	}
+}
+
+func (c *Context) ReadBytes() []byte {
+	if c.BodyLength > 0 {
+		result := make([]byte, c.BodyLength)
+		copy(result, c.Body[:c.BodyLength])
+	}
+	return nil
 }
 
 // ====================================================================================================
@@ -303,7 +326,7 @@ func (r Request) ToRequestData() []byte {
 func (r *Request) Json(obj any) {
 	r.Header["Content-Type"] = jsonContentType
 	r.Body, _ = json.Marshal(obj)
-	r.setBodyLength()
+	r.setContentLength()
 }
 
 func (r *Request) Release() {
@@ -351,7 +374,7 @@ func (r *Response) Json(code int32, obj any) {
 
 	r.Header["Content-Type"] = jsonContentType
 	r.Body, _ = json.Marshal(obj)
-	r.setBodyLength()
+	r.setContentLength()
 }
 
 // 解析第一行數據
