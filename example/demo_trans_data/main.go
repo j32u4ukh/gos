@@ -10,7 +10,22 @@ func main() {
 	// demo1()
 	// demo2()
 	// demo3()
-	demo4()
+	// demo4()
+	td := base.NewTransData()
+	td.AddByte(2)
+	td.AddUInt16(2)
+	td.AddInt32(1)
+	td.AddUInt16(1)
+	td.AddString("message")
+	td.ResetIndex()
+	data := td.GetData()
+	fmt.Printf("data: %+v\n", data)
+	cmd := td.PopByte()
+	service := td.PopUInt16()
+	cid := td.PopUInt32()
+	returnCode := td.PopUInt16()
+	str := td.PopString()
+	fmt.Printf("cmd: %d, service: %d, cid: %d, returnCode: %d, str: %s\n", cmd, service, cid, returnCode, str)
 }
 
 func demo1() {
@@ -85,11 +100,13 @@ func demo4() {
 	td.Clear()
 
 	td.AddInt32(97)
+	td.AddString("")
 	td.AddString("Test")
 	td.ResetIndex()
 	result := td.GetData()
 	fmt.Printf("result: %+v\n", result)
 	i32 := td.PopInt32()
+	empty := td.PopString()
 	str := td.PopString()
-	fmt.Printf("i32: %d, str: %s\n", i32, str)
+	fmt.Printf("i32: %d, empty: %s, str: %s\n", i32, empty, str)
 }

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/j32u4ukh/glog/v2"
 	"github.com/j32u4ukh/gos/ans"
 	"github.com/j32u4ukh/gos/ask"
 	"github.com/j32u4ukh/gos/base"
@@ -176,4 +177,8 @@ func SendRequest(req *ghttp.Request, callback func(*ghttp.Context)) (int32, erro
 	}
 
 	return -1, errors.New("Request 中未定義 uri")
+}
+
+func SetLogger(lg *glog.Logger) {
+	utils.SetLogger(lg)
 }
