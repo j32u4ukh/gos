@@ -192,12 +192,8 @@ func (a *HttpAnser) read() bool {
 	// 讀取 Body 數據
 	if a.httpConn.State == 2 {
 		if a.currConn.CheckReadable(a.httpConn.HasEnoughData) {
-			// ==========
-			// 讀取 data
-			// ==========
 			// 將傳入的數據，加入工作緩存中
 			a.currConn.Read(&a.readBuffer, a.httpConn.ReadLength)
-			// fmt.Printf("(a *HttpAnser) Read | %s\n", string(a.readBuffer[:a.httpConn.ReadLength]))
 			utils.Debug("Body 數據: %s", string(a.readBuffer[:a.httpConn.ReadLength]))
 
 			// 考慮分包問題，收到完整一包數據傳完才傳到應用層
@@ -205,10 +201,6 @@ func (a *HttpAnser) read() bool {
 			a.currWork.RequestTime = time.Now().UTC()
 			a.currWork.State = 1
 			a.httpConn.SetBody(a.readBuffer, a.httpConn.ReadLength)
-			// a.httpConn.BodyLength = a.httpConn.ReadLength
-			// copy(a.httpConn.Body[:a.httpConn.ReadLength], a.readBuffer[:a.httpConn.ReadLength])
-			// a.currWork.Body.AddRawData(a.readBuffer[:a.httpConn.ReadLength])
-			// a.currWork.Body.ResetIndex()
 
 			// 指向下一個工作結構
 			a.currWork = a.currWork.Next
@@ -245,7 +237,6 @@ func (a *HttpAnser) SetWorkHandler() {
 		a.httpConn = a.httpConns[w.Index]
 		a.httpConn.Cid = w.Index
 		a.httpConn.Wid = w.GetId()
-		// fmt.Printf("(a *HttpAnser) SetWorkHandler | Cid: %d, Wid: %d\n", a.httpConn.Cid, a.httpConn.Wid)
 		utils.Debug("Cid: %d, Wid: %d", a.httpConn.Cid, a.httpConn.Wid)
 
 		if handler, ok := a.Handlers[a.httpConn.Method]; ok {
