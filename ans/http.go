@@ -3,7 +3,7 @@ package ans
 import (
 	"fmt"
 	"net"
-	"path"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -27,8 +27,8 @@ type HttpAnser struct {
 	*Anser
 	*Router
 
-	// key1: Method(Get/Post); key2: path; value: []HandlerFunc
-	Handlers map[string]map[string]HandlerChain
+	// key1: Method(Get/Post); key2: node number of EndPoint; value: []*EndPoint
+	Handlers map[string]map[int32][]*EndPoint
 
 	// ==================================================
 	// Context
@@ -48,7 +48,7 @@ type HttpAnser struct {
 func NewHttpAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, error) {
 	var err error
 	a := &HttpAnser{
-		Handlers: map[string]map[string]HandlerChain{
+		Handlers: map[string]map[int32][]*EndPoint{
 			ghttp.MethodGet:  {},
 			ghttp.MethodPost: {},
 		},
@@ -69,8 +69,9 @@ func NewHttpAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, err
 	// ===== Router =====
 	a.Router = &Router{
 		HttpAnser: a,
-		path:      "/",
-		Handlers:  HandlerChain{},
+		// 最開始的 '/' 會形成空字串的 node
+		nodes:    []*node{newNode("")},
+		Handlers: HandlerChain{},
 	}
 
 	// ===== Context =====
@@ -106,7 +107,6 @@ func (a *HttpAnser) read() bool {
 
 			// 拆分第一行數據
 			a.lineString = strings.TrimRight(string(a.readBuffer[:a.httpConn.ReadLength]), "\r\n")
-			// fmt.Printf("(a *HttpAnser) Read | firstLine: %s\n", a.lineString)
 			utils.Info("firstLine: %s", a.lineString)
 
 			if a.httpConn.ParseFirstReqLine(a.lineString) {
@@ -238,11 +238,35 @@ func (a *HttpAnser) SetWorkHandler() {
 		a.httpConn.Cid = w.Index
 		a.httpConn.Wid = w.GetId()
 		utils.Debug("Cid: %d, Wid: %d", a.httpConn.Cid, a.httpConn.Wid)
+		var endpoints []*EndPoint
+		var key string
+		var value any
 
 		if handler, ok := a.Handlers[a.httpConn.Method]; ok {
-			if functions, ok := handler[a.httpConn.Query]; ok {
-				for _, handlerFunc := range functions {
-					handlerFunc(a.httpConn)
+			var nSplit int32
+			var splits []string
+			if a.httpConn.Query == "" || a.httpConn.Query == "/" {
+				nSplit = 1
+				splits = []string{""}
+			} else {
+				splits = strings.Split(a.httpConn.Query, "/")
+				nSplit = int32(len(splits))
+			}
+
+			if endpoints, ok = handler[nSplit]; ok {
+				for _, endpoint := range endpoints {
+					// handlerFunc(a.httpConn)
+					if endpoint.Macth(splits) {
+						for key, value = range endpoint.params {
+							if _, ok = a.httpConn.Params[key]; !ok {
+								a.httpConn.Params[key] = fmt.Sprintf("%v", value)
+							}
+						}
+						for _, function := range endpoint.Handlers {
+							function(a.httpConn)
+						}
+						break
+					}
 				}
 			} else {
 				a.errorRequestHandler(w, a.httpConn, "Unregistered http query.")
@@ -338,16 +362,18 @@ func (a *HttpAnser) Finish(c *ghttp.Context) {
 // ====================================================================================================
 type Router struct {
 	*HttpAnser
-	path     string
+	nodes    []*node
 	Handlers HandlerChain
 }
 
+// 每個 EndPoint 對應一個 Router，但每個 Router 不一定對應著一個 EndPoint
 func (r *Router) NewRouter(relativePath string, handlers ...HandlerFunc) *Router {
 	nr := &Router{
 		HttpAnser: r.HttpAnser,
-		path:      r.combinePath(relativePath),
 		Handlers:  r.combineHandlers(handlers),
+		nodes:     []*node{},
 	}
+	nr.nodes = r.combineNodes(relativePath)
 	return nr
 }
 
@@ -361,21 +387,45 @@ func (r *Router) POST(path string, handlers ...HandlerFunc) {
 
 func (r *Router) handle(method string, path string, handlers ...HandlerFunc) {
 	if routers, ok := r.HttpAnser.Handlers[method]; ok {
-		path = r.combinePath(path)
+		// 結合前段路由的節點們，以及當前路由的節點們
+		nodes := r.combineNodes(path)
+		nNode := int32(len(nodes))
 
-		if _, ok := routers[path]; ok {
-			// fmt.Printf("(r *Router) handle | Duplicate handler, method: %v, path: %s\n", method, path)
-			utils.Warn("Duplicate handler, method: %v, path: %s", method, path)
-			return
+		if _, ok := routers[nNode]; !ok {
+			routers[nNode] = []*EndPoint{}
 		}
 
 		// 添加路徑對應的處理函式
-		routers[path] = r.combineHandlers(handlers)
+		endpoint := NewEndPoint()
+		endpoint.InitNodes(nodes)
+		endpoint.Handlers = r.combineHandlers(handlers)
+		routers[nNode] = append(routers[nNode], endpoint)
+		sort.SliceStable(routers[nNode], func(i, j int) bool {
+			// True 的話，會被排到前面
+			return routers[nNode][i].priority > routers[nNode][j].priority
+		})
+
+		utils.Debug("================================")
+		for i, endpoint := range routers[nNode] {
+			utils.Debug("nNode: %d, %d) %+v(%d)", nNode, i, endpoint, endpoint.priority)
+		}
+		utils.Debug("================================")
 	}
 }
 
-func (r *Router) combinePath(relativePath string) string {
-	return joinPaths(r.path, relativePath)
+func (r *Router) combineNodes(relativePath string) []*node {
+	nodes := []*node{}
+	nodes = append(nodes, r.nodes...)
+	splits := strings.Split(relativePath, "/")
+	var n *node
+	for _, s := range splits {
+		if s == "" {
+			continue
+		}
+		n = newNode(s)
+		nodes = append(nodes, n)
+	}
+	return nodes
 }
 
 func (r *Router) combineHandlers(handlers HandlerChain) HandlerChain {
@@ -386,23 +436,109 @@ func (r *Router) combineHandlers(handlers HandlerChain) HandlerChain {
 	return mergedHandlers
 }
 
-func joinPaths(absolutePath, relativePath string) string {
-	if relativePath == "" {
-		return absolutePath
-	}
-
-	finalPath := path.Join(absolutePath, relativePath)
-
-	if lastChar(relativePath) == '/' && lastChar(finalPath) != '/' {
-		return finalPath + "/"
-	}
-
-	return finalPath
+// ====================================================================================================
+// EndPoint
+// ====================================================================================================
+type EndPoint struct {
+	nodes    []*node
+	nNode    int32
+	priority int32
+	params   map[string]any
+	Handlers HandlerChain
 }
 
-func lastChar(str string) uint8 {
-	if str == "" {
-		panic("The length of the string can't be 0")
+func NewEndPoint() *EndPoint {
+	ep := &EndPoint{
+		nodes:    []*node{},
+		nNode:    0,
+		priority: 0,
+		params:   make(map[string]any),
+		Handlers: HandlerChain{},
 	}
-	return str[len(str)-1]
+	return ep
+}
+
+func (ep *EndPoint) InitNodes(nodes []*node) {
+	var n *node
+	for _, n = range nodes {
+		if !n.isParam {
+			ep.priority += 1
+		}
+		ep.nodes = append(ep.nodes, n)
+	}
+	ep.nNode = int32(len(ep.nodes))
+}
+
+func (ep *EndPoint) Macth(routes []string) bool {
+	if ep.nNode != int32(len(routes)) {
+		return false
+	}
+	var n *node
+	for i, route := range routes {
+		n = ep.nodes[i]
+		if !n.match(route) {
+			return false
+		}
+	}
+	for _, n := range ep.nodes {
+		if n.isParam {
+			ep.SetParam(n.route, n.value)
+		}
+	}
+	fmt.Printf("params: %+v\n", ep.params)
+	return true
+}
+
+func (ep *EndPoint) SetParam(key string, value any) {
+	ep.params[key] = value
+}
+
+// ====================================================================================================
+// node
+// ====================================================================================================
+type node struct {
+	route     string
+	routeType string
+	isParam   bool
+	value     any
+}
+
+func newNode(route string) *node {
+	n := new(node)
+	if strings.HasPrefix(route, "<") && strings.HasSuffix(route, ">") {
+		n.isParam = true
+		route = route[1 : len(route)-1]
+	}
+	routes := strings.Split(route, " ")
+	n.route = routes[0]
+	if len(routes) > 1 {
+		n.routeType = routes[1]
+	}
+	return n
+}
+
+func (n *node) match(route string) bool {
+	if n.isParam {
+		switch n.routeType {
+		case "int":
+			i, err := strconv.Atoi(route)
+			if err != nil {
+				return false
+			}
+			n.value = i
+		case "float":
+			f, err := strconv.ParseFloat(route, 64)
+			if err != nil {
+				return false
+			}
+			n.value = f
+		case "string", "":
+			n.value = route
+		default:
+			return false
+		}
+		return true
+	} else {
+		return route == n.route
+	}
 }

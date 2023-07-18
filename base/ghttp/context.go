@@ -99,9 +99,11 @@ func (c *Context) ReadBytes() []byte {
 // ====================================================================================================
 type Request struct {
 	*Context
+	// ex: GET
 	Method string
-	Query  string
-	//
+	// ex: /user/get
+	Query string
+	// ex: HTTP/1.1
 	Proto  string
 	Params map[string]string
 }
