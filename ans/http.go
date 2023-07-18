@@ -261,6 +261,9 @@ func (a *HttpAnser) SetWorkHandler() {
 							if _, ok = a.httpConn.Params[key]; !ok {
 								a.httpConn.Params[key] = fmt.Sprintf("%v", value)
 							}
+							if _, ok = a.httpConn.Values[key]; !ok {
+								a.httpConn.Values[key] = value
+							}
 						}
 						for _, function := range endpoint.Handlers {
 							function(a.httpConn)

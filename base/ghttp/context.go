@@ -106,6 +106,7 @@ type Request struct {
 	// ex: HTTP/1.1
 	Proto  string
 	Params map[string]string
+	Values map[string]any
 }
 
 func NewRequest(method string, uri string, params map[string]string) (*Request, error) {
@@ -113,6 +114,12 @@ func NewRequest(method string, uri string, params map[string]string) (*Request, 
 	c.Method = method
 	c.Proto = "HTTP/1.1"
 	c.Params = params
+	if c.Values == nil {
+		c.Values = make(map[string]any)
+	}
+	for key, value := range params {
+		c.Values[key] = value
+	}
 
 	var host string
 	var ok bool
@@ -131,6 +138,7 @@ func newRequest(c *Context) *Request {
 		Context: c,
 		Proto:   "HTTP/1.1",
 		Params:  map[string]string{},
+		Values:  make(map[string]any),
 	}
 	return r
 }
@@ -139,6 +147,12 @@ func (r *Request) FormRequest(method string, uri string, params map[string]strin
 	r.Method = method
 	r.Proto = "HTTP/1.1"
 	r.Params = params
+	if r.Values == nil {
+		r.Values = make(map[string]any)
+	}
+	for key, value := range params {
+		r.Values[key] = value
+	}
 	var host string
 	var ok bool
 	host, r.Query, ok = strings.Cut(uri, "/")
@@ -239,8 +253,8 @@ func (r *Request) ParseQuery() (bool, error) {
 		return true, errors.Wrapf(err, "Failed to parse params: %s", params)
 	}
 
-	// fmt.Printf("(r *Request) ParseQuery | params: %+v\n", r.Params)
 	utils.Debug("params: %+v", r.Params)
+	utils.Debug("values: %+v", r.Values)
 	return true, nil
 }
 
@@ -283,6 +297,13 @@ func (r Request) GetParam(key string) (bool, string) {
 		return true, param
 	}
 	return false, ""
+}
+
+func (r Request) GetValue(key string) any {
+	if value, ok := r.Values[key]; ok {
+		return value
+	}
+	return nil
 }
 
 func (r Request) ToRequestData() []byte {
@@ -337,11 +358,15 @@ func (r *Request) Release() {
 	r.Proto = ""
 	r.Body = r.Body[:0]
 	r.ReadLength = 0
-	for k := range r.Params {
-		delete(r.Params, k)
+	var key string
+	for key = range r.Params {
+		delete(r.Params, key)
 	}
-	for k := range r.Header {
-		delete(r.Header, k)
+	for key = range r.Values {
+		delete(r.Values, key)
+	}
+	for key = range r.Header {
+		delete(r.Header, key)
 	}
 }
 
