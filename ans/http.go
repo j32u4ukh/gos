@@ -445,7 +445,7 @@ func (r *Router) combineHandlers(handlers HandlerChain) HandlerChain {
 type EndPoint struct {
 	nodes    []*node
 	nNode    int32
-	priority int32
+	priority float32
 	params   map[string]any
 	Handlers HandlerChain
 }
@@ -464,8 +464,12 @@ func NewEndPoint() *EndPoint {
 func (ep *EndPoint) InitNodes(nodes []*node) {
 	var n *node
 	for _, n = range nodes {
-		if !n.isParam {
-			ep.priority += 1
+		if n.isParam {
+			if n.routeType == "int" || n.routeType == "float" {
+				ep.priority += 0.5
+			}
+		} else {
+			ep.priority += 1.0
 		}
 		ep.nodes = append(ep.nodes, n)
 	}

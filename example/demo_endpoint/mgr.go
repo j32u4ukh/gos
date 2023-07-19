@@ -85,4 +85,41 @@ func (m *Mgr) Handler(router *ans.Router) {
 		})
 		m.HttpAnswer.Send(c)
 	})
+	rName.POST("/<id int>", func(c *ghttp.Context) {
+		protocol := &Protocol{}
+		c.ReadJson(protocol)
+		ok, name := c.GetParam("name")
+		if ok {
+			protocol.Name = name
+		}
+		value := c.GetValue("id")
+		var id int = 0
+		if value != nil {
+			id = value.(int)
+		}
+		c.Response.Json(200, ghttp.H{
+			"index": 7,
+			"msg":   fmt.Sprintf("POST | /abc/<name>/<id int> | protocol: %v, id: %d", protocol, id),
+		})
+		m.HttpAnswer.Send(c)
+	})
+
+	rName.POST("/<pi float>", func(c *ghttp.Context) {
+		protocol := &Protocol{}
+		c.ReadJson(protocol)
+		ok, name := c.GetParam("name")
+		if ok {
+			protocol.Name = name
+		}
+		value := c.GetValue("pi")
+		var pi float64 = 0
+		if value != nil {
+			pi = value.(float64)
+		}
+		c.Response.Json(200, ghttp.H{
+			"index": 8,
+			"msg":   fmt.Sprintf("POST | /abc/<name>/<pi float> | protocol: %v, pi: %v", protocol, pi),
+		})
+		m.HttpAnswer.Send(c)
+	})
 }
