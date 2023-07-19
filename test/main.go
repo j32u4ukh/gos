@@ -1,18 +1,14 @@
 package main
 
-import "fmt"
-
-func testFunc(data []int) {
-	for i, _ := range data {
-		data[i] = i
-	}
-}
+import (
+	"fmt"
+	"strings"
+)
 
 func main() {
-	data := make([]int, 6)
-	data[0] = 7
-	data[1] = 8
-	data[2] = 9
-	testFunc(data)
-	fmt.Printf("data: %+v\n", data)
+	url := "/"
+	result := strings.Split(url, "/")
+	fmt.Printf("result(%d): %+v\n", len(result), result)
+	before, after, found := strings.Cut(url, "/")
+	fmt.Printf("before: %s, after: %s, found: %v\n", before, after, found)
 }
