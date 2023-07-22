@@ -21,6 +21,8 @@ type IAnswer interface {
 	Handler()
 	// 數據寫出(寫到寫出緩存中)
 	Write(int32, *[]byte, int32) error
+	//
+	Disconnect(cid int32) error
 }
 
 func NewAnser(socketType define.SocketType, laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, error) {
@@ -195,7 +197,6 @@ func (a *Anser) checkConnection() {
 		case netConn = <-a.connBuffer:
 			// TODO: 若連線空間不足，可剔除過久沒請求的連線或是通知管理員或是觸發動態開新服等
 			if a.emptyConn != nil {
-				// fmt.Printf("(a *Anser) checkConnection | Conn(%d)\n", a.emptyConn.GetId())
 				utils.Info("Conn(%d)", a.emptyConn.GetId())
 				// a.emptyConn.Index = a.index
 				a.emptyConn.NetConn = netConn
@@ -317,7 +318,7 @@ func (a *Anser) disconnectHandler() {
 		// 標註為斷線的連線物件，數秒後才切斷連線，預留時間給對方讀取數據
 		if a.currConn.State == define.Disconnect && a.currConn.DisconnectTime.Before(now) {
 			// fmt.Printf("(a *Anser) disconnectHandler | cid: %d\n", a.currConn.GetId())
-			utils.Info(" cid: %d", a.currConn.GetId())
+			utils.Info("cid: %d", a.currConn.GetId())
 			// hasDisconnect = true
 			a.nConn -= 1
 
@@ -358,6 +359,15 @@ func (a *Anser) disconnectHandler() {
 			a.currConn = a.currConn.Next
 		}
 	}
+}
+
+func (a *Anser) Disconnect(cid int32) error {
+	c := a.getConn(cid)
+	if c == nil {
+		return errors.Errorf("Not found cid %d", cid)
+	}
+	c.Release()
+	return nil
 }
 
 // 尋找工作結構(若 widx 為 -1，返回空閒的工作結構)

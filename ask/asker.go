@@ -120,7 +120,7 @@ func newAsker(site int32, laddr *net.TCPAddr, nConnect int32, nWork int32, needH
 		length := len((*introduction))
 		a.introductionData = make([]byte, length)
 		copy(a.introductionData, *introduction)
-		fmt.Printf("a.introductionData: %+v\n", a.introductionData)
+		utils.Debug("a.introductionData: %+v\n", a.introductionData)
 	}
 
 	var i int32
@@ -213,7 +213,6 @@ func (a *Asker) checkConnection() {
 	for {
 		select {
 		case connBuffer = <-a.connBuffer:
-			// fmt.Printf("(a *Asker) checkConnection | connBuffer: %+v\n", connBuffer)
 			utils.Debug("connBuffer: %+v", connBuffer)
 
 			// 檢查是否有空閒的連線物件可以使用
@@ -229,17 +228,14 @@ func (a *Asker) checkConnection() {
 			a.heartbeatTime = time.Now().Add(3000 * time.Millisecond)
 			a.emptyConn.NetConn = connBuffer.Conn
 			a.emptyConn.State = define.Connected
+			utils.Debug("更新斷線時間 heartbeatTime1: %+v", a.heartbeatTime)
 			a.emptyConn.NetConn.SetReadDeadline(a.heartbeatTime.Add(1000 * time.Millisecond))
-			utils.Debug("更新斷線時間 heartbeatTime: %+v", a.heartbeatTime)
+			utils.Debug("更新斷線時間 heartbeatTime2: %+v", a.heartbeatTime)
+
+			go a.emptyConn.Handler()
 
 			// 檢查是否有自我介紹用數據
 			if a.introductionData != nil {
-				// a.currWork = a.getEmptyWork()
-				// a.currWork.Index = 0
-				// a.currWork.RequestTime = time.Now().UTC()
-				// a.currWork.Body.AddRawData(a.introductionData)
-				// a.currWork.Send()
-
 				a.currConn.SetWriteBuffer(&a.introductionData, int32(len(a.introductionData)))
 				err := a.currConn.Write()
 				if err != nil {
@@ -247,8 +243,6 @@ func (a *Asker) checkConnection() {
 					return
 				}
 			}
-
-			go a.emptyConn.Handler()
 
 			// 連線成功之 callback
 			a.callEvent(define.OnConnected, nil)

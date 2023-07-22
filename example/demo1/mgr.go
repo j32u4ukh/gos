@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/j32u4ukh/gos"
 	"github.com/j32u4ukh/gos/base"
 )
 
@@ -49,7 +50,12 @@ func (m *Mgr) HandlerKind0(work *base.Work) {
 	case IntroductionService:
 		tag := work.Body.PopString()
 		if tag != "GOS" {
-			fmt.Printf("Kind0, IntroductionService | 無效連線請求, TODO: 將當前連線中斷\n")
+			err := gos.Disconnect(1023, work.Index)
+			if err != nil {
+				fmt.Printf("Kind0, IntroductionService | 無效連線請求, 中斷當前連線失敗\nerr: %+v\n", err)
+			} else {
+				fmt.Printf("Kind0, IntroductionService | 無效連線請求, 成功中斷當前連線\n")
+			}
 		} else {
 			identity := work.Body.PopInt32()
 			fmt.Printf("Kind0, IntroductionService | identity: %d\n", identity)

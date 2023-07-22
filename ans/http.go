@@ -407,12 +407,6 @@ func (r *Router) handle(method string, path string, handlers ...HandlerFunc) {
 			// True 的話，會被排到前面
 			return routers[nNode][i].priority > routers[nNode][j].priority
 		})
-
-		utils.Debug("================================")
-		for i, endpoint := range routers[nNode] {
-			utils.Debug("nNode: %d, %d) %+v(%d)", nNode, i, endpoint, endpoint.priority)
-		}
-		utils.Debug("================================")
 	}
 }
 
@@ -492,7 +486,6 @@ func (ep *EndPoint) Macth(routes []string) bool {
 			ep.SetParam(n.route, n.value)
 		}
 	}
-	fmt.Printf("params: %+v\n", ep.params)
 	return true
 }
 

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -21,8 +20,9 @@ func init() {
 	gosLogger := glog.SetLogger(0, "gos", glog.DebugLevel)
 	gosLogger.SetFolder("log")
 	gosLogger.SetOptions(glog.DefaultOption(true, true), glog.UtcOption(8))
+	gosLogger.SetSkip(3)
 	utils.SetLogger(gosLogger)
-	logger = glog.SetLogger(1, "Demo2", glog.DebugLevel)
+	logger = glog.SetLogger(1, "DemoReconnect", glog.DebugLevel)
 	logger.SetFolder("log")
 	logger.SetOptions(glog.DefaultOption(true, true), glog.UtcOption(8))
 }
@@ -101,7 +101,7 @@ func (s *Service) RunAsk(ip string, port int) {
 	introduction := td.FormData()
 	asker, err := gos.Bind(0, ip, port, define.Tcp0, base.OnEventsFunc{
 		define.OnConnected: func(any) {
-			fmt.Printf("(s *Service) RunAsk | onConnect to %s:%d\n", ip, port)
+			logger.Info("onConnect to %s:%d", ip, port)
 		},
 	}, &introduction)
 
@@ -124,19 +124,16 @@ func (s *Service) RunAsk(ip string, port int) {
 
 	logger.Debug("開始連線")
 	var start time.Time
-	mgr.FrameTime = 200 * time.Millisecond
+	FrameTime := 200 * time.Millisecond
 	var during time.Duration = 0
 	logger.Debug("開始 gos.RunAsk()")
 
 	for {
 		start = time.Now()
-
 		gos.RunAsk()
-		mgr.Run()
-
 		during = time.Since(start)
-		if during < mgr.FrameTime {
-			time.Sleep(mgr.FrameTime - during)
+		if during < FrameTime {
+			time.Sleep(FrameTime - during)
 		}
 	}
 }

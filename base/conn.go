@@ -159,11 +159,11 @@ func (c *Conn) Handler() {
 			return
 
 		default:
-			utils.Debug("readIdx: %d, netConn: %v", c.readIdx, c.NetConn != nil)
+			// utils.Debug("readIdx: %d, netConn: %v", c.readIdx, c.NetConn != nil)
 
 			// 每次讀取至多長度為 MTU 的數據(Read 為阻塞型函式)
 			c.nRead, c.readErr = c.NetConn.Read(c.readPackets[c.readIdx].Data)
-			utils.Debug("readIdx: %d, nRead: %d", c.readIdx, c.nRead)
+			// utils.Debug("readIdx: %d, nRead: %d", c.readIdx, c.nRead)
 
 			if c.readErr != nil {
 				c.readPackets[c.readIdx].Error = c.readErr
@@ -184,9 +184,7 @@ func (c *Conn) Handler() {
 			}
 		}
 	}
-
-	// fmt.Printf("(c *Conn) handler | Stop, c.readErr: %+v\n", c.readErr)
-	utils.Debug("Stop, c.readErr: %+v", c.readErr)
+	utils.Info("Stop, c.readErr: %+v", c.readErr)
 }
 
 // 讀取封包數據，並寫入 readBuffer

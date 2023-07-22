@@ -67,6 +67,16 @@ func (g *goserver) bind(serverId int32, ip string, port int, socketType define.S
 	return g.askerMap[serverId], nil
 }
 
+func (g *goserver) disconnect(port int32, cid int32) error {
+	var err error = nil
+	if anser, ok := g.anserMap[port]; ok {
+		err = anser.Disconnect(cid)
+	} else {
+		err = errors.Errorf("Not found anser for %d", port)
+	}
+	return err
+}
+
 //
 
 func CheckWorks(msg string, root *base.Work) {

@@ -21,6 +21,7 @@ func init() {
 	gosLogger := glog.SetLogger(0, "gos", glog.DebugLevel)
 	gosLogger.SetFolder("log")
 	gosLogger.SetOptions(glog.DefaultOption(true, true), glog.UtcOption(8))
+	gosLogger.SetSkip(3)
 	utils.SetLogger(gosLogger)
 	logger = glog.SetLogger(1, "Demo1", glog.DebugLevel)
 	logger.SetFolder("log")
@@ -93,7 +94,7 @@ func (s *Service) RunAsk(ip string, port int) {
 	td := base.NewTransData()
 	td.AddInt32(SystemCmd)
 	td.AddInt32(IntroductionService)
-	td.AddString("GOS")
+	td.AddString("GOSS")
 	td.AddInt32(37)
 	introduction := td.FormData()
 	asker, err := gos.Bind(0, ip, port, define.Tcp0, base.OnEventsFunc{

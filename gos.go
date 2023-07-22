@@ -179,6 +179,14 @@ func SendRequest(req *ghttp.Request, callback func(*ghttp.Context)) (int32, erro
 	return -1, errors.New("Request 中未定義 uri")
 }
 
+func Disconnect(port int32, cid int32) error {
+	err := server.disconnect(port, cid)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to disconnect connection: %d-%d", port, cid)
+	}
+	return nil
+}
+
 func SetLogger(lg *glog.Logger) {
 	utils.SetLogger(lg)
 }
