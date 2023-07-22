@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/j32u4ukh/gos/ans"
 	"github.com/j32u4ukh/gos/base/ghttp"
@@ -103,7 +104,6 @@ func (m *Mgr) Handler(router *ans.Router) {
 		})
 		m.HttpAnswer.Send(c)
 	})
-
 	rName.POST("/<pi float>", func(c *ghttp.Context) {
 		protocol := &Protocol{}
 		c.ReadJson(protocol)
@@ -119,6 +119,22 @@ func (m *Mgr) Handler(router *ans.Router) {
 		c.Response.Json(200, ghttp.H{
 			"index": 8,
 			"msg":   fmt.Sprintf("POST | /abc/<name>/<pi float> | protocol: %v, pi: %v", protocol, pi),
+		})
+		m.HttpAnswer.Send(c)
+	})
+
+	rName.GET("/get/<user_id int>", func(c *ghttp.Context) {
+		_, name := c.GetParam("name")
+		value := c.GetValue("user_id")
+		var id int = 0
+		if value != nil {
+			id = value.(int)
+		}
+		dt := time.Now().UnixMilli()
+		c.Response.Json(200, ghttp.H{
+			"index": 7,
+			"msg":   fmt.Sprintf("GET | /abc/<name>/get/<user_id int> | name: %s, id: %d", name, id),
+			"dt":    dt,
 		})
 		m.HttpAnswer.Send(c)
 	})

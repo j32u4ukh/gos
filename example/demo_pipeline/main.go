@@ -71,7 +71,7 @@ func RunMainServer(port int) {
 		define.OnConnected: func(any) {
 			fmt.Printf("(s *Service) RunAsk | onConnect to %s:%d\n", "127.0.0.1", port)
 		},
-	})
+	}, nil)
 
 	if err != nil {
 		// fmt.Printf("RunMainServer | Bind error: %+v\n", err)

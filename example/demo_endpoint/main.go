@@ -1,14 +1,11 @@
 package main
 
 import (
-	"os"
 	"time"
 
 	"github.com/j32u4ukh/glog/v2"
 	"github.com/j32u4ukh/gos"
 	"github.com/j32u4ukh/gos/ans"
-	"github.com/j32u4ukh/gos/ask"
-	"github.com/j32u4ukh/gos/base/ghttp"
 	"github.com/j32u4ukh/gos/define"
 	"github.com/j32u4ukh/gos/utils"
 )
@@ -27,15 +24,8 @@ func init() {
 }
 
 func main() {
-	service_type := os.Args[1]
 	var port int = 1023
-
-	if service_type == "ans" {
-		RunAns(port)
-	} else if service_type == "ask" {
-		RunAsk("127.0.0.1", port)
-	}
-
+	RunAns(port)
 	logger.Debug("End of gos example.")
 }
 
@@ -63,51 +53,6 @@ func RunAns(port int) {
 	for {
 		start = time.Now()
 		gos.RunAns()
-
-		during = time.Since(start)
-		if during < frameTime {
-			time.Sleep(frameTime - during)
-		}
-	}
-}
-
-func RunAsk(ip string, port int) {
-	asker, err := gos.Bind(0, ip, port, define.Http, nil)
-
-	if err != nil {
-		logger.Error("BindError: %+v", err)
-		return
-	}
-
-	http := asker.(*ask.HttpAsker)
-	logger.Debug("http: %+v", http)
-
-	req, err := ghttp.NewRequest(ghttp.MethodGet, "127.0.0.1:1023/abc/get", nil)
-
-	if err != nil {
-		logger.Error("NewRequestError: %+v", err)
-		return
-	}
-
-	logger.Debug("req: %+v", req)
-	var site int32
-	site, err = gos.SendRequest(req, func(c *ghttp.Context) {
-		logger.Info("I'm Context, Query: %s", c.Query)
-	})
-
-	logger.Debug("site: %d", site)
-
-	if err != nil {
-		logger.Error("SendRequestError: %+v", err)
-		return
-	}
-
-	var start time.Time
-	var during, frameTime time.Duration = 0, 200 * time.Millisecond
-
-	for {
-		start = time.Now()
-		gos.RunAsk()
 
 		during = time.Since(start)
 		if during < frameTime {

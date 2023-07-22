@@ -37,45 +37,70 @@ func NewMgr() *Mgr {
 }
 
 func (m *Mgr) Handler(work *base.Work) {
-	kind := work.Body.PopByte()
-	serivce := work.Body.PopUInt16()
-	// fmt.Printf("(m *Mgr) Handler | index: %d, kind: %d, serivce: %d\n", work.Index, kind, serivce)
+	kind := work.Body.PopInt32()
 
-	if kind == 0 && serivce == 0 {
+	switch kind {
+	case SystemCmd:
+		m.HandlerKind0(work)
+	case NormalCmd:
+		m.HandlerKind1(work)
+	default:
+		data := work.Body.GetData()
+		logger.Debug("data: %+v", data)
+
+		// 標註當前工作已完成，將該工作結構回收
+		work.Finish()
+	}
+}
+
+func (m *Mgr) HandlerKind0(work *base.Work) {
+	serivce := work.Body.PopInt32()
+	switch serivce {
+	case HeartbeatService:
 		logger.Debug("Heartbeat")
 		work.Body.Clear()
 		work.Body.AddByte(0)
 		work.Body.AddUInt16(1)
 		work.Body.AddString("OK")
 		work.SendTransData()
-
-	} else if kind == 0 && serivce == 1 {
-		response := work.Body.PopString()
-		logger.Debug("Heartbeat response: %s", response)
+	case IntroductionService:
+		tag := work.Body.PopString()
+		if tag != "GOS" {
+			fmt.Printf("Kind0, IntroductionService | 無效連線請求, TODO: 將當前連線中斷\n")
+		} else {
+			identity := work.Body.PopInt32()
+			fmt.Printf("Kind0, IntroductionService | identity: %d\n", identity)
+		}
 		work.Finish()
-
-	} else if kind == 1 && serivce == 0 {
+	default:
 		data := work.Body.GetData()
-		// fmt.Printf("(m *Mgr) Handler | data from asker: %+v\n", data)
-		logger.Debug("data from asker: %+v", data)
-		work.Body.Clear()
-
-		work.Body.AddByte(2)
-		work.Body.AddUInt16(32)
-		work.Body.AddString(fmt.Sprintf("Message from (m *Mgr) Handler(work *gos.Work), #data: %d", len(data)))
-		work.SendTransData()
-		// fmt.Printf("(m *Mgr) Handler | SendTransData back\n")
-		logger.Debug("SendTransData back")
-
-	} else if kind == 2 && serivce == 32 {
-		response := work.Body.PopString()
-		logger.Debug("response: %s", response)
+		fmt.Printf("Kind0, undefined serivce %d, data: %+v\n", serivce, data)
 
 		// 標註當前工作已完成，將該工作結構回收
 		work.Finish()
-	} else {
+	}
+}
+
+func (m *Mgr) HandlerKind1(work *base.Work) {
+	serivce := work.Body.PopInt32()
+	switch serivce {
+	case RequestService:
 		data := work.Body.GetData()
-		logger.Debug("data: %+v", data)
+		logger.Debug("data from asker: %+v", data)
+		work.Body.Clear()
+
+		work.Body.AddInt32(NormalCmd)
+		work.Body.AddInt32(ResponseService)
+		work.Body.AddString(fmt.Sprintf("Message from (m *Mgr) Handler(work *gos.Work), #data: %d", len(data)))
+		work.SendTransData()
+		logger.Debug("SendTransData back")
+	case ResponseService:
+		response := work.Body.PopString()
+		logger.Debug("response: %s", response)
+		work.Finish()
+	default:
+		data := work.Body.GetData()
+		fmt.Printf("Kind1, undefined serivce %d, data: %+v\n", serivce, data)
 
 		// 標註當前工作已完成，將該工作結構回收
 		work.Finish()
@@ -92,11 +117,10 @@ func (m *Mgr) Run() {
 			// 若任務 i 尚未完成
 			if !m.task[i] {
 				m.temp = append(m.temp, byte(i))
-				// fmt.Printf("(m *Mgr) Run | i: %d, temp: %+v\n", i, m.temp)
 				logger.Debug("i: %d, temp: %+v", i, m.temp)
 
-				m.Body.AddByte(1)
-				m.Body.AddUInt16(0)
+				m.Body.AddInt32(NormalCmd)
+				m.Body.AddInt32(RequestService)
 				m.Body.AddByteArray(m.temp)
 				m.data = m.Body.FormData()
 				// fmt.Printf("(s *Service) RunAsk | i: %d, length: %d, data: %+v\n", i, len(data), data)
@@ -111,7 +135,6 @@ func (m *Mgr) Run() {
 					m.nextSecond += 1 * time.Second
 				}
 
-				// fmt.Printf("(m *Mgr) Run | m.cumTime: %d, m.nextSecond: %d\n", m.cumTime, m.nextSecond)
 				logger.Debug("m.cumTime: %d, m.nextSecond: %d", m.cumTime, m.nextSecond)
 				m.task[i] = true
 				break

@@ -24,10 +24,10 @@ type IAsker interface {
 	Write(*[]byte, int32) error
 }
 
-func NewAsker(socketType define.SocketType, site int32, laddr *net.TCPAddr, nWork int32, onEvents base.OnEventsFunc) (IAsker, error) {
+func NewAsker(socketType define.SocketType, site int32, laddr *net.TCPAddr, nWork int32, onEvents base.OnEventsFunc, introduction *[]byte) (IAsker, error) {
 	switch socketType {
 	case define.Tcp0:
-		return NewTcp0Asker(site, laddr, 1, nWork, onEvents)
+		return NewTcp0Asker(site, laddr, 1, nWork, onEvents, introduction)
 	// Chrome 一次最多可同時送出 6 個請求, HttpAsker nConnect = 6
 	case define.Http:
 		return NewHttpAsker(site, laddr, 6, nWork)
@@ -43,6 +43,8 @@ type Asker struct {
 	needHeartbeat bool
 	// 心跳包數據
 	heartData []byte
+	// 自我介紹數據
+	introductionData []byte
 	// 心跳事件時間戳
 	heartbeatTime time.Time
 	// ==================================================
@@ -86,22 +88,23 @@ type Asker struct {
 	workHandler func(*base.Work)
 	readFunc    func()
 	writeFunc   func(int32, *[]byte, int32) error
-	// 當成功連線時，觸發此函式
+	// 管理各種連線事件觸發函式(例如: 連線、斷線、、、)
 	onEvents base.OnEventsFunc
 }
 
-func newAsker(site int32, laddr *net.TCPAddr, nConnect int32, nWork int32, needHeartbeat bool) (*Asker, error) {
+func newAsker(site int32, laddr *net.TCPAddr, nConnect int32, nWork int32, needHeartbeat bool, introduction *[]byte) (*Asker, error) {
 	a := &Asker{
-		addr:          laddr,
-		needHeartbeat: needHeartbeat,
-		order:         binary.LittleEndian,
-		index:         site,
-		maxConn:       nConnect,
-		conns:         base.NewConn(0, define.BUFFER_SIZE),
-		readBuffer:    make([]byte, 64*1024),
-		connBuffer:    make(chan base.ConnBuffer, nWork),
-		works:         base.NewWork(0),
-		onEvents:      nil,
+		addr:             laddr,
+		needHeartbeat:    needHeartbeat,
+		introductionData: nil,
+		order:            binary.LittleEndian,
+		index:            site,
+		maxConn:          nConnect,
+		conns:            base.NewConn(0, define.BUFFER_SIZE),
+		readBuffer:       make([]byte, 64*1024),
+		connBuffer:       make(chan base.ConnBuffer, nWork),
+		works:            base.NewWork(0),
+		onEvents:         nil,
 	}
 
 	// TODO: 個別伺服器應自定義自己的心跳包數據
@@ -111,6 +114,13 @@ func newAsker(site int32, laddr *net.TCPAddr, nConnect int32, nWork int32, needH
 		a.works.Body.AddUInt16(0)
 		a.heartData = append(a.heartData, a.works.Body.FormData()...)
 		a.works.Body.Clear()
+	}
+
+	if introduction != nil {
+		length := len((*introduction))
+		a.introductionData = make([]byte, length)
+		copy(a.introductionData, *introduction)
+		fmt.Printf("a.introductionData: %+v\n", a.introductionData)
 	}
 
 	var i int32
@@ -159,12 +169,12 @@ func (a *Asker) Connect(index int32) error {
 // TODO: 區分 1. 使用心跳機制維持連線的版本() 2.
 // 根據 RFC 2616 (page 46) 的標準定義，單個客戶端不允許開啟 2 個以上的長連接，這個標準的目的是減少 HTTP 響應的時候，減少網絡堵塞。
 func (a *Asker) Handler() {
-	// 檢查是否有新的連線
-	a.checkConnection()
-
 	a.preConn = nil
 	a.currConn = a.conns
 	a.currWork = a.getEmptyWork()
+
+	// 檢查是否有新的連線
+	a.checkConnection()
 
 	// 依序檢查有被使用的連線物件(State 不是 Unused)
 	// 未使用 Unused, 嘗試連線中 Connecting, 連線中 Connected, 超時斷線 Timeout, 斷線 Disconnected, 重新連線中 Reconnect
@@ -221,6 +231,23 @@ func (a *Asker) checkConnection() {
 			a.emptyConn.State = define.Connected
 			a.emptyConn.NetConn.SetReadDeadline(a.heartbeatTime.Add(1000 * time.Millisecond))
 			utils.Debug("更新斷線時間 heartbeatTime: %+v", a.heartbeatTime)
+
+			// 檢查是否有自我介紹用數據
+			if a.introductionData != nil {
+				// a.currWork = a.getEmptyWork()
+				// a.currWork.Index = 0
+				// a.currWork.RequestTime = time.Now().UTC()
+				// a.currWork.Body.AddRawData(a.introductionData)
+				// a.currWork.Send()
+
+				a.currConn.SetWriteBuffer(&a.introductionData, int32(len(a.introductionData)))
+				err := a.currConn.Write()
+				if err != nil {
+					utils.Error("Failed to introduce, err: %+v", err)
+					return
+				}
+			}
+
 			go a.emptyConn.Handler()
 
 			// 連線成功之 callback
@@ -359,8 +386,7 @@ func (a *Asker) timeoutHandler() {
 
 // 重新連線處理
 func (a *Asker) reconnectHandler() {
-	// fmt.Printf("(a *Asker) reconnectHandler | Conn %d\n", a.currConn.GetId())
-	utils.Info(" Conn %d", a.currConn.GetId())
+	utils.Info("Conn %d", a.currConn.GetId())
 
 	// 重新連線準備
 	a.currConn.Reconnect()
@@ -380,7 +406,6 @@ func (a *Asker) getEmptyWork() *base.Work {
 		if work.State == -1 {
 			return work
 		}
-
 		work = work.Next
 	}
 	return nil

@@ -53,7 +53,6 @@ func (s *Service) Run(args []string) {
 
 	}
 
-	// fmt.Println("[Example] Run | End of gos example.")
 	logger.Info("End of gos example.")
 }
 
@@ -63,11 +62,9 @@ func (s *Service) Stop() {
 
 func (s *Service) RunAns(port int) {
 	anser, err := gos.Listen(define.Tcp0, int32(port))
-	// fmt.Printf("(s *Service) RunAns | Listen to port %d\n", port)
 	logger.Info("Listen to port %d", port)
 
 	if err != nil {
-		// fmt.Printf("Error: %+v\n", err)
 		logger.Error("ListenError: %+v", err)
 		return
 	}
@@ -75,12 +72,9 @@ func (s *Service) RunAns(port int) {
 	mgr := &Mgr{}
 	tcp0Answer := anser.(*ans.Tcp0Anser)
 	tcp0Answer.SetWorkHandler(mgr.Handler)
-	// anser.SetWorkHandler(mgr.Handler)
-	// fmt.Printf("(s *Service) RunAns | 伺服器初始化完成\n")
 	logger.Debug("伺服器初始化完成")
 
 	gos.StartListen()
-	// fmt.Printf("(s *Service) RunAns | 開始監聽\n")
 	logger.Debug("開始監聽")
 
 	var start time.Time
@@ -99,14 +93,19 @@ func (s *Service) RunAns(port int) {
 }
 
 func (s *Service) RunAsk(ip string, port int) {
+	td := base.NewTransData()
+	td.AddInt32(SystemCmd)
+	td.AddInt32(IntroductionService)
+	td.AddString("GOS")
+	td.AddInt32(29)
+	introduction := td.FormData()
 	asker, err := gos.Bind(0, ip, port, define.Tcp0, base.OnEventsFunc{
 		define.OnConnected: func(any) {
 			fmt.Printf("(s *Service) RunAsk | onConnect to %s:%d\n", ip, port)
 		},
-	})
+	}, &introduction)
 
 	if err != nil {
-		// fmt.Printf("Error: %+v\n", err)
 		logger.Error("BindError: %+v", err)
 		return
 	}
@@ -114,25 +113,19 @@ func (s *Service) RunAsk(ip string, port int) {
 	mgr := NewMgr()
 	tcp0Asker := asker.(*ask.Tcp0Asker)
 	tcp0Asker.SetWorkHandler(mgr.Handler)
-
-	// fmt.Printf("(s *Service) RunAsk | 伺服器初始化完成\n")
 	logger.Debug("伺服器初始化完成")
 
 	err = gos.StartConnect()
 
 	if err != nil {
-		// fmt.Printf("Error: %+v\n", err)
 		logger.Error("ConnectError: %+v", err)
 		return
 	}
 
-	// fmt.Printf("(s *Service) RunAsk | 開始連線\n")
 	logger.Debug("開始連線")
-
 	var start time.Time
 	mgr.FrameTime = 200 * time.Millisecond
 	var during time.Duration = 0
-	// fmt.Printf("(s *Service) RunAsk | 開始 gos.RunAsk()\n")
 	logger.Debug("開始 gos.RunAsk()")
 
 	for {

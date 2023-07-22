@@ -52,10 +52,10 @@ func (g *goserver) listen(socketType define.SocketType, port int32) (ans.IAnswer
 // ip: server ip
 // port: server port
 // socketType: 協定類型
-func (g *goserver) bind(serverId int32, ip string, port int, socketType define.SocketType, onEvents base.OnEventsFunc) (ask.IAsker, error) {
+func (g *goserver) bind(serverId int32, ip string, port int, socketType define.SocketType, onEvents base.OnEventsFunc, introduction *[]byte) (ask.IAsker, error) {
 	if _, ok := g.askerMap[serverId]; !ok {
 		laddr := &net.TCPAddr{IP: net.ParseIP(ip), Port: port, Zone: ""}
-		asker, err := ask.NewAsker(socketType, serverId, laddr, 10, onEvents)
+		asker, err := ask.NewAsker(socketType, serverId, laddr, 10, onEvents, introduction)
 
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to create an Asker for %s:%d.", ip, port)

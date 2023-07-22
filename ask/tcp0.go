@@ -15,12 +15,12 @@ type Tcp0Asker struct {
 	currTcp0 *base.Tcp0
 }
 
-func NewTcp0Asker(site int32, laddr *net.TCPAddr, nConnect int32, nWork int32, onEvents base.OnEventsFunc) (IAsker, error) {
+func NewTcp0Asker(site int32, laddr *net.TCPAddr, nConnect int32, nWork int32, onEvents base.OnEventsFunc, introduction *[]byte) (IAsker, error) {
 	var err error
 	a := &Tcp0Asker{
 		tcp0s: make([]*base.Tcp0, nConnect),
 	}
-	a.Asker, err = newAsker(site, laddr, nConnect, nWork, true)
+	a.Asker, err = newAsker(site, laddr, nConnect, nWork, true, introduction)
 
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to new Tcp0Asker.")

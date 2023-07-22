@@ -139,7 +139,7 @@ func RunAns(port int) {
 
 func RunAsk(ip string, port int) {
 	// demoNativeHttpRequest(ip, port)
-	asker, err := gos.Bind(0, ip, port, define.Http, nil)
+	asker, err := gos.Bind(0, ip, port, define.Http, nil, nil)
 
 	if err != nil {
 		// fmt.Printf("BindError: %+v\n", err)

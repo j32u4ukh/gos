@@ -45,7 +45,7 @@ func NewHttpAsker(site int32, laddr *net.TCPAddr, nConnect int32, nWork int32) (
 	}
 
 	// ===== Anser =====
-	a.Asker, err = newAsker(site, laddr, nConnect, nWork, false)
+	a.Asker, err = newAsker(site, laddr, nConnect, nWork, false, nil)
 
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to new HttpAsker.")
@@ -202,7 +202,6 @@ func (a *HttpAsker) read() {
 }
 
 func (a *HttpAsker) write(id int32, data *[]byte, length int32) error {
-	// fmt.Printf("(a *HttpAsker) writeFunc | work id: %d\n", id)
 	utils.Debug("work id: %d", id)
 
 	// 取得連線物件(若 id 為 -1，表示尋找空閒的連線物件)
@@ -210,31 +209,26 @@ func (a *HttpAsker) write(id int32, data *[]byte, length int32) error {
 
 	// 目前沒有空閒的連線物件，等待下次迴圈再處理
 	if a.currConn == nil {
-		// fmt.Printf("(a *HttpAsker) writeFunc | currConn is nil\n")
 		utils.Error("currConn is nil")
 		return nil
 	}
 
 	if a.currConn.State == define.Unused {
-		// fmt.Printf("(a *HttpAsker) writeFunc | currConn.State is Unused\n")
 		utils.Debug("currConn.State is Unused")
 		a.currConn.State = define.Connecting
 
 		// 設置當前工作結構對應的連線物件
 		a.currWork.Index = a.currConn.GetId()
-		// fmt.Printf("(a *HttpAsker) writeFunc | a.currWork.Index <- %d\n", a.currConn.GetId())
 		utils.Debug("a.currWork.Index <- %d", a.currConn.GetId())
 
 		a.Asker.Connect(a.currConn.GetId())
 		return nil
 	} else if a.currConn.State == define.Connecting {
-		// fmt.Printf("(a *HttpAsker) writeFunc | currConn.State is Connecting\n")
 		utils.Debug("currConn.State is Connecting")
 		return nil
 	}
 
 	// 將數據寫入連線物件的緩存
-	// fmt.Printf("(a *HttpAsker) writeFunc | WriteBuffer, length: %d, data: %+v\n", length, (*data)[:length])
 	utils.Debug("WriteBuffer, length: %d, data: %+v", length, (*data)[:length])
 
 	a.currConn.SetWriteBuffer(data, length)
@@ -251,12 +245,10 @@ func (a *HttpAsker) Write(data *[]byte, length int32) error {
 	w.Body.AddRawData((*data)[:length])
 
 	a.Handlers[w.GetId()] = func(c *ghttp.Context) {
-		// fmt.Printf("Response: %+v\n", c)
 		utils.Info("Response: %+v", c)
 	}
 
 	w.Send()
-
 	return nil
 }
 
