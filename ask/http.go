@@ -45,7 +45,7 @@ func NewHttpAsker(site int32, laddr *net.TCPAddr, nConnect int32, nWork int32) (
 	}
 
 	// ===== Anser =====
-	a.Asker, err = newAsker(site, laddr, nConnect, nWork, false, nil)
+	a.Asker, err = newAsker(site, laddr, nConnect, nWork, nil, nil)
 
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to new HttpAsker.")

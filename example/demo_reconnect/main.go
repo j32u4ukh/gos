@@ -99,11 +99,15 @@ func (s *Service) RunAsk(ip string, port int) {
 	td.AddString("GOS")
 	td.AddInt32(29)
 	introduction := td.FormData()
+	td.Clear()
+	td.AddInt32(SystemCmd)
+	td.AddInt32(ServerHeartbeatService)
+	heartbeat := td.FormData()
 	asker, err := gos.Bind(0, ip, port, define.Tcp0, base.OnEventsFunc{
 		define.OnConnected: func(any) {
 			logger.Info("onConnect to %s:%d", ip, port)
 		},
-	}, &introduction)
+	}, &introduction, &heartbeat)
 
 	if err != nil {
 		logger.Error("BindError: %+v", err)

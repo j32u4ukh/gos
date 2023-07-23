@@ -24,10 +24,10 @@ type IAsker interface {
 	Write(*[]byte, int32) error
 }
 
-func NewAsker(socketType define.SocketType, site int32, laddr *net.TCPAddr, nWork int32, onEvents base.OnEventsFunc, introduction *[]byte) (IAsker, error) {
+func NewAsker(socketType define.SocketType, site int32, laddr *net.TCPAddr, nWork int32, onEvents base.OnEventsFunc, introduction *[]byte, heartbeat *[]byte) (IAsker, error) {
 	switch socketType {
 	case define.Tcp0:
-		return NewTcp0Asker(site, laddr, 1, nWork, onEvents, introduction)
+		return NewTcp0Asker(site, laddr, 1, nWork, onEvents, introduction, heartbeat)
 	// Chrome 一次最多可同時送出 6 個請求, HttpAsker nConnect = 6
 	case define.Http:
 		return NewHttpAsker(site, laddr, 6, nWork)
@@ -39,14 +39,14 @@ func NewAsker(socketType define.SocketType, site int32, laddr *net.TCPAddr, nWor
 type Asker struct {
 	// 連線位置
 	addr *net.TCPAddr
-	// 是否需要心跳
-	needHeartbeat bool
 	// 心跳包數據
-	heartData []byte
-	// 自我介紹數據
-	introductionData []byte
+	heartbeatData []byte
+	// 心跳包數據長度
+	heartbeatLength int32
 	// 心跳事件時間戳
 	heartbeatTime time.Time
+	// 自我介紹數據
+	introductionData []byte
 	// ==================================================
 	// 連線列表
 	// ==================================================
@@ -92,10 +92,10 @@ type Asker struct {
 	onEvents base.OnEventsFunc
 }
 
-func newAsker(site int32, laddr *net.TCPAddr, nConnect int32, nWork int32, needHeartbeat bool, introduction *[]byte) (*Asker, error) {
+func newAsker(site int32, laddr *net.TCPAddr, nConnect int32, nWork int32, introduction *[]byte, heartbeat *[]byte) (*Asker, error) {
 	a := &Asker{
 		addr:             laddr,
-		needHeartbeat:    needHeartbeat,
+		heartbeatData:    nil,
 		introductionData: nil,
 		order:            binary.LittleEndian,
 		index:            site,
@@ -107,13 +107,11 @@ func newAsker(site int32, laddr *net.TCPAddr, nConnect int32, nWork int32, needH
 		onEvents:         nil,
 	}
 
-	// TODO: 個別伺服器應自定義自己的心跳包數據
-	if a.needHeartbeat {
-		// 重複使用心跳包數據
-		a.works.Body.AddInt32(0)
-		a.works.Body.AddInt32(0)
-		a.heartData = append(a.heartData, a.works.Body.FormData()...)
-		a.works.Body.Clear()
+	if heartbeat != nil {
+		a.heartbeatLength = int32(len((*heartbeat)))
+		a.heartbeatData = make([]byte, a.heartbeatLength)
+		copy(a.heartbeatData, *heartbeat)
+		utils.Debug("a.heartbeatData: %+v\n", a.heartbeatData)
 	}
 
 	if introduction != nil {
@@ -327,26 +325,23 @@ func (a *Asker) connectedHandler() {
 			return
 		}
 
-		if a.needHeartbeat {
-			// 若當前時間已晚於發送心跳的時間戳
-			if time.Now().After(a.heartbeatTime) {
-				// 發送心跳包
-				utils.Debug("Heartbeat: %v", a.heartbeatTime)
+		// 檢查是否有心跳包
+		if (a.heartbeatData != nil) && (time.Now().After(a.heartbeatTime)) {
+			utils.Debug("Heartbeat: %v", a.heartbeatTime)
+			a.currConn.SetWriteBuffer(&a.heartbeatData, a.heartbeatLength)
+			err := a.currConn.Write()
+			if err != nil {
+				utils.Error("Failed to send heartbeat, err: %+v", err)
+				return
+			}
 
-				// TODO: 每隔數分鐘再印一次資訊即可
-				a.currWork.Index = 0
-				a.currWork.RequestTime = time.Now().UTC()
-				a.currWork.Body.AddRawData(a.heartData)
-				a.currWork.Send()
-				a.heartbeatTime = time.Now().Add(1000 * time.Millisecond)
-
-				// 更新連線維持時間
-				err = a.currConn.NetConn.SetReadDeadline(a.heartbeatTime.Add(3000 * time.Millisecond))
-				if err != nil {
-					utils.Error("Failed to set read deadline, err: %v", err)
-				} else {
-					utils.Debug("更新時間 heartbeatTime: %+v, ReadDeadline %+v", a.heartbeatTime, a.heartbeatTime.Add(3000*time.Millisecond))
-				}
+			// 更新連線維持時間
+			a.heartbeatTime = time.Now().Add(1000 * time.Millisecond)
+			err = a.currConn.NetConn.SetReadDeadline(a.heartbeatTime.Add(3000 * time.Millisecond))
+			if err != nil {
+				utils.Error("Failed to set read deadline, err: %v", err)
+			} else {
+				utils.Debug("更新時間 heartbeatTime: %+v, ReadDeadline %+v", a.heartbeatTime, a.heartbeatTime.Add(3000*time.Millisecond))
 			}
 		}
 
