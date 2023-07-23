@@ -144,12 +144,10 @@ func (a *Anser) Listen() {
 		conn, err := a.listener.AcceptTCP()
 
 		if err != nil {
-			// fmt.Printf("(a *Anser) | 接受客戶端連接異常: %+v\n", err.Error())
 			utils.Error("接受客戶端連接異常: %+v", err.Error())
 			continue
 		}
 
-		// fmt.Printf("(a *Anser) | 客戶端連接來自: %s\n", conn.RemoteAddr())
 		utils.Info("客戶端連接來自: %s", conn.RemoteAddr())
 
 		// 註冊連線通道
@@ -211,7 +209,7 @@ func (a *Anser) checkConnection() {
 				a.nConn += 1
 				a.index += 1
 			} else {
-				fmt.Printf("TODO: 需要加開伺服器")
+				utils.Warn("TODO: 需要加開伺服器")
 			}
 		default:
 			return
@@ -234,20 +232,16 @@ func (a *Anser) connectedHandler() {
 			switch eType := packet.Error.(type) {
 			case net.Error:
 				if eType.Timeout() {
-					// fmt.Printf("(a *Anser) Handler | Conn %d 發生 timeout error.\n", a.currConn.GetId())
 					utils.Error("Conn %d 發生 timeout error.", a.currConn.GetId())
 				} else {
-					// fmt.Printf("(a *Anser) Handler | Conn %d 發生 net.Error.\n", a.currConn.GetId())
 					utils.Error("Conn %d 發生 net.Error.", a.currConn.GetId())
 				}
 			default:
 				switch packet.Error {
 				// 沒有數據可讀取，對方已關閉連線
 				case io.EOF:
-					// fmt.Printf("(a *Anser) Handler | Conn %d 沒有數據可讀取，對方已關閉連線\nError(%v): %+v\n", a.currConn.GetId(), eType, packet.Error)
 					utils.Warn("Conn %d 沒有數據可讀取，對方已關閉連線\nError(%v): %+v", a.currConn.GetId(), eType, packet.Error)
 				default:
-					// fmt.Printf("(a *Anser) Handler | Conn %d 讀取 socket 時發生錯誤\nError(%v): %+v\n", a.currConn.GetId(), eType, packet.Error)
 					utils.Error("Conn %d 讀取 socket 時發生錯誤, Error(%v): %+v", a.currConn.GetId(), eType, packet.Error)
 				}
 			}
@@ -271,7 +265,6 @@ func (a *Anser) connectedHandler() {
 		err = a.currConn.NetConn.SetReadDeadline(time.Now().Add(a.ReadTimeout))
 
 		if err != nil {
-			// fmt.Printf("(a *Anser) handler | DeadlineError: %+v\n", err)
 			utils.Error("DeadlineError: %+v", err)
 
 			// 連線狀態設為結束
@@ -317,9 +310,7 @@ func (a *Anser) disconnectHandler() {
 	for a.currConn != nil {
 		// 標註為斷線的連線物件，數秒後才切斷連線，預留時間給對方讀取數據
 		if a.currConn.State == define.Disconnect && a.currConn.DisconnectTime.Before(now) {
-			// fmt.Printf("(a *Anser) disconnectHandler | cid: %d\n", a.currConn.GetId())
 			utils.Info("cid: %d", a.currConn.GetId())
-			// hasDisconnect = true
 			a.nConn -= 1
 
 			if a.preConn == nil {
@@ -399,9 +390,6 @@ func (a *Anser) dealWork() {
 	var finished, yet *base.Work = nil, nil
 
 	for a.currWork.State != -1 {
-		// fmt.Printf("(a *Anser) dealWork | work: %+v\n", a.currWork)
-		utils.Debug("work: %+v", a.currWork)
-
 		switch a.currWork.State {
 		// 工作已完成
 		case 0:
@@ -430,11 +418,7 @@ func (a *Anser) dealWork() {
 
 			// 將完成的工作加入 finished，並更新 work 所指向的工作結構
 			finished = a.relinkWork(finished, true)
-		// case 3:
-		// 	// 將工作接入待處理的區塊，下次回圈再行處理
-		// 	yet = a.relinkWork(yet, false)
 		default:
-			// fmt.Printf("(a *Anser) dealWork | 連線 %d 發生異常工作 state(%d)，直接將工作結束\n", a.currWork.Index, a.currWork.State)
 			utils.Error("連線 %d 發生異常工作 state(%d)，直接將工作結束", a.currWork.Index, a.currWork.State)
 
 			// 將完成的工作加入 finished，並更新 work 所指向的工作結構
@@ -460,7 +444,6 @@ func (a *Anser) dealWork() {
 }
 
 func (a *Anser) Write(cid int32, data *[]byte, length int32) error {
-	// fmt.Printf("(a *Anser) write | cid: %d\n", cid)
 	c := a.getConn(cid)
 
 	if c == nil {
@@ -483,7 +466,6 @@ func (a *Anser) getConn(cid int32) *base.Conn {
 		}
 	} else {
 		for c != nil {
-			// fmt.Printf("(a *Asker) getConn | GetId: %d\n", c.GetId())
 			if c.GetId() == cid {
 				return c
 			}
@@ -512,7 +494,7 @@ func (a *Anser) updateEmptyConn() {
 	}
 	// 若 a.emptyConn 為 nil，表示所有連線物件都在使用中，需要多開伺服器。
 	if a.emptyConn == nil {
-		fmt.Printf("TODO: 需要加開伺服器")
+		utils.Warn("TODO: 需要加開伺服器")
 	}
 }
 
@@ -543,8 +525,7 @@ func (a *Anser) relinkWork(destination *base.Work, done bool) *base.Work {
 // 當前連線是否應斷線
 func (a *Anser) shouldClose(err error) bool {
 	if err != nil {
-		// fmt.Printf("(a *Anser) shouldClose | Conn(%d) failed to write: %+v\n", a.currConn.GetId(), err)
-		utils.Error(" Conn(%d) failed to write: %+v", a.currConn.GetId(), err)
+		utils.Error("Conn(%d) failed to write: %+v", a.currConn.GetId(), err)
 		return true
 	}
 	return false

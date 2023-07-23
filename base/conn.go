@@ -144,7 +144,6 @@ func (c *Conn) Add(conn *Conn) {
 }
 
 func (c *Conn) Handler() {
-	// fmt.Printf("(c *Conn) handler | Start, c.readErr: %+v\n", c.readErr)
 	utils.Debug("Start, c.readErr: %+v", c.readErr)
 	// 確保 stopCh 為空
 	select {
@@ -154,7 +153,6 @@ func (c *Conn) Handler() {
 	for c.readErr == nil {
 		select {
 		case <-c.stopCh:
-			// fmt.Printf("(c *Conn) handler | <-c.stopCh\n")
 			utils.Info("<-c.stopCh")
 			return
 
@@ -189,8 +187,6 @@ func (c *Conn) Handler() {
 
 // 讀取封包數據，並寫入 readBuffer
 func (c *Conn) SetReadBuffer(packet *Packet) {
-	// fmt.Printf("(c *Conn) setReadBuffer | before readOutput: %d, readInput: %d, readableLength: %d\n", c.readOutput, c.readInput, c.ReadableLength)
-
 	// 更新可讀數據長度
 	c.ReadableLength += packet.Length
 
@@ -213,14 +209,10 @@ func (c *Conn) SetReadBuffer(packet *Packet) {
 		// 回到 readBuffer 最前面，將剩下的數據寫完(數據長度為 packet.Length - idx)
 		copy(c.readBuffer[:c.readInput], packet.Data[idx:])
 	}
-
-	// fmt.Printf("(c *Conn) setReadBuffer | after readOutput: %d, readInput: %d, readableLength: %d\n", c.readOutput, c.readInput, c.ReadableLength)
 }
 
 // 從 readBuffer 讀取指定長度的數據
 func (c *Conn) Read(data *[]byte, length int32) {
-	// fmt.Printf("(c *Conn) read | before readOutput: %d, readInput: %d, ReadableLength: %d, length: %d\n", c.readOutput, c.readInput, c.ReadableLength, length)
-
 	// 更新可讀數據長度
 	c.ReadableLength -= length
 
@@ -238,8 +230,6 @@ func (c *Conn) Read(data *[]byte, length int32) {
 		c.readOutput = length - idx
 		copy((*data)[idx:length], c.readBuffer[:c.readOutput])
 	}
-
-	// fmt.Printf("(c *Conn) read | after readOutput: %d, readInput: %d, ReadableLength: %d\n", c.readOutput, c.readInput, c.ReadableLength)
 }
 
 // 根據 checker 函式，檢查是否已讀取到所需的數據(條件可能是 長度 或 換行符 等)
@@ -250,7 +240,6 @@ func (c *Conn) CheckReadable(checker func(buffer *[]byte, i int32, o int32, leng
 // 將寫出數據加入緩存
 // TODO: 檢查 c.writeInput 是否反超 c.writeOutput，若反超，表示緩衝大小不足
 func (c *Conn) SetWriteBuffer(data *[]byte, length int32) {
-	// fmt.Printf("(c *Conn) setWriteBuffer | c.writeInput: %d, length: %d\n", c.writeInput, length)
 	c.WritableLength += length
 
 	if c.writeInput+length < c.BufferLength {
@@ -264,13 +253,9 @@ func (c *Conn) SetWriteBuffer(data *[]byte, length int32) {
 		c.writeInput = length - c.writeIdx
 		copy(c.writeBuffer[:c.writeInput], (*data)[c.writeIdx:length])
 	}
-
-	// fmt.Printf("(c *Conn) setWriteBuffer | c.writeInput: %d\n", c.writeInput)
 }
 
 func (c *Conn) Write() error {
-	// fmt.Printf("(c *Conn) write | netConn: %v, writeInput: %d, writeOutput: %d\n", c.NetConn != nil, c.writeInput, c.writeOutput)
-
 	for c.NetConn != nil && c.writeInput != c.writeOutput {
 
 		if c.writeOutput < c.writeInput {
@@ -278,9 +263,7 @@ func (c *Conn) Write() error {
 			c.nWrite, c.writeErr = c.NetConn.Write(c.writeBuffer[c.writeOutput:c.writeInput])
 
 			if c.writeErr != nil {
-				// fmt.Printf("(c *Conn) write | Failed to write data to conn(%d)\nwriteErr: %+v\n", c.id, c.writeErr)
-				utils.Error("Failed to write data to conn(%d)", c.id)
-				utils.Error("writeErr: %+v", c.writeErr)
+				utils.Error("Failed to write data to conn(%d), writeErr: %+v", c.id, c.writeErr)
 				return errors.Wrapf(c.writeErr, "Failed to write data to conn(%d)", c.id)
 			}
 
@@ -289,15 +272,12 @@ func (c *Conn) Write() error {
 			c.nWrite, c.writeErr = c.NetConn.Write(c.writeBuffer[c.writeOutput:])
 
 			if c.writeErr != nil {
-				// fmt.Printf("(c *Conn) write | Failed to write data to conn(%d)\nwriteErr: %+v\n", c.id, c.writeErr)
-				utils.Error("Failed to write data to conn(%d)", c.id)
-				utils.Error("writeErr: %+v", c.writeErr)
+				utils.Error("Failed to write data to conn(%d), writeErr: %+v", c.id, c.writeErr)
 				return errors.Wrapf(c.writeErr, "Failed to write data to conn(%d)", c.id)
 			}
 
 		}
 
-		// fmt.Printf("(c *Conn) write | Output: %+v\n", c.writeBuffer[c.writeOutput:c.writeOutput+int32(c.nWrite)])
 		c.writeOutput += int32(c.nWrite)
 		c.WritableLength -= int32(c.nWrite)
 
@@ -311,7 +291,6 @@ func (c *Conn) Write() error {
 
 // 當有需要重新連線的情況下，首先就會發生 Socket 讀取異常，並導致 Handler 的 goroutine 結束，因此無須再利用 c.stopCh 將 Handler 結束
 func (c *Conn) Reconnect() {
-	// fmt.Printf("(c *Conn) Reconnect | cid: %d\n", c.id)
 	utils.Info("cid: %d", c.id)
 
 	if c.NetConn != nil {
@@ -338,8 +317,8 @@ func (c *Conn) Release() {
 	// 關閉當前連線
 	c.NetConn.Close()
 
-	// 清空連線物件
-	c.NetConn = nil
+	// // 清空連線物件
+	// c.NetConn = nil
 
 	// 狀態設置為未使用
 	c.State = define.Unused
@@ -368,8 +347,8 @@ func (c *Conn) String() string {
 func CheckConns(root *Conn) {
 	c := root
 	for c != nil {
-		fmt.Printf("CheckConns | %s\n", c)
+		utils.Info("Conn: %s", c)
 		c = c.Next
 	}
-	fmt.Println()
+	utils.Info("")
 }
