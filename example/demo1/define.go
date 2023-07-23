@@ -1,18 +1,19 @@
 package main
 
 const (
-	SystemCmd     int32 = 0
-	NormalCmd     int32 = 1
-	CommissionCmd int32 = 2
+	SystemCmd int32 = 0
+	NormalCmd int32 = 1
 )
 
 // SystemCmd
 const (
-	HeartbeatService    int32 = 0
-	IntroductionService int32 = 1
+	ServerHeartbeatService int32 = 0
+	ClientHeartbeatService int32 = 1
+	IntroductionService    int32 = 2
 )
 
-// NormalCmd
+// Normal
 const (
-	TimerService int32 = 0
+	TimerRequestService  int32 = 0
+	TimerResponseService int32 = 1
 )

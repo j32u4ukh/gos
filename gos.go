@@ -2,6 +2,7 @@ package gos
 
 import (
 	"fmt"
+	"net"
 	"strconv"
 	"strings"
 	"sync"
@@ -28,14 +29,17 @@ func init() {
 	}
 }
 
+// 指定要監聽的 port，並生成 Anser 物件
 func Listen(socketType define.SocketType, port int32) (ans.IAnswer, error) {
-	anser, err := server.listen(socketType, port)
-
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to listen on port %d", port)
+	if _, ok := server.anserMap[port]; !ok {
+		laddr, _ := net.ResolveTCPAddr("tcp", fmt.Sprintf(":%d", port))
+		anser, err := ans.NewAnser(socketType, laddr, 10, 10)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to listen on port %d.", port)
+		}
+		server.anserMap[port] = anser
 	}
-
-	return anser, nil
+	return server.anserMap[port], nil
 }
 
 // 開始所有已註冊的監聽
@@ -46,14 +50,21 @@ func StartListen() {
 	}
 }
 
-func Bind(site int32, ip string, port int, socketType define.SocketType, onEvents base.OnEventsFunc, introduction *[]byte, heartbeat *[]byte) (ask.IAsker, error) {
-	asker, err := server.bind(site, ip, port, socketType, onEvents, introduction, heartbeat)
-
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to bind with %s:%d.", ip, port)
+// 向位置 ip:port 送出連線請求，利用 serverId 來識別多個連線
+// serverId: server id
+// ip: server ip
+// port: server port
+// socketType: 協定類型
+func Bind(serverId int32, ip string, port int, socketType define.SocketType, onEvents base.OnEventsFunc, introduction *[]byte, heartbeat *[]byte) (ask.IAsker, error) {
+	if _, ok := server.askerMap[serverId]; !ok {
+		laddr := &net.TCPAddr{IP: net.ParseIP(ip), Port: port, Zone: ""}
+		asker, err := ask.NewAsker(socketType, serverId, laddr, 10, onEvents, introduction, heartbeat)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to create an Asker for %s:%d.", ip, port)
+		}
+		server.askerMap[serverId] = asker
 	}
-
-	return asker, err
+	return server.askerMap[serverId], nil
 }
 
 // 開始所有已註冊的監聽
@@ -123,11 +134,9 @@ func RunAns() {
 func SendToClient(port int32, cid int32, data *[]byte, length int32) error {
 	if anser, ok := server.anserMap[port]; ok {
 		err := anser.Write(cid, data, length)
-
 		if err != nil {
 			return errors.Wrap(err, "Failed to send to client.")
 		}
-
 		return nil
 	}
 	return errors.New(fmt.Sprintf("Hasn't listen to port %d", port))
@@ -154,14 +163,10 @@ func SendTransDataToServer(serverId int32, td *base.TransData) error {
 func SendToServer(serverId int32, data *[]byte, length int32) error {
 	if asker, ok := server.askerMap[serverId]; ok {
 		err := asker.Write(data, length)
-
 		if err != nil {
 			return errors.Wrap(err, "Failed to send to server.")
 		}
-
-		// fmt.Printf("SendToServer | Send to site: %d, length: %d, data: %+v\n", site, length, (*data)[:length])
-		utils.Info("Send to site: %d, length: %d, data: %+v", serverId, length, (*data)[:length])
-
+		// utils.Info("Send to site: %d, length: %d, data: %+v", serverId, length, (*data)[:length])
 		return nil
 	}
 	return errors.New(fmt.Sprintf("Unknown site: %d", serverId))
@@ -169,7 +174,6 @@ func SendToServer(serverId int32, data *[]byte, length int32) error {
 
 // 傳送 http 訊息
 func SendRequest(req *ghttp.Request, callback func(*ghttp.Context)) (int32, error) {
-	// fmt.Printf("SendRequest | Request: %+v\n", req)
 	utils.Info("Request: %+v", req)
 	var asker ask.IAsker
 	var serverId int32
@@ -187,11 +191,7 @@ func SendRequest(req *ghttp.Request, callback func(*ghttp.Context)) (int32, erro
 	}
 
 	if host, ok := req.Header["Host"]; ok {
-		// fmt.Printf("SendRequest | host: %s\n", host[0])
-
 		ip, p, _ := strings.Cut(host[0], ":")
-		// fmt.Printf("SendRequest | ip: %s, port: %s\n", ip, p)
-		// fmt.Printf("SendRequest | query: %s\n", req.Query)
 		var asker ask.IAsker
 		var err error
 
@@ -212,15 +212,24 @@ func SendRequest(req *ghttp.Request, callback func(*ghttp.Context)) (int32, erro
 }
 
 func Disconnect(port int32, cid int32) error {
-	err := server.disconnect(port, cid)
-	if err != nil {
-		return errors.Wrapf(err, "Failed to disconnect connection: %d-%d", port, cid)
+	var err error = nil
+	if anser, ok := server.anserMap[port]; ok {
+		err = anser.Disconnect(cid)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to disconnect connection: %d-%d", port, cid)
+		}
+	} else {
+		err = errors.Errorf("Not found anser for %d", port)
 	}
-	return nil
+	return err
 }
 
 func SetFrameTime(frameTime time.Duration) {
 	server.frameTime = frameTime
+}
+
+func GetFrameTime() time.Duration {
+	return server.frameTime
 }
 
 func SetLogger(lg *glog.Logger) {

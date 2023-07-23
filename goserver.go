@@ -2,16 +2,12 @@ package gos
 
 import (
 	"fmt"
-	"net"
 	"time"
 
 	"github.com/j32u4ukh/gos/ans"
 	"github.com/j32u4ukh/gos/ask"
 	"github.com/j32u4ukh/gos/base"
-	"github.com/j32u4ukh/gos/define"
 	"github.com/j32u4ukh/gos/utils"
-
-	"github.com/pkg/errors"
 )
 
 type goserver struct {
@@ -35,54 +31,7 @@ func newGoserver() *goserver {
 	return g
 }
 
-// 指定要監聽的 port，並生成 Anser 物件
-func (g *goserver) listen(socketType define.SocketType, port int32) (ans.IAnswer, error) {
-	if _, ok := g.anserMap[port]; !ok {
-		laddr, _ := net.ResolveTCPAddr("tcp", fmt.Sprintf(":%d", port))
-		anser, err := ans.NewAnser(socketType, laddr, 10, 10)
-
-		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to create an Anser for port %d.", port)
-		}
-
-		g.anserMap[port] = anser
-	}
-
-	return g.anserMap[port], nil
-}
-
-// 向位置 ip:port 送出連線請求，利用 serverId 來識別多個連線
-// serverId: server id
-// ip: server ip
-// port: server port
-// socketType: 協定類型
-func (g *goserver) bind(serverId int32, ip string, port int, socketType define.SocketType, onEvents base.OnEventsFunc, introduction *[]byte, heartbeat *[]byte) (ask.IAsker, error) {
-	if _, ok := g.askerMap[serverId]; !ok {
-		laddr := &net.TCPAddr{IP: net.ParseIP(ip), Port: port, Zone: ""}
-		asker, err := ask.NewAsker(socketType, serverId, laddr, 10, onEvents, introduction, heartbeat)
-
-		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to create an Asker for %s:%d.", ip, port)
-		}
-
-		g.askerMap[serverId] = asker
-	}
-
-	return g.askerMap[serverId], nil
-}
-
-func (g *goserver) disconnect(port int32, cid int32) error {
-	var err error = nil
-	if anser, ok := g.anserMap[port]; ok {
-		err = anser.Disconnect(cid)
-	} else {
-		err = errors.Errorf("Not found anser for %d", port)
-	}
-	return err
-}
-
 //
-
 func CheckWorks(msg string, root *base.Work) {
 	work := root
 	for work != nil {

@@ -112,7 +112,7 @@ func newAsker(site int32, laddr *net.TCPAddr, nConnect int32, nWork int32, intro
 	}
 
 	if heartbeat != nil {
-		a.heartbeatLifetime = 3000 * time.Millisecond
+		a.heartbeatLifetime = 1000 * time.Millisecond
 		a.heartbeatLength = int32(len((*heartbeat)))
 		a.heartbeatData = make([]byte, a.heartbeatLength)
 		copy(a.heartbeatData, *heartbeat)

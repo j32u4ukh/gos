@@ -26,8 +26,6 @@ func (m *Mgr) Handler(work *base.Work) {
 		m.HandlerKind0(work)
 	case 1:
 		m.HandlerKind1(work)
-	case 2:
-		m.HandlerKind2(work)
 	default:
 		data := work.Body.GetData()
 		fmt.Printf("Undefined kind %d, data: %+v\n", kind, data)
@@ -40,13 +38,18 @@ func (m *Mgr) Handler(work *base.Work) {
 func (m *Mgr) HandlerKind0(work *base.Work) {
 	serivce := work.Body.PopInt32()
 	switch serivce {
-	case HeartbeatService:
-		logger.Debug("Heartbeat")
+	case ServerHeartbeatService:
+		logger.Debug("Heartbeat from client")
 		work.Body.Clear()
 		work.Body.AddInt32(SystemCmd)
-		work.Body.AddInt32(HeartbeatService)
+		work.Body.AddInt32(ClientHeartbeatService)
 		work.Body.AddString("OK")
 		work.SendTransData()
+	case ClientHeartbeatService:
+		response := work.Body.PopString()
+		work.Body.Clear()
+		logger.Debug("Heartbeat from server, response: %s", response)
+		work.Finish()
 	case IntroductionService:
 		tag := work.Body.PopString()
 		if tag != "GOS" {
@@ -73,36 +76,21 @@ func (m *Mgr) HandlerKind0(work *base.Work) {
 func (m *Mgr) HandlerKind1(work *base.Work) {
 	serivce := work.Body.PopInt32()
 	switch serivce {
-	case TimerService:
-		data := work.Body.GetData()
-		logger.Debug("data from asker: %+v", data)
+	case TimerRequestService:
+		timer := work.Body.PopString()
+		logger.Debug("timer: %s", timer)
 		work.Body.Clear()
-		work.Body.AddInt32(CommissionCmd)
-		work.Body.AddUInt16(32)
-		work.Body.AddString(fmt.Sprintf("Message from (m *Mgr) Handler(work *gos.Work), #data: %d", len(data)))
+		work.Body.AddInt32(NormalCmd)
+		work.Body.AddInt32(TimerResponseService)
+		work.Body.AddString(fmt.Sprintf("timer: %s", timer))
 		work.SendTransData()
-		logger.Debug("SendTransData back, work: %+v", work)
+	case TimerResponseService:
+		response := work.Body.PopString()
+		logger.Debug("response: %s", response)
+		work.Finish()
 	default:
 		data := work.Body.GetData()
 		fmt.Printf("Kind1, undefined serivce %d, data: %+v\n", serivce, data)
-
-		// 標註當前工作已完成，將該工作結構回收
-		work.Finish()
-	}
-}
-
-func (m *Mgr) HandlerKind2(work *base.Work) {
-	serivce := work.Body.PopUInt16()
-	switch serivce {
-	case 32:
-		response := work.Body.PopString()
-		logger.Debug("response: %s", response)
-
-		// 標註當前工作已完成，將該工作結構回收
-		work.Finish()
-	default:
-		data := work.Body.GetData()
-		fmt.Printf("Kind2, undefined serivce %d, data: %+v\n", serivce, data)
 
 		// 標註當前工作已完成，將該工作結構回收
 		work.Finish()

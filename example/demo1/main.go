@@ -94,12 +94,12 @@ func (s *Service) RunAsk(ip string, port int) {
 	td := base.NewTransData()
 	td.AddInt32(SystemCmd)
 	td.AddInt32(IntroductionService)
-	td.AddString("GOSS")
+	td.AddString("GOS")
 	td.AddInt32(37)
 	introduction := td.FormData()
 	td.Clear()
 	td.AddInt32(SystemCmd)
-	td.AddInt32(HeartbeatService)
+	td.AddInt32(ServerHeartbeatService)
 	heartbeat := td.FormData()
 	asker, err := gos.Bind(0, ip, port, define.Tcp0, base.OnEventsFunc{
 		define.OnConnected: func(any) {
@@ -125,57 +125,22 @@ func (s *Service) RunAsk(ip string, port int) {
 	}
 
 	logger.Debug("開始連線")
-	var start time.Time
-	var during, frameTime time.Duration = 0, 200 * time.Millisecond
+	now := time.Now()
+	timer := now
+	gos.SetFrameTime(200 * time.Millisecond)
+	frameTime := gos.GetFrameTime()
+	var data []byte
 
-	go func() {
-		time.Sleep(2 * time.Second)
-		logger.Info("After 2 Second.")
-
-		var data []byte
-		temp := []byte{}
-
-		for i := 50; i < 55; i++ {
-			temp = append(temp, byte(i))
-			// fmt.Printf("(s *Service) RunAsk | i: %d, temp: %+v\n", i, temp)
-			mgr.Body.AddInt32(NormalCmd)
-			mgr.Body.AddInt32(TimerService)
-			mgr.Body.AddByteArray(temp)
-			data = mgr.Body.FormData()
-			// fmt.Printf("(s *Service) RunAsk | i: %d, length: %d, data: %+v\n", i, len(data), data)
-			gos.SendToServer(0, &data, int32(len(data)))
-			time.Sleep(1 * time.Second)
+	gos.Run(func() {
+		now = now.Add(frameTime)
+		if now.After(timer) {
 			mgr.Body.Clear()
-		}
-
-		time.Sleep(5 * time.Second)
-		// fmt.Printf("(s *Service) RunAsk | After 5 Second.\n")
-		logger.Info("After 5 Second.")
-
-		for i := 55; i < 60; i++ {
-			temp = append(temp, byte(i))
-			// fmt.Printf("(s *Service) RunAsk | i: %d, temp: %+v\n", i, temp)
 			mgr.Body.AddInt32(NormalCmd)
-			mgr.Body.AddInt32(TimerService)
-			mgr.Body.AddByteArray(temp)
+			mgr.Body.AddInt32(TimerRequestService)
+			mgr.Body.AddString(fmt.Sprintf("Now: %+v", now))
 			data = mgr.Body.FormData()
-			// fmt.Printf("(s *Service) RunAsk | i: %d, length: %d, data: %+v\n", i, len(data), data)
 			gos.SendToServer(0, &data, int32(len(data)))
-			time.Sleep(1 * time.Second)
-			mgr.Body.Clear()
+			timer = now.Add(3 * time.Second)
 		}
-	}()
-
-	logger.Info("開始 gos.RunAsk()")
-
-	for {
-		start = time.Now()
-
-		gos.RunAsk()
-
-		during = time.Since(start)
-		if during < frameTime {
-			time.Sleep(frameTime - during)
-		}
-	}
+	})
 }

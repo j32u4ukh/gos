@@ -127,17 +127,5 @@ func (s *Service) RunAsk(ip string, port int) {
 	}
 
 	logger.Debug("開始連線")
-	var start time.Time
-	FrameTime := 200 * time.Millisecond
-	var during time.Duration = 0
-	logger.Debug("開始 gos.RunAsk()")
-
-	for {
-		start = time.Now()
-		gos.RunAsk()
-		during = time.Since(start)
-		if during < FrameTime {
-			time.Sleep(FrameTime - during)
-		}
-	}
+	gos.Run(nil)
 }
