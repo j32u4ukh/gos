@@ -21,6 +21,7 @@ func init() {
 	gosLogger := glog.SetLogger(0, "gos", glog.DebugLevel)
 	gosLogger.SetFolder("log")
 	gosLogger.SetOptions(glog.DefaultOption(true, true), glog.UtcOption(8))
+	gosLogger.SetSkip(3)
 	utils.SetLogger(gosLogger)
 	logger = glog.SetLogger(1, "Demo1", glog.DebugLevel)
 	logger.SetFolder("log")
@@ -51,7 +52,6 @@ func (s *Service) Run(args []string) {
 		s.RunAsk("127.0.0.1", port)
 	}
 
-	// fmt.Println("[Example] Run | End of gos example.")
 	logger.Info("End of gos example.")
 }
 
@@ -61,11 +61,9 @@ func (s *Service) Stop() {
 
 func (s *Service) RunAns(port int) {
 	anser, err := gos.Listen(define.Tcp0, int32(port))
-	// fmt.Printf("(s *Service) RunAns | Listen to port %d\n", port)
 	logger.Debug("Listen to port %d", port)
 
 	if err != nil {
-		// fmt.Printf("Error: %+v\n", err)
 		logger.Error("ListenError: %+v", err)
 		return
 	}
@@ -73,12 +71,8 @@ func (s *Service) RunAns(port int) {
 	mgr := &Mgr{}
 	tcp0Answer := anser.(*ans.Tcp0Anser)
 	tcp0Answer.SetWorkHandler(mgr.Handler)
-
-	// fmt.Printf("(s *Service) RunAns | 伺服器初始化完成\n")
 	logger.Debug("伺服器初始化完成")
-
 	gos.StartListen()
-	// fmt.Printf("(s *Service) RunAns | 開始監聽\n")
 	logger.Debug("開始監聽")
 
 	var start time.Time
@@ -97,14 +91,23 @@ func (s *Service) RunAns(port int) {
 }
 
 func (s *Service) RunAsk(ip string, port int) {
+	td := base.NewTransData()
+	td.AddInt32(SystemCmd)
+	td.AddInt32(IntroductionService)
+	td.AddString("GOS")
+	td.AddInt32(37)
+	introduction := td.FormData()
+	td.Clear()
+	td.AddInt32(SystemCmd)
+	td.AddInt32(ServerHeartbeatService)
+	heartbeat := td.FormData()
 	asker, err := gos.Bind(0, ip, port, define.Tcp0, base.OnEventsFunc{
 		define.OnConnected: func(any) {
 			fmt.Printf("(s *Service) RunAsk | onConnect to %s:%d\n", ip, port)
 		},
-	})
+	}, &introduction, &heartbeat)
 
 	if err != nil {
-		// fmt.Printf("Error: %+v\n", err)
 		logger.Error("BindError: %+v", err)
 		return
 	}
@@ -112,74 +115,32 @@ func (s *Service) RunAsk(ip string, port int) {
 	mgr := NewMgr()
 	tcp0Asker := asker.(*ask.Tcp0Asker)
 	tcp0Asker.SetWorkHandler(mgr.Handler)
-	// fmt.Printf("(s *Service) RunAsk | 伺服器初始化完成\n")
 	logger.Debug("伺服器初始化完成")
 
 	err = gos.StartConnect()
 
 	if err != nil {
-		// fmt.Printf("Error: %+v\n", err)
 		logger.Error("ConnectError: %+v", err)
 		return
 	}
 
-	// fmt.Printf("(s *Service) RunAsk | 開始連線\n")
 	logger.Debug("開始連線")
+	now := time.Now()
+	timer := now
+	gos.SetFrameTime(200 * time.Millisecond)
+	frameTime := gos.GetFrameTime()
+	var data []byte
 
-	var start time.Time
-	var during, frameTime time.Duration = 0, 200 * time.Millisecond
-
-	// TODO: 暫緩一般數據傳送，先實作心跳包機制
-	go func() {
-		time.Sleep(2 * time.Second)
-		// fmt.Printf("(s *Service) RunAsk | After 2 Second.\n")
-		logger.Info("After 2 Second.")
-
-		var data []byte
-		temp := []byte{}
-
-		for i := 50; i < 55; i++ {
-			temp = append(temp, byte(i))
-			// fmt.Printf("(s *Service) RunAsk | i: %d, temp: %+v\n", i, temp)
-			mgr.Body.AddByte(1)
-			mgr.Body.AddUInt16(0)
-			mgr.Body.AddByteArray(temp)
-			data = mgr.Body.FormData()
-			// fmt.Printf("(s *Service) RunAsk | i: %d, length: %d, data: %+v\n", i, len(data), data)
-			gos.SendToServer(0, &data, int32(len(data)))
-			time.Sleep(1 * time.Second)
+	gos.Run(func() {
+		now = now.Add(frameTime)
+		if now.After(timer) {
 			mgr.Body.Clear()
-		}
-
-		time.Sleep(5 * time.Second)
-		// fmt.Printf("(s *Service) RunAsk | After 5 Second.\n")
-		logger.Info("After 5 Second.")
-
-		for i := 55; i < 60; i++ {
-			temp = append(temp, byte(i))
-			// fmt.Printf("(s *Service) RunAsk | i: %d, temp: %+v\n", i, temp)
-			mgr.Body.AddByte(1)
-			mgr.Body.AddUInt16(0)
-			mgr.Body.AddByteArray(temp)
+			mgr.Body.AddInt32(NormalCmd)
+			mgr.Body.AddInt32(TimerRequestService)
+			mgr.Body.AddString(fmt.Sprintf("Now: %+v", now))
 			data = mgr.Body.FormData()
-			// fmt.Printf("(s *Service) RunAsk | i: %d, length: %d, data: %+v\n", i, len(data), data)
 			gos.SendToServer(0, &data, int32(len(data)))
-			time.Sleep(1 * time.Second)
-			mgr.Body.Clear()
+			timer = now.Add(3 * time.Second)
 		}
-	}()
-
-	// fmt.Printf("(s *Service) RunAsk | 開始 gos.RunAsk()\n")
-	logger.Info("開始 gos.RunAsk()")
-
-	for {
-		start = time.Now()
-
-		gos.RunAsk()
-
-		during = time.Since(start)
-		if during < frameTime {
-			time.Sleep(frameTime - during)
-		}
-	}
+	})
 }

@@ -59,16 +59,6 @@ func (w *Work) Add(work *Work) {
 	curr.Next = work
 }
 
-func (w *Work) getLength() int32 {
-	curr := w
-	count := 1
-	for curr.Next != nil {
-		count += 1
-		curr = curr.Next
-	}
-	return int32(count)
-}
-
 func (w *Work) Read() []byte {
 	return w.Data
 }

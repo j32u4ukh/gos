@@ -24,10 +24,10 @@ type IAsker interface {
 	Write(*[]byte, int32) error
 }
 
-func NewAsker(socketType define.SocketType, site int32, laddr *net.TCPAddr, nWork int32, onEvents base.OnEventsFunc) (IAsker, error) {
+func NewAsker(socketType define.SocketType, site int32, laddr *net.TCPAddr, nWork int32, onEvents base.OnEventsFunc, introduction *[]byte, heartbeat *[]byte) (IAsker, error) {
 	switch socketType {
 	case define.Tcp0:
-		return NewTcp0Asker(site, laddr, 1, nWork, onEvents)
+		return NewTcp0Asker(site, laddr, 1, nWork, onEvents, introduction, heartbeat)
 	// Chrome 一次最多可同時送出 6 個請求, HttpAsker nConnect = 6
 	case define.Http:
 		return NewHttpAsker(site, laddr, 6, nWork)
@@ -39,12 +39,16 @@ func NewAsker(socketType define.SocketType, site int32, laddr *net.TCPAddr, nWor
 type Asker struct {
 	// 連線位置
 	addr *net.TCPAddr
-	// 是否需要心跳
-	needHeartbeat bool
 	// 心跳包數據
-	heartData []byte
+	heartbeatData []byte
+	// 心跳包數據長度
+	heartbeatLength int32
 	// 心跳事件時間戳
 	heartbeatTime time.Time
+	// 自我介紹數據
+	introductionData  []byte
+	heartbeatLifetime time.Duration
+	readLifetime      time.Duration
 	// ==================================================
 	// 連線列表
 	// ==================================================
@@ -86,31 +90,40 @@ type Asker struct {
 	workHandler func(*base.Work)
 	readFunc    func()
 	writeFunc   func(int32, *[]byte, int32) error
-	// 當成功連線時，觸發此函式
+	// 管理各種連線事件觸發函式(例如: 連線、斷線、、、)
 	onEvents base.OnEventsFunc
 }
 
-func newAsker(site int32, laddr *net.TCPAddr, nConnect int32, nWork int32, needHeartbeat bool) (*Asker, error) {
+func newAsker(site int32, laddr *net.TCPAddr, nConnect int32, nWork int32, introduction *[]byte, heartbeat *[]byte) (*Asker, error) {
 	a := &Asker{
-		addr:          laddr,
-		needHeartbeat: needHeartbeat,
-		order:         binary.LittleEndian,
-		index:         site,
-		maxConn:       nConnect,
-		conns:         base.NewConn(0, define.BUFFER_SIZE),
-		readBuffer:    make([]byte, 64*1024),
-		connBuffer:    make(chan base.ConnBuffer, nWork),
-		works:         base.NewWork(0),
-		onEvents:      nil,
+		addr:              laddr,
+		heartbeatData:     nil,
+		introductionData:  nil,
+		heartbeatLifetime: 0,
+		readLifetime:      3000 * time.Millisecond,
+		order:             binary.LittleEndian,
+		index:             site,
+		maxConn:           nConnect,
+		conns:             base.NewConn(0, define.BUFFER_SIZE),
+		readBuffer:        make([]byte, 64*1024),
+		connBuffer:        make(chan base.ConnBuffer, nWork),
+		works:             base.NewWork(0),
+		onEvents:          nil,
 	}
 
-	// TODO: 個別伺服器應自定義自己的心跳包數據
-	if a.needHeartbeat {
-		// 重複使用心跳包數據
-		a.works.Body.AddByte(0)
-		a.works.Body.AddUInt16(0)
-		a.heartData = append(a.heartData, a.works.Body.FormData()...)
-		a.works.Body.Clear()
+	if heartbeat != nil {
+		a.heartbeatLifetime = 1000 * time.Millisecond
+		a.heartbeatLength = int32(len((*heartbeat)))
+		a.heartbeatData = make([]byte, a.heartbeatLength)
+		copy(a.heartbeatData, *heartbeat)
+		utils.Debug("a.heartbeatData: %+v\n", a.heartbeatData)
+	}
+
+	if introduction != nil {
+		length := len((*introduction))
+		a.introductionData = make([]byte, length)
+		copy(a.introductionData, *introduction)
+		utils.Debug("a.introductionData: %+v\n", a.introductionData)
 	}
 
 	var i int32
@@ -144,11 +157,9 @@ func (a *Asker) Connect(index int32) error {
 	// 註冊連線通道
 	netConn, err := net.DialTCP("tcp", nil, a.addr)
 	if err != nil {
-		// fmt.Printf("(a *Asker) Connect | Failed to connect, err: %+v\n", err)
 		utils.Error("Failed to connect, err: %+v", err)
 		return errors.Wrapf(err, "Failed to connect to %s:%d.", a.addr.IP, a.addr.Port)
 	}
-	// fmt.Printf("(a *Asker) Connect | Conn(%d) connect to %+v\n", index, a.addr)
 	utils.Info("Conn(%d) connect to %+v", index, a.addr)
 
 	// 註冊連線通道
@@ -159,12 +170,12 @@ func (a *Asker) Connect(index int32) error {
 // TODO: 區分 1. 使用心跳機制維持連線的版本() 2.
 // 根據 RFC 2616 (page 46) 的標準定義，單個客戶端不允許開啟 2 個以上的長連接，這個標準的目的是減少 HTTP 響應的時候，減少網絡堵塞。
 func (a *Asker) Handler() {
-	// 檢查是否有新的連線
-	a.checkConnection()
-
 	a.preConn = nil
 	a.currConn = a.conns
 	a.currWork = a.getEmptyWork()
+
+	// 檢查是否有新的連線
+	a.checkConnection()
 
 	// 依序檢查有被使用的連線物件(State 不是 Unused)
 	// 未使用 Unused, 嘗試連線中 Connecting, 連線中 Connected, 超時斷線 Timeout, 斷線 Disconnected, 重新連線中 Reconnect
@@ -198,30 +209,33 @@ func (a *Asker) Handler() {
 
 // 檢查是否有新的連線
 func (a *Asker) checkConnection() {
-	// fmt.Printf("(a *Asker) checkConnection\n")
 	var connBuffer base.ConnBuffer
 	for {
 		select {
 		case connBuffer = <-a.connBuffer:
-			// fmt.Printf("(a *Asker) checkConnection | connBuffer: %+v\n", connBuffer)
-			utils.Debug("connBuffer: %+v", connBuffer)
-
 			// 檢查是否有空閒的連線物件可以使用
 			a.emptyConn = a.getConn(connBuffer.Index)
 			if a.emptyConn == nil {
-				// fmt.Printf("(a *Asker) checkConnection | Conn is nil\n")
 				utils.Error("Conn is nil")
 				return
 			}
-			// fmt.Printf("(a *Asker) checkConnection | Conn(%d)\n", a.emptyConn.GetId())
 			utils.Info("Conn(%d)", a.emptyConn.GetId())
 
-			a.heartbeatTime = time.Now().Add(3000 * time.Millisecond)
+			a.heartbeatTime = time.Now().Add(a.heartbeatLifetime)
 			a.emptyConn.NetConn = connBuffer.Conn
 			a.emptyConn.State = define.Connected
-			a.emptyConn.NetConn.SetReadDeadline(a.heartbeatTime.Add(1000 * time.Millisecond))
-			utils.Debug("更新斷線時間 heartbeatTime: %+v", a.heartbeatTime)
+			a.emptyConn.NetConn.SetReadDeadline(a.heartbeatTime.Add(a.readLifetime))
 			go a.emptyConn.Handler()
+
+			// 檢查是否有自我介紹用數據
+			if a.introductionData != nil {
+				a.currConn.SetWriteBuffer(&a.introductionData, int32(len(a.introductionData)))
+				err := a.currConn.Write()
+				if err != nil {
+					utils.Error("Failed to introduce, err: %+v", err)
+					return
+				}
+			}
 
 			// 連線成功之 callback
 			a.callEvent(define.OnConnected, nil)
@@ -246,14 +260,11 @@ func (a *Asker) connectedHandler() {
 			switch eType := packet.Error.(type) {
 			case net.Error:
 				if eType.Timeout() {
-					// fmt.Printf("(a *Asker) connectedHandler | Conn %d 發生 timeout error.\n", a.currConn.GetId())
 					utils.Error("Conn %d 發生 timeout error.", a.currConn.GetId())
 				} else {
-					// fmt.Printf("(a *Asker) connectedHandler | Conn %d 發生 net.Error.\n", a.currConn.GetId())
 					utils.Error("Conn %d 發生 net.Error.", a.currConn.GetId())
 				}
 			default:
-				// fmt.Printf("(a *Asker) connectedHandler | Conn %d 讀取 socket 時發生錯誤\nError: %+v\n", a.currConn.GetId(), packet.Error)
 				utils.Error("Conn %d 讀取 socket 時發生錯誤, Error(%v): %+v", a.currConn.GetId(), eType, packet.Error)
 			}
 
@@ -276,11 +287,10 @@ func (a *Asker) connectedHandler() {
 		a.currConn.SetReadBuffer(packet)
 
 		// 延後下次發送心跳包的時間
-		a.heartbeatTime = time.Now().Add(3000 * time.Millisecond)
-		utils.Debug("更新斷線時間 heartbeatTime: %+v", a.heartbeatTime)
+		a.heartbeatTime = time.Now().Add(a.heartbeatLifetime)
 
 		// 更新連線維持時間
-		err = a.currConn.NetConn.SetReadDeadline(a.heartbeatTime.Add(1000 * time.Millisecond))
+		err = a.currConn.NetConn.SetReadDeadline(a.heartbeatTime.Add(a.readLifetime))
 
 		if err != nil {
 			// 若需要維持連線
@@ -320,19 +330,23 @@ func (a *Asker) connectedHandler() {
 			return
 		}
 
-		if a.needHeartbeat {
-			// 若當前時間已晚於發送心跳的時間戳
-			if time.Now().After(a.heartbeatTime) {
-				// 發送心跳包
-				// fmt.Printf("(a *Asker) connectedHandler | Heartbeat: %v\n", a.heartbeatTime)
-				utils.Debug("Heartbeat: %v", a.heartbeatTime)
+		// 檢查是否有心跳包
+		if (a.heartbeatData != nil) && (time.Now().After(a.heartbeatTime)) {
+			utils.Debug("Heartbeat: %v", a.heartbeatTime)
+			a.currConn.SetWriteBuffer(&a.heartbeatData, a.heartbeatLength)
+			err := a.currConn.Write()
+			if err != nil {
+				utils.Error("Failed to send heartbeat, err: %+v", err)
+				return
+			}
 
-				// TODO: 每隔數分鐘再印一次資訊即可
-				a.currWork.Index = 0
-				a.currWork.RequestTime = time.Now().UTC()
-				a.currWork.Body.AddRawData(a.heartData)
-				a.currWork.Send()
-				a.heartbeatTime = time.Now().Add(1000 * time.Millisecond)
+			// 更新連線維持時間
+			a.heartbeatTime = time.Now().Add(a.heartbeatLifetime)
+			err = a.currConn.NetConn.SetReadDeadline(a.heartbeatTime.Add(a.readLifetime))
+			if err != nil {
+				utils.Error("Failed to set read deadline, err: %v", err)
+			} else {
+				utils.Debug("更新時間 heartbeatTime: %+v, ReadDeadline %+v", a.heartbeatTime, a.heartbeatTime.Add(a.readLifetime))
 			}
 		}
 
@@ -344,8 +358,7 @@ func (a *Asker) connectedHandler() {
 
 // 超時連線處理
 func (a *Asker) timeoutHandler() {
-	// fmt.Printf("(a *Asker) timeoutHandler | Conn %d\n", a.currConn.GetId())
-	utils.Debug(" Conn %d", a.currConn.GetId())
+	utils.Debug("Conn %d", a.currConn.GetId())
 	if a.currConn.Mode == base.KEEPALIVE {
 		a.currConn.State = define.Reconnect
 	} else {
@@ -359,8 +372,7 @@ func (a *Asker) timeoutHandler() {
 
 // 重新連線處理
 func (a *Asker) reconnectHandler() {
-	// fmt.Printf("(a *Asker) reconnectHandler | Conn %d\n", a.currConn.GetId())
-	utils.Info(" Conn %d", a.currConn.GetId())
+	utils.Info("Conn %d", a.currConn.GetId())
 
 	// 重新連線準備
 	a.currConn.Reconnect()
@@ -380,7 +392,6 @@ func (a *Asker) getEmptyWork() *base.Work {
 		if work.State == -1 {
 			return work
 		}
-
 		work = work.Next
 	}
 	return nil
@@ -392,8 +403,6 @@ func (a *Asker) dealWork() {
 	var finished, yet *base.Work = nil, nil
 
 	for a.currWork.State != -1 {
-		// fmt.Printf("(a *Asker) dealWork | work: %+v\n", a.currWork)
-
 		switch a.currWork.State {
 		// 工作已完成
 		case 0:
@@ -428,11 +437,9 @@ func (a *Asker) dealWork() {
 				finished = a.relinkWork(finished, true)
 			default:
 				// 將工作接入待處理的區塊，下次回圈再行處理
-				// fmt.Printf("(a *Asker) dealWork | yet work(%d)\n", a.currWork.GetId())
 				yet = a.relinkWork(yet, false)
 			}
 		default:
-			// fmt.Printf("(a *Asker) dealWork | 連線 %d 發生異常工作 state(%d)，直接將工作結束\n", a.currWork.Index, a.currWork.State)
 			utils.Error("連線 %d 發生異常工作 state(%d)，直接將工作結束", a.currWork.Index, a.currWork.State)
 			// 將完成的工作加入 finished，並更新 work 所指向的工作結構
 			finished = a.relinkWork(finished, true)
@@ -446,15 +453,12 @@ func (a *Asker) dealWork() {
 		if yet != nil {
 			yet.Add(finished)
 			a.works = yet
-			// fmt.Printf("(a *Asker) dealWork | a.works = yet -> finished -> a.works\n")
 		} else {
 			a.works = finished
-			// fmt.Printf("(a *Asker) dealWork | a.works = finished -> a.works\n")
 		}
 	} else if yet != nil {
 		yet.Add(a.works)
 		a.works = yet
-		// fmt.Printf("(a *Asker) dealWork | a.works = yet -> a.works\n")
 	}
 }
 
@@ -485,7 +489,6 @@ func (a *Asker) relinkWork(destination *base.Work, done bool) *base.Work {
 // 取得連線物件編號為 id 的連線物件
 // id 若為 -1，尋找當前空閒的連線物件
 func (a *Asker) getConn(id int32) *base.Conn {
-	// fmt.Printf("(a *Asker) getConn | id: %d\n", id)
 	c := a.conns
 	if id == -1 {
 		for c != nil {
@@ -496,7 +499,6 @@ func (a *Asker) getConn(id int32) *base.Conn {
 		}
 	} else {
 		for c != nil {
-			// fmt.Printf("(a *Asker) getConn | GetId: %d\n", c.GetId())
 			if c.GetId() == id {
 				return c
 			}
@@ -513,7 +515,6 @@ func (a *Asker) disconnectHandler() {
 
 	for a.currConn != nil {
 		if a.currConn.State == define.Disconnect {
-			// fmt.Printf("(a *Asker) disconnectHandler | cid: %d\n", a.currConn.GetId())
 			utils.Debug("cid: %d", a.currConn.GetId())
 
 			if a.preConn == nil {

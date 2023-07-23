@@ -138,40 +138,32 @@ func RunAns(port int) {
 }
 
 func RunAsk(ip string, port int) {
-	// demoNativeHttpRequest(ip, port)
-	asker, err := gos.Bind(0, ip, port, define.Http, nil)
+	asker, err := gos.Bind(0, ip, port, define.Http, nil, nil, nil)
 
 	if err != nil {
-		// fmt.Printf("BindError: %+v\n", err)
 		logger.Error("BindError: %+v", err)
 		return
 	}
 
 	http := asker.(*ask.HttpAsker)
-	// fmt.Printf("http: %+v\n", http)
 	logger.Debug("http: %+v", http)
 
 	req, err := ghttp.NewRequest(ghttp.MethodGet, "127.0.0.1:1023/abc/get", nil)
 
 	if err != nil {
-		// fmt.Printf("NewRequestError: %+v\n", err)
 		logger.Error("NewRequestError: %+v", err)
 		return
 	}
 
-	// fmt.Printf("req: %+v\n", req)
 	logger.Debug("req: %+v", req)
 	var site int32
 	site, err = gos.SendRequest(req, func(c *ghttp.Context) {
-		// fmt.Printf("I'm Context, Query: %s\n", c.Query)
 		logger.Info("I'm Context, Query: %s", c.Query)
 	})
 
-	// fmt.Printf("site: %d\n", site)
 	logger.Debug("site: %d", site)
 
 	if err != nil {
-		// fmt.Printf("SendRequestError: %+v\n", err)
 		logger.Error("SendRequestError: %+v", err)
 		return
 	}
