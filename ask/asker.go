@@ -46,7 +46,9 @@ type Asker struct {
 	// 心跳事件時間戳
 	heartbeatTime time.Time
 	// 自我介紹數據
-	introductionData []byte
+	introductionData  []byte
+	heartbeatLifetime time.Duration
+	readLifetime      time.Duration
 	// ==================================================
 	// 連線列表
 	// ==================================================
@@ -94,20 +96,23 @@ type Asker struct {
 
 func newAsker(site int32, laddr *net.TCPAddr, nConnect int32, nWork int32, introduction *[]byte, heartbeat *[]byte) (*Asker, error) {
 	a := &Asker{
-		addr:             laddr,
-		heartbeatData:    nil,
-		introductionData: nil,
-		order:            binary.LittleEndian,
-		index:            site,
-		maxConn:          nConnect,
-		conns:            base.NewConn(0, define.BUFFER_SIZE),
-		readBuffer:       make([]byte, 64*1024),
-		connBuffer:       make(chan base.ConnBuffer, nWork),
-		works:            base.NewWork(0),
-		onEvents:         nil,
+		addr:              laddr,
+		heartbeatData:     nil,
+		introductionData:  nil,
+		heartbeatLifetime: 0,
+		readLifetime:      3000 * time.Millisecond,
+		order:             binary.LittleEndian,
+		index:             site,
+		maxConn:           nConnect,
+		conns:             base.NewConn(0, define.BUFFER_SIZE),
+		readBuffer:        make([]byte, 64*1024),
+		connBuffer:        make(chan base.ConnBuffer, nWork),
+		works:             base.NewWork(0),
+		onEvents:          nil,
 	}
 
 	if heartbeat != nil {
+		a.heartbeatLifetime = 3000 * time.Millisecond
 		a.heartbeatLength = int32(len((*heartbeat)))
 		a.heartbeatData = make([]byte, a.heartbeatLength)
 		copy(a.heartbeatData, *heartbeat)
@@ -216,10 +221,10 @@ func (a *Asker) checkConnection() {
 			}
 			utils.Info("Conn(%d)", a.emptyConn.GetId())
 
-			a.heartbeatTime = time.Now().Add(3000 * time.Millisecond)
+			a.heartbeatTime = time.Now().Add(a.heartbeatLifetime)
 			a.emptyConn.NetConn = connBuffer.Conn
 			a.emptyConn.State = define.Connected
-			a.emptyConn.NetConn.SetReadDeadline(a.heartbeatTime.Add(3000 * time.Millisecond))
+			a.emptyConn.NetConn.SetReadDeadline(a.heartbeatTime.Add(a.readLifetime))
 			go a.emptyConn.Handler()
 
 			// 檢查是否有自我介紹用數據
@@ -282,10 +287,10 @@ func (a *Asker) connectedHandler() {
 		a.currConn.SetReadBuffer(packet)
 
 		// 延後下次發送心跳包的時間
-		a.heartbeatTime = time.Now().Add(3000 * time.Millisecond)
+		a.heartbeatTime = time.Now().Add(a.heartbeatLifetime)
 
 		// 更新連線維持時間
-		err = a.currConn.NetConn.SetReadDeadline(a.heartbeatTime.Add(3000 * time.Millisecond))
+		err = a.currConn.NetConn.SetReadDeadline(a.heartbeatTime.Add(a.readLifetime))
 
 		if err != nil {
 			// 若需要維持連線
@@ -336,12 +341,12 @@ func (a *Asker) connectedHandler() {
 			}
 
 			// 更新連線維持時間
-			a.heartbeatTime = time.Now().Add(1000 * time.Millisecond)
-			err = a.currConn.NetConn.SetReadDeadline(a.heartbeatTime.Add(3000 * time.Millisecond))
+			a.heartbeatTime = time.Now().Add(a.heartbeatLifetime)
+			err = a.currConn.NetConn.SetReadDeadline(a.heartbeatTime.Add(a.readLifetime))
 			if err != nil {
 				utils.Error("Failed to set read deadline, err: %v", err)
 			} else {
-				utils.Debug("更新時間 heartbeatTime: %+v, ReadDeadline %+v", a.heartbeatTime, a.heartbeatTime.Add(3000*time.Millisecond))
+				utils.Debug("更新時間 heartbeatTime: %+v, ReadDeadline %+v", a.heartbeatTime, a.heartbeatTime.Add(a.readLifetime))
 			}
 		}
 
