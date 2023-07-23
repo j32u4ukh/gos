@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/j32u4ukh/glog/v2"
 	"github.com/j32u4ukh/gos/ans"
@@ -77,6 +78,37 @@ func StartConnect() error {
 	// 啟動後，最大的 site 值 + 1，作為動態建立 Asker 時的 site 值
 	server.nextServerId++
 	return nil
+}
+
+func Run(run func()) {
+	var anser ans.IAnswer
+	var asker ask.IAsker
+	var start time.Time
+	var during time.Duration
+
+	for {
+		start = time.Now()
+
+		// 處理各個 anser 讀取到的數據
+		for _, anser = range server.anserMap {
+			anser.Handler()
+		}
+
+		// 處理各個 asker 讀取到的數據
+		for _, asker = range server.askerMap {
+			asker.Handler()
+		}
+
+		// 外部定義的處理函式
+		if run != nil {
+			run()
+		}
+
+		during = time.Since(start)
+		if during < server.frameTime {
+			time.Sleep(server.frameTime - during)
+		}
+	}
 }
 
 // 開始讀取數據與處理
@@ -185,6 +217,10 @@ func Disconnect(port int32, cid int32) error {
 		return errors.Wrapf(err, "Failed to disconnect connection: %d-%d", port, cid)
 	}
 	return nil
+}
+
+func SetFrameTime(frameTime time.Duration) {
+	server.frameTime = frameTime
 }
 
 func SetLogger(lg *glog.Logger) {

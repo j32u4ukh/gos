@@ -3,6 +3,7 @@ package gos
 import (
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/j32u4ukh/gos/ans"
 	"github.com/j32u4ukh/gos/ask"
@@ -20,6 +21,8 @@ type goserver struct {
 	askerMap map[int32]ask.IAsker
 	// 啟動後，最大的 id 值 + 1，作為動態建立 Asker 時的 id 值
 	nextServerId int32
+	// 每幀時長
+	frameTime time.Duration
 }
 
 func newGoserver() *goserver {
@@ -27,6 +30,7 @@ func newGoserver() *goserver {
 		anserMap:     map[int32]ans.IAnswer{},
 		askerMap:     map[int32]ask.IAsker{},
 		nextServerId: 0,
+		frameTime:    20 * time.Millisecond,
 	}
 	return g
 }
