@@ -115,7 +115,6 @@ func (a *HttpAnser) read() bool {
 					a.httpConn.ParseQuery()
 				}
 				a.httpConn.State = 1
-				// fmt.Printf("(a *HttpAnser) Read | State: 0 -> 1\n")
 				utils.Debug("State: 0 -> 1")
 			}
 		}

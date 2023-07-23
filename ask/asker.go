@@ -220,7 +220,6 @@ func (a *Asker) checkConnection() {
 				return
 			}
 			utils.Info("Conn(%d)", a.emptyConn.GetId())
-
 			a.heartbeatTime = time.Now().Add(a.heartbeatLifetime)
 			a.emptyConn.NetConn = connBuffer.Conn
 			a.emptyConn.State = define.Connected
@@ -332,7 +331,6 @@ func (a *Asker) connectedHandler() {
 
 		// 檢查是否有心跳包
 		if (a.heartbeatData != nil) && (time.Now().After(a.heartbeatTime)) {
-			utils.Debug("Heartbeat: %v", a.heartbeatTime)
 			a.currConn.SetWriteBuffer(&a.heartbeatData, a.heartbeatLength)
 			err := a.currConn.Write()
 			if err != nil {
@@ -345,8 +343,6 @@ func (a *Asker) connectedHandler() {
 			err = a.currConn.NetConn.SetReadDeadline(a.heartbeatTime.Add(a.readLifetime))
 			if err != nil {
 				utils.Error("Failed to set read deadline, err: %v", err)
-			} else {
-				utils.Debug("更新時間 heartbeatTime: %+v, ReadDeadline %+v", a.heartbeatTime, a.heartbeatTime.Add(a.readLifetime))
 			}
 		}
 
@@ -358,7 +354,7 @@ func (a *Asker) connectedHandler() {
 
 // 超時連線處理
 func (a *Asker) timeoutHandler() {
-	utils.Debug("Conn %d", a.currConn.GetId())
+	utils.Info("Conn %d", a.currConn.GetId())
 	if a.currConn.Mode == base.KEEPALIVE {
 		a.currConn.State = define.Reconnect
 	} else {
@@ -515,7 +511,7 @@ func (a *Asker) disconnectHandler() {
 
 	for a.currConn != nil {
 		if a.currConn.State == define.Disconnect {
-			utils.Debug("cid: %d", a.currConn.GetId())
+			utils.Info("cid: %d", a.currConn.GetId())
 
 			if a.preConn == nil {
 				// 更新連線物件起始位置
