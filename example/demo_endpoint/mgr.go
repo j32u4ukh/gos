@@ -132,8 +132,39 @@ func (m *Mgr) Handler(router *ans.Router) {
 		}
 		dt := time.Now().UnixMilli()
 		c.Response.Json(200, ghttp.H{
-			"index": 7,
+			"index": 9,
 			"msg":   fmt.Sprintf("GET | /abc/<name>/get/<user_id int> | name: %s, id: %d", name, id),
+			"dt":    dt,
+		})
+		m.HttpAnswer.Send(c)
+	})
+
+	rName.GET("/uint/<value uint>", func(c *ghttp.Context) {
+		_, name := c.GetParam("name")
+		value := c.GetValue("value")
+		var id uint64 = 0
+		if value != nil {
+			id = value.(uint64)
+		}
+		dt := time.Now().UnixMilli()
+		c.Response.Json(200, ghttp.H{
+			"index": 10,
+			"msg":   fmt.Sprintf("GET | /abc/<name>/uint/<value uint> | name: %s, id(#id = %d): %d", name, len(fmt.Sprintf("%d", id)), id),
+			"dt":    dt,
+		})
+		m.HttpAnswer.Send(c)
+	})
+	rName.GET("/uint/<value int>", func(c *ghttp.Context) {
+		name := c.GetValue("name").(string)
+		value := c.GetValue("value")
+		var id int64 = 0
+		if value != nil {
+			id = value.(int64)
+		}
+		dt := time.Now().UnixMilli()
+		c.Response.Json(200, ghttp.H{
+			"index": 11,
+			"msg":   fmt.Sprintf("GET | /abc/<name>/uint/<value int> | name: %s, id(#id = %d): %d", name, len(fmt.Sprintf("%d", id)), id),
 			"dt":    dt,
 		})
 		m.HttpAnswer.Send(c)

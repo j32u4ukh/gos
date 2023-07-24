@@ -240,6 +240,7 @@ func (a *HttpAnser) SetWorkHandler() {
 		var endpoints []*EndPoint
 		var key string
 		var value any
+		var unmatched bool = true
 
 		if handler, ok := a.Handlers[a.httpConn.Method]; ok {
 			var nSplit int32
@@ -256,6 +257,7 @@ func (a *HttpAnser) SetWorkHandler() {
 				for _, endpoint := range endpoints {
 					// handlerFunc(a.httpConn)
 					if endpoint.Macth(splits) {
+						unmatched = false
 						for key, value = range endpoint.params {
 							if _, ok = a.httpConn.Params[key]; !ok {
 								a.httpConn.Params[key] = fmt.Sprintf("%v", value)
@@ -270,6 +272,9 @@ func (a *HttpAnser) SetWorkHandler() {
 						break
 					}
 				}
+				if unmatched {
+					a.errorRequestHandler(w, a.httpConn, "Unmatched endpoint.")
+				}
 			} else {
 				a.errorRequestHandler(w, a.httpConn, "Unregistered http query.")
 			}
@@ -280,7 +285,6 @@ func (a *HttpAnser) SetWorkHandler() {
 }
 
 func (a *HttpAnser) errorRequestHandler(w *base.Work, c *ghttp.Context, msg string) {
-	// fmt.Printf("(s *Server) errorRequestHandler | method: %s, query: %s\n", c.Method, c.Query)
 	utils.Debug("method: %s, query: %s", c.Method, c.Query)
 
 	c.Json(400, ghttp.H{
@@ -520,7 +524,13 @@ func (n *node) match(route string) bool {
 	if n.isParam {
 		switch n.routeType {
 		case "int":
-			i, err := strconv.Atoi(route)
+			i, err := strconv.ParseInt(route, 10, 64)
+			if err != nil {
+				return false
+			}
+			n.value = i
+		case "uint":
+			i, err := strconv.ParseUint(route, 10, 64)
 			if err != nil {
 				return false
 			}

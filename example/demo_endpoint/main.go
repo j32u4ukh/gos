@@ -16,6 +16,7 @@ func init() {
 	gosLgger := glog.SetLogger(0, "gos", glog.DebugLevel)
 	gosLgger.SetOptions(glog.DefaultOption(true, true), glog.UtcOption(8))
 	gosLgger.SetFolder("log")
+	gosLgger.SetSkip(3)
 	utils.SetLogger(gosLgger)
 
 	logger = glog.SetLogger(1, "DemoEndpoint", glog.DebugLevel)
