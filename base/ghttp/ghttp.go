@@ -32,9 +32,21 @@ type MIMEHeader map[string][]string
 type H map[string]any
 
 const (
-	MethodGet  = "GET"
+	// 和 GET 一樣，只是 HEAD 只會讀取 HTTP Header 的資料。
+	MethodHead = "HEAD"
+	// 讀取資料
+	MethodGet = "GET"
+	// 新增一項資料。（如果存在會新增一個新的）
 	MethodPost = "POST"
-	COLON      = ":"
+	// 新增一項資料，如果存在就覆蓋過去（還是只有一筆資料）。因為是直接覆蓋，因此資料必須是完整的。
+	// 如果沒有傳，則會被更新為空值。
+	MethodPut = "PUT"
+	// 附加新的資料在已經存在的資料後面（資料必須已經存在，PATCH 會擴充/更新這項資料）。
+	// 類似 PUT 方法，但沒有資料的欄位則不會更新，可以更新結構中的一部份。
+	MethodPatch = "PATCH"
+	// 刪除資料。
+	MethodDelete = "DELETE"
+	COLON        = ":"
 )
 
 // const errorHeaders = "\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n"

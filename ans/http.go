@@ -49,8 +49,12 @@ func NewHttpAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, err
 	var err error
 	a := &HttpAnser{
 		Handlers: map[string]map[int32][]*EndPoint{
-			ghttp.MethodGet:  {},
-			ghttp.MethodPost: {},
+			ghttp.MethodHead:   {},
+			ghttp.MethodGet:    {},
+			ghttp.MethodPost:   {},
+			ghttp.MethodPut:    {},
+			ghttp.MethodPatch:  {},
+			ghttp.MethodDelete: {},
 		},
 		httpConns:   make([]*ghttp.Context, nConnect),
 		httpConn:    nil,
@@ -100,7 +104,7 @@ func (a *HttpAnser) read() bool {
 	// 根據 Conn 的 Id，存取對應的 httpConn
 	a.httpConn = a.httpConns[a.currConn.GetId()]
 
-	// 讀取 第一行
+	// 讀取 第一行(ex: GET /foo/bar HTTP/1.1)
 	if a.httpConn.State == 0 {
 		if a.currConn.CheckReadable(a.httpConn.HasLineData) {
 			a.currConn.Read(&a.readBuffer, a.httpConn.ReadLength)
@@ -385,12 +389,28 @@ func (r *Router) NewRouter(relativePath string, handlers ...HandlerFunc) *Router
 	return nr
 }
 
+func (r *Router) HEAD(path string, handlers ...HandlerFunc) {
+	r.handle(ghttp.MethodHead, path, handlers...)
+}
+
 func (r *Router) GET(path string, handlers ...HandlerFunc) {
 	r.handle(ghttp.MethodGet, path, handlers...)
 }
 
 func (r *Router) POST(path string, handlers ...HandlerFunc) {
 	r.handle(ghttp.MethodPost, path, handlers...)
+}
+
+func (r *Router) PUT(path string, handlers ...HandlerFunc) {
+	r.handle(ghttp.MethodPut, path, handlers...)
+}
+
+func (r *Router) PATCH(path string, handlers ...HandlerFunc) {
+	r.handle(ghttp.MethodPatch, path, handlers...)
+}
+
+func (r *Router) DELETE(path string, handlers ...HandlerFunc) {
+	r.handle(ghttp.MethodDelete, path, handlers...)
 }
 
 func (r *Router) handle(method string, path string, handlers ...HandlerFunc) {
@@ -465,7 +485,7 @@ func (ep *EndPoint) InitNodes(nodes []*node) {
 	var n *node
 	for _, n = range nodes {
 		if n.isParam {
-			if n.routeType == "int" || n.routeType == "float" {
+			if n.routeType == "int" || n.routeType == "uint" || n.routeType == "float" {
 				ep.priority += 0.5
 			}
 		} else {
