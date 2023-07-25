@@ -29,14 +29,14 @@ func (m *Mgr) Handler(router *ans.Router) {
 
 	r1 := router.NewRouter("/abc")
 
-	r1.GET("/get", func(c *ghttp.Context) {
+	r1.GET("/get/", func(c *ghttp.Context) {
 		c.Response.Json(200, ghttp.H{
 			"index": 3,
 			"msg":   "GET | /abc/get",
 		})
 		m.HttpAnswer.Send(c)
 	})
-	r1.POST("/post", func(c *ghttp.Context) {
+	r1.POST("/post/", func(c *ghttp.Context) {
 		type Protocol struct {
 			Name   string
 			Age    int

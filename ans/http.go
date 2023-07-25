@@ -245,10 +245,12 @@ func (a *HttpAnser) SetWorkHandler() {
 		if handler, ok := a.Handlers[a.httpConn.Method]; ok {
 			var nSplit int32
 			var splits []string
+
 			if a.httpConn.Query == "" || a.httpConn.Query == "/" {
 				nSplit = 1
 				splits = []string{""}
 			} else {
+				a.httpConn.Query = strings.TrimSuffix(a.httpConn.Query, "/")
 				splits = strings.Split(a.httpConn.Query, "/")
 				nSplit = int32(len(splits))
 			}
@@ -393,6 +395,7 @@ func (r *Router) POST(path string, handlers ...HandlerFunc) {
 
 func (r *Router) handle(method string, path string, handlers ...HandlerFunc) {
 	if routers, ok := r.HttpAnser.Handlers[method]; ok {
+		path = strings.TrimSuffix(path, "/")
 		// 結合前段路由的節點們，以及當前路由的節點們
 		nodes := r.combineNodes(path)
 		nNode := int32(len(nodes))
