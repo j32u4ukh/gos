@@ -46,8 +46,14 @@ const (
 	MethodPatch = "PATCH"
 	// 刪除資料。
 	MethodDelete = "DELETE"
-	COLON        = ":"
+	// 返回伺服器支援的方法。
+	MethodOptions = "OPTIONS"
+	COLON         = ":"
 )
+
+// Header of MethodOptions' response
+// HTTP/1.1 200 OK
+// Allow: GET, POST, HEAD, OPTIONS
 
 // const errorHeaders = "\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n"
 
