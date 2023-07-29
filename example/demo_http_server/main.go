@@ -99,7 +99,9 @@ func main() {
 	} else if service_type == "nr2" {
 		DemoNativeHttpRequest2(port)
 	} else if service_type == "ns" {
-		DemoNativeHttpServer("192.168.0.198", port)
+		DemoNativeHttpServer("127.0.0.1", port)
+	} else {
+		DemoMethodHead(port)
 	}
 
 	// fmt.Println("[Example] Run | End of gos example.")
@@ -186,35 +188,30 @@ func RunAsk(ip string, port int) {
 }
 
 func DemoNativeHttpRequest(port int) {
-	// client := &http.Client{}
+	client := &http.Client{}
 
-	// //這邊可以任意變換 http method  GET、POST、PUT、DELETE
-	// req, err := http.NewRequest("GET", fmt.Sprintf("%s:%d/abc/get", ip, port), nil)
-	// if err != nil {
-	// 	fmt.Println(err)
-	// 	return
-	// }
-	// // req.Header.Add("If-None-Match", `W/"wyzzy"`)
-	// res, err := client.Do(req)
-	// requestURL := fmt.Sprintf("http://localhost:%d/abc/get", port)
-
-	requestURL := fmt.Sprintf("http://127.0.0.1:%d/abc/get", port)
-
-	res, err := http.Get(requestURL)
+	//這邊可以任意變換 http method  GET、POST、PUT、DELETE, OPTIONS
+	req, err := http.NewRequest("OPTIONS", fmt.Sprintf("http://127.0.0.1:%d/abc/get", port), nil)
 	if err != nil {
-		// fmt.Printf("err: %+v\n", err)
+		fmt.Println(err)
+		return
+	}
+	// req.Header.Add("If-None-Match", `W/"wyzzy"`)
+	res, err := client.Do(req)
+
+	// requestURL := fmt.Sprintf("http://127.0.0.1:%d/abc/get", port)
+	// res, err := http.Get(requestURL)
+	if err != nil {
 		logger.Error("err: %+v", err)
 		return
 	}
 	defer res.Body.Close()
 	sitemap, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		// fmt.Printf("err: %+v\n", err)
 		logger.Error("err: %+v", err)
 		return
 	}
 
-	// fmt.Printf("%s\n", sitemap)
 	logger.Info("sitemap: %s", sitemap)
 }
 
@@ -344,4 +341,29 @@ func handleRequest(conn net.Conn) {
 	conn.Write(r)
 	// Close the connection when you're done with it.
 	conn.Close()
+}
+
+func DemoMethodHead(port int) {
+	// 创建一个路由器
+	router := http.NewServeMux()
+
+	// 定义 OPTIONS 请求的处理函数
+	router.HandleFunc("/", handleOptions)
+
+	// 启动服务器
+	fmt.Println("服务器正在监听 :8080 端口...")
+	err := http.ListenAndServe(fmt.Sprintf(":%d", port), router)
+	if err != nil {
+		fmt.Println("服务器启动失败:", err)
+	}
+}
+
+func handleOptions(w http.ResponseWriter, r *http.Request) {
+	// 设置 CORS 相关的响应头，允许所有来源进行访问
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "OPTIONS, HEAD, GET, POST, PUT, PATCH")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+	// OPTIONS 请求不需要返回具体内容，只需要返回响应头
+	w.WriteHeader(http.StatusOK)
 }

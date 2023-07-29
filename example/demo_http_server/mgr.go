@@ -65,9 +65,10 @@ func (m *Mgr) AbcHander(router *ans.Router) {
 
 func (m *Mgr) MethodHander(router *ans.Router) {
 	router.HEAD("/", func(c *ghttp.Context) {
-		c.Response.Json(200, ghttp.H{
-			"msg": "HEAD | /",
-		})
+		c.Status(ghttp.StatusOK)
+		c.SetHeader("HeadMessage", "Message from head router.")
+		c.BodyLength = 0
+		c.SetContentLength()
 		m.HttpAnswer.Send(c)
 	})
 	router.GET("/", func(c *ghttp.Context) {

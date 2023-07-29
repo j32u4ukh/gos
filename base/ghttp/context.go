@@ -71,8 +71,8 @@ func (c *Context) SetBody(data []byte, length int32) {
 }
 
 // 協助設置標頭檔的 Content-Length
-func (c *Context) setContentLength() {
-	c.Header["Content-Length"] = []string{strconv.Itoa(len(c.Body))}
+func (c *Context) SetContentLength() {
+	c.Header["Content-Length"] = []string{strconv.Itoa(int(c.BodyLength))}
 }
 
 func (c *Context) Json(code int32, obj any) {
@@ -90,6 +90,7 @@ func (c *Context) ReadBytes() []byte {
 	if c.BodyLength > 0 {
 		result := make([]byte, c.BodyLength)
 		copy(result, c.Body[:c.BodyLength])
+		return result
 	}
 	return nil
 }
@@ -338,7 +339,7 @@ func (r Request) ToRequestData() []byte {
 
 	if _, ok := r.Header["Content-Length"]; ok {
 		buffer.WriteString("\r\n")
-		buffer.Write(r.Body)
+		buffer.Write(r.Body[:r.BodyLength])
 	}
 	result := buffer.Bytes()
 	// fmt.Printf("(r Request) FormRequest | result: %s\n", string(result))
@@ -349,7 +350,8 @@ func (r Request) ToRequestData() []byte {
 func (r *Request) Json(obj any) {
 	r.Header["Content-Type"] = jsonContentType
 	r.Body, _ = json.Marshal(obj)
-	r.setContentLength()
+	r.BodyLength = int32(len(r.Body))
+	r.SetContentLength()
 }
 
 func (r *Request) Release() {
@@ -357,6 +359,7 @@ func (r *Request) Release() {
 	r.Query = ""
 	r.Proto = ""
 	r.Body = r.Body[:0]
+	r.BodyLength = 0
 	r.ReadLength = 0
 	var key string
 	for key = range r.Params {
@@ -401,7 +404,8 @@ func (r *Response) Json(code int32, obj any) {
 
 	r.Header["Content-Type"] = jsonContentType
 	r.Body, _ = json.Marshal(obj)
-	r.setContentLength()
+	r.BodyLength = int32(len(r.Body))
+	r.SetContentLength()
 }
 
 // 解析第一行數據
@@ -447,7 +451,7 @@ func (r Response) ToResponseData() []byte {
 
 	if _, ok := r.Header["Content-Length"]; ok {
 		buffer.WriteString("\r\n")
-		buffer.Write(r.Body)
+		buffer.Write(r.Body[:r.BodyLength])
 	}
 
 	return buffer.Bytes()

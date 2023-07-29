@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/j32u4ukh/gos"
@@ -11,7 +12,10 @@ import (
 )
 
 func main() {
-	RunAns(1000)
+	// RunAns(1000)
+	ss := []string{"a", "b", "c", "d", "e", "f"}
+	result := strings.Join(ss, ", ")
+	fmt.Println(result)
 }
 
 func RunAns(port int) {
