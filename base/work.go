@@ -75,8 +75,8 @@ func (w *Work) Send() {
 // 格式化數據寫入緩存
 func (w *Work) SendTransData() {
 	data := w.Body.FormData()
-	w.Length = int32(len(data))
 	w.Body.ResetIndex()
+	w.Length = int32(len(data))
 	copy(w.Data, data)
 	w.State = 2
 }

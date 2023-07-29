@@ -42,7 +42,7 @@ func LoadTransData(data []byte) *TransData {
 	size := ceilSquare(int32(len(data)))
 	td := NewTransData()
 	td.SetCapacity(size)
-	// TODO: add data into td
+	td.AddRawData(data)
 	return td
 }
 
@@ -76,15 +76,6 @@ func (t *TransData) ResetIndex() {
 func (t *TransData) Clear() {
 	t.index = 0
 	t.length = 0
-}
-
-// 取得格式化數據
-func (t *TransData) FormData() []byte {
-	t.InsertInt32(t.length)
-	t.ResetIndex()
-	result := make([]byte, t.length)
-	copy(result, t.data[:t.length])
-	return result
 }
 
 // ==================================================
@@ -230,9 +221,17 @@ func (t *TransData) InsertInt32(v int32) {
 // ==================================================
 
 // 取出全部的數據
-func (t *TransData) GetData() []byte {
+func (t TransData) GetData() []byte {
 	result := make([]byte, t.length)
 	copy(result, t.data[:t.length])
+	return result
+}
+
+// 取得格式化數據
+func (t TransData) FormData() []byte {
+	result := make([]byte, t.length+4)
+	copy(result[:4], NumberToBytes(t.length, t.order))
+	copy(result[4:], t.data[:t.length])
 	return result
 }
 

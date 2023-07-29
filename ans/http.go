@@ -3,6 +3,7 @@ package ans
 import (
 	"fmt"
 	"net"
+	"path"
 	"sort"
 	"strconv"
 	"strings"
@@ -28,7 +29,8 @@ type HttpAnser struct {
 	*Router
 
 	// key1: Method(Get/Post); key2: node number of EndPoint; value: []*EndPoint
-	Handlers map[string]map[int32][]*EndPoint
+	Handlers         map[string]map[int32][]*EndPoint
+	EndPointHandlers []*EndPoint
 
 	// ==================================================
 	// Context
@@ -49,13 +51,18 @@ func NewHttpAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, err
 	var err error
 	a := &HttpAnser{
 		Handlers: map[string]map[int32][]*EndPoint{
-			ghttp.MethodGet:  {},
-			ghttp.MethodPost: {},
+			ghttp.MethodHead:   {},
+			ghttp.MethodGet:    {},
+			ghttp.MethodPost:   {},
+			ghttp.MethodPut:    {},
+			ghttp.MethodPatch:  {},
+			ghttp.MethodDelete: {},
 		},
-		httpConns:   make([]*ghttp.Context, nConnect),
-		httpConn:    nil,
-		contextPool: sync.Pool{New: func() any { return ghttp.NewContext(-1) }},
-		context:     nil,
+		EndPointHandlers: []*EndPoint{},
+		httpConns:        make([]*ghttp.Context, nConnect),
+		httpConn:         nil,
+		contextPool:      sync.Pool{New: func() any { return ghttp.NewContext(-1) }},
+		context:          nil,
 	}
 
 	// ===== Anser =====
@@ -100,7 +107,7 @@ func (a *HttpAnser) read() bool {
 	// 根據 Conn 的 Id，存取對應的 httpConn
 	a.httpConn = a.httpConns[a.currConn.GetId()]
 
-	// 讀取 第一行
+	// 讀取 第一行(ex: GET /foo/bar HTTP/1.1)
 	if a.httpConn.State == 0 {
 		if a.currConn.CheckReadable(a.httpConn.HasLineData) {
 			a.currConn.Read(&a.readBuffer, a.httpConn.ReadLength)
@@ -233,55 +240,74 @@ func (a *HttpAnser) write(cid int32, data *[]byte, length int32) error {
 // 由外部定義 workHandler，定義如何處理工作
 func (a *HttpAnser) SetWorkHandler() {
 	a.workHandler = func(w *base.Work) {
+		defer func() {
+			if err := recover(); err != nil {
+				utils.Error("Recover err: %+v", err)
+				a.serverErrorHandler(w, a.httpConn, "Internal Server Error")
+			}
+		}()
 		a.httpConn = a.httpConns[w.Index]
 		a.httpConn.Cid = w.Index
 		a.httpConn.Wid = w.GetId()
 		utils.Debug("Cid: %d, Wid: %d", a.httpConn.Cid, a.httpConn.Wid)
-		var endpoints []*EndPoint
 		var key string
 		var value any
 		var unmatched bool = true
+		var nSplit int32
+		var splits []string
 
-		if handler, ok := a.Handlers[a.httpConn.Method]; ok {
-			var nSplit int32
-			var splits []string
-			if a.httpConn.Query == "" || a.httpConn.Query == "/" {
-				nSplit = 1
-				splits = []string{""}
-			} else {
-				splits = strings.Split(a.httpConn.Query, "/")
-				nSplit = int32(len(splits))
-			}
+		if a.httpConn.Query == "" || a.httpConn.Query == "/" {
+			nSplit = 1
+			splits = []string{""}
+		} else {
+			a.httpConn.Query = strings.TrimSuffix(a.httpConn.Query, "/")
+			splits = strings.Split(a.httpConn.Query, "/")
+			nSplit = int32(len(splits))
+		}
 
-			if endpoints, ok = handler[nSplit]; ok {
-				for _, endpoint := range endpoints {
-					// handlerFunc(a.httpConn)
+		for _, endpoint := range a.EndPointHandlers {
+			if endpoint.nNode == nSplit {
+				if handlers, ok := endpoint.Handlers[a.httpConn.Method]; ok {
 					if endpoint.Macth(splits) {
+						utils.Debug("endpoint path: %s", endpoint.path)
 						unmatched = false
-						for key, value = range endpoint.params {
-							if _, ok = a.httpConn.Params[key]; !ok {
-								a.httpConn.Params[key] = fmt.Sprintf("%v", value)
+						if a.httpConn.Method == ghttp.MethodOptions {
+							a.optionsRequestHandler(w, a.httpConn, endpoint.options)
+						} else {
+							for key, value = range endpoint.params {
+								if _, ok = a.httpConn.Params[key]; !ok {
+									a.httpConn.Params[key] = fmt.Sprintf("%v", value)
+								}
+								if _, ok = a.httpConn.Values[key]; !ok {
+									a.httpConn.Values[key] = value
+								}
 							}
-							if _, ok = a.httpConn.Values[key]; !ok {
-								a.httpConn.Values[key] = value
+							for _, function := range handlers {
+								function(a.httpConn)
 							}
-						}
-						for _, function := range endpoint.Handlers {
-							function(a.httpConn)
 						}
 						break
 					}
 				}
-				if unmatched {
-					a.errorRequestHandler(w, a.httpConn, "Unmatched endpoint.")
-				}
-			} else {
-				a.errorRequestHandler(w, a.httpConn, "Unregistered http query.")
 			}
-		} else {
-			a.errorRequestHandler(w, a.httpConn, "Unregistered http method.")
+		}
+		if unmatched {
+			a.errorRequestHandler(w, a.httpConn, "Unmatched endpoint.")
 		}
 	}
+}
+
+func (a *HttpAnser) optionsRequestHandler(w *base.Work, c *ghttp.Context, options []string) {
+	a.httpConn.SetHeader("Allow", strings.Join(options, ", "))
+	a.httpConn.SetHeader("Connection", "close")
+	a.httpConn.Status(ghttp.StatusOK)
+	a.httpConn.BodyLength = 0
+	a.httpConn.SetContentLength()
+	// 將 Response 回傳數據轉換成 Work 傳遞的格式
+	bs := a.httpConn.ToResponseData()
+	w.Body.Clear()
+	w.Body.AddRawData(bs)
+	w.Send()
 }
 
 func (a *HttpAnser) errorRequestHandler(w *base.Work, c *ghttp.Context, msg string) {
@@ -302,6 +328,23 @@ func (a *HttpAnser) errorRequestHandler(w *base.Work, c *ghttp.Context, msg stri
 	w.Send()
 }
 
+func (a *HttpAnser) serverErrorHandler(w *base.Work, c *ghttp.Context, msg string) {
+	utils.Debug("method: %s, query: %s", c.Method, c.Query)
+
+	c.Json(ghttp.StatusInternalServerError, ghttp.H{
+		"code": ghttp.StatusInternalServerError,
+		"msg":  msg,
+	})
+	c.SetHeader("Connection", "close")
+
+	// 將 Response 回傳數據轉換成 Work 傳遞的格式
+	bs := c.ToResponseData()
+	utils.Debug("Response: %s", string(bs))
+	w.Body.Clear()
+	w.Body.AddRawData(bs)
+	w.Send()
+}
+
 // 當前連線是否應斷線
 func (a *HttpAnser) shouldClose(err error) bool {
 	if a.Anser.shouldClose(err) {
@@ -309,7 +352,6 @@ func (a *HttpAnser) shouldClose(err error) bool {
 	}
 	a.httpConn = a.httpConns[a.currConn.GetId()]
 	if a.httpConn.State == 4 && a.currConn.WritableLength == 0 {
-		// fmt.Printf("(a *HttpAnser) shouldClose | Conn(%d) 完成數據寫出，準備關閉連線\n", a.currConn.GetId())
 		utils.Info("Conn(%d) 完成數據寫出，準備關閉連線", a.currConn.GetId())
 		a.httpConn.State = 0
 		return true
@@ -368,6 +410,7 @@ func (a *HttpAnser) Finish(c *ghttp.Context) {
 // ====================================================================================================
 type Router struct {
 	*HttpAnser
+	path     string
 	nodes    []*node
 	Handlers HandlerChain
 }
@@ -376,11 +419,15 @@ type Router struct {
 func (r *Router) NewRouter(relativePath string, handlers ...HandlerFunc) *Router {
 	nr := &Router{
 		HttpAnser: r.HttpAnser,
+		path:      r.combinePath(relativePath),
+		nodes:     r.combineNodes(relativePath),
 		Handlers:  r.combineHandlers(handlers),
-		nodes:     []*node{},
 	}
-	nr.nodes = r.combineNodes(relativePath)
 	return nr
+}
+
+func (r *Router) HEAD(path string, handlers ...HandlerFunc) {
+	r.handle(ghttp.MethodHead, path, handlers...)
 }
 
 func (r *Router) GET(path string, handlers ...HandlerFunc) {
@@ -391,26 +438,51 @@ func (r *Router) POST(path string, handlers ...HandlerFunc) {
 	r.handle(ghttp.MethodPost, path, handlers...)
 }
 
+func (r *Router) PUT(path string, handlers ...HandlerFunc) {
+	r.handle(ghttp.MethodPut, path, handlers...)
+}
+
+func (r *Router) PATCH(path string, handlers ...HandlerFunc) {
+	r.handle(ghttp.MethodPatch, path, handlers...)
+}
+
+func (r *Router) DELETE(path string, handlers ...HandlerFunc) {
+	r.handle(ghttp.MethodDelete, path, handlers...)
+}
+
 func (r *Router) handle(method string, path string, handlers ...HandlerFunc) {
-	if routers, ok := r.HttpAnser.Handlers[method]; ok {
-		// 結合前段路由的節點們，以及當前路由的節點們
-		nodes := r.combineNodes(path)
-		nNode := int32(len(nodes))
+	var endpoint *EndPoint
+	fullPath := r.combinePath(path)
+	isExists := false
 
-		if _, ok := routers[nNode]; !ok {
-			routers[nNode] = []*EndPoint{}
+	for _, endpoint = range r.HttpAnser.EndPointHandlers {
+		if endpoint.path == fullPath {
+			isExists = true
+			break
 		}
-
-		// 添加路徑對應的處理函式
-		endpoint := NewEndPoint()
-		endpoint.InitNodes(nodes)
-		endpoint.Handlers = r.combineHandlers(handlers)
-		routers[nNode] = append(routers[nNode], endpoint)
-		sort.SliceStable(routers[nNode], func(i, j int) bool {
-			// True 的話，會被排到前面
-			return routers[nNode][i].priority > routers[nNode][j].priority
-		})
 	}
+
+	if !isExists {
+		endpoint = NewEndPoint()
+		endpoint.path = fullPath
+		nodes := r.combineNodes(path)
+		endpoint.InitNodes(nodes)
+		r.HttpAnser.EndPointHandlers = append(r.HttpAnser.EndPointHandlers, endpoint)
+	}
+
+	if _, ok := endpoint.Handlers[method]; !ok {
+		endpoint.options = append(endpoint.options, method)
+	}
+
+	endpoint.Handlers[method] = r.combineHandlers(handlers)
+	sort.SliceStable(r.HttpAnser.EndPointHandlers, func(i, j int) bool {
+		// True 的話，會被排到前面
+		return r.HttpAnser.EndPointHandlers[i].priority > r.HttpAnser.EndPointHandlers[j].priority
+	})
+}
+
+func (r *Router) combinePath(relativePath string) string {
+	return strings.TrimRight(path.Join(r.path, relativePath), "/")
 }
 
 func (r *Router) combineNodes(relativePath string) []*node {
@@ -440,11 +512,14 @@ func (r *Router) combineHandlers(handlers HandlerChain) HandlerChain {
 // EndPoint
 // ====================================================================================================
 type EndPoint struct {
+	path     string
 	nodes    []*node
 	nNode    int32
 	priority float32
 	params   map[string]any
-	Handlers HandlerChain
+	// key: HttpMethod(GET/POST/...), value: handler functions
+	Handlers map[string]HandlerChain
+	options  []string
 }
 
 func NewEndPoint() *EndPoint {
@@ -453,7 +528,10 @@ func NewEndPoint() *EndPoint {
 		nNode:    0,
 		priority: 0,
 		params:   make(map[string]any),
-		Handlers: HandlerChain{},
+		Handlers: map[string]HandlerChain{
+			ghttp.MethodOptions: {},
+		},
+		options: []string{ghttp.MethodOptions},
 	}
 	return ep
 }
@@ -462,7 +540,7 @@ func (ep *EndPoint) InitNodes(nodes []*node) {
 	var n *node
 	for _, n = range nodes {
 		if n.isParam {
-			if n.routeType == "int" || n.routeType == "float" {
+			if n.routeType == "int" || n.routeType == "uint" || n.routeType == "float" {
 				ep.priority += 0.5
 			}
 		} else {
