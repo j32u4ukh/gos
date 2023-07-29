@@ -240,6 +240,12 @@ func (a *HttpAnser) write(cid int32, data *[]byte, length int32) error {
 // 由外部定義 workHandler，定義如何處理工作
 func (a *HttpAnser) SetWorkHandler() {
 	a.workHandler = func(w *base.Work) {
+		defer func() {
+			if err := recover(); err != nil {
+				utils.Error("Recover err: %+v", err)
+				a.serverErrorHandler(w, a.httpConn, "Internal Server Error")
+			}
+		}()
 		a.httpConn = a.httpConns[w.Index]
 		a.httpConn.Cid = w.Index
 		a.httpConn.Wid = w.GetId()
@@ -267,17 +273,6 @@ func (a *HttpAnser) SetWorkHandler() {
 						unmatched = false
 						if a.httpConn.Method == ghttp.MethodOptions {
 							a.optionsRequestHandler(w, a.httpConn, endpoint.options)
-							// // Allow: GET, POST, HEAD, OPTIONS
-							// a.httpConn.SetHeader("Allow", strings.Join(endpoint.options, ", "))
-							// a.httpConn.SetHeader("Connection", "close")
-							// a.httpConn.Status(ghttp.StatusOK)
-							// a.httpConn.BodyLength = 0
-							// a.httpConn.SetContentLength()
-							// // 將 Response 回傳數據轉換成 Work 傳遞的格式
-							// bs := a.httpConn.ToResponseData()
-							// w.Body.Clear()
-							// w.Body.AddRawData(bs)
-							// w.Send()
 						} else {
 							for key, value = range endpoint.params {
 								if _, ok = a.httpConn.Params[key]; !ok {
@@ -301,19 +296,6 @@ func (a *HttpAnser) SetWorkHandler() {
 		}
 	}
 }
-
-// func (a *HttpAnser) headRequestHandler(w *base.Work, c *ghttp.Context, options []string) {
-// 	a.httpConn.SetHeader("Allow", strings.Join(options, ", "))
-// 	a.httpConn.SetHeader("Connection", "close")
-// 	a.httpConn.Status(ghttp.StatusOK)
-// 	a.httpConn.BodyLength = 0
-// 	a.httpConn.SetContentLength()
-// 	// 將 Response 回傳數據轉換成 Work 傳遞的格式
-// 	bs := a.httpConn.ToResponseData()
-// 	w.Body.Clear()
-// 	w.Body.AddRawData(bs)
-// 	w.Send()
-// }
 
 func (a *HttpAnser) optionsRequestHandler(w *base.Work, c *ghttp.Context, options []string) {
 	a.httpConn.SetHeader("Allow", strings.Join(options, ", "))
@@ -342,6 +324,23 @@ func (a *HttpAnser) errorRequestHandler(w *base.Work, c *ghttp.Context, msg stri
 	// fmt.Printf("Response: %s\n", string(bs))
 	utils.Debug("Response: %s", string(bs))
 
+	w.Body.AddRawData(bs)
+	w.Send()
+}
+
+func (a *HttpAnser) serverErrorHandler(w *base.Work, c *ghttp.Context, msg string) {
+	utils.Debug("method: %s, query: %s", c.Method, c.Query)
+
+	c.Json(ghttp.StatusInternalServerError, ghttp.H{
+		"code": ghttp.StatusInternalServerError,
+		"msg":  msg,
+	})
+	c.SetHeader("Connection", "close")
+
+	// 將 Response 回傳數據轉換成 Work 傳遞的格式
+	bs := c.ToResponseData()
+	utils.Debug("Response: %s", string(bs))
+	w.Body.Clear()
 	w.Body.AddRawData(bs)
 	w.Send()
 }
@@ -473,7 +472,6 @@ func (r *Router) handle(method string, path string, handlers ...HandlerFunc) {
 
 	if _, ok := endpoint.Handlers[method]; !ok {
 		endpoint.options = append(endpoint.options, method)
-		utils.Info("path: %s, options: %+v", endpoint.path, endpoint.options)
 	}
 
 	endpoint.Handlers[method] = r.combineHandlers(handlers)

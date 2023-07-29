@@ -126,19 +126,7 @@ func RunAns(port int) {
 	gos.StartListen()
 	logger.Debug("開始監聽")
 
-	var start time.Time
-	var during, frameTime time.Duration = 0, 200 * time.Millisecond
-
-	for {
-		start = time.Now()
-
-		gos.RunAns()
-
-		during = time.Since(start)
-		if during < frameTime {
-			time.Sleep(frameTime - during)
-		}
-	}
+	gos.Run(nil)
 }
 
 func RunAsk(ip string, port int) {

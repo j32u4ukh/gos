@@ -122,7 +122,6 @@ func (m *Mgr) Handler(router *ans.Router) {
 		})
 		m.HttpAnswer.Send(c)
 	})
-
 	rName.GET("/get/<user_id int>", func(c *ghttp.Context) {
 		_, name := c.GetParam("name")
 		value := c.GetValue("user_id")
@@ -138,7 +137,6 @@ func (m *Mgr) Handler(router *ans.Router) {
 		})
 		m.HttpAnswer.Send(c)
 	})
-
 	rName.GET("/uint/<value uint>", func(c *ghttp.Context) {
 		_, name := c.GetParam("name")
 		value := c.GetValue("value")
