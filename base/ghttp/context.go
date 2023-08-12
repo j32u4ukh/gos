@@ -79,11 +79,15 @@ func (c *Context) Json(code int32, obj any) {
 	c.Response.Json(code, obj)
 }
 
-func (c *Context) ReadJson(obj any) {
+func (c *Context) ReadJson(obj any) error {
 	if c.BodyLength > 0 {
 		data := c.Body[:c.BodyLength]
-		json.Unmarshal(data, obj)
+		err := json.Unmarshal(data, obj)
+		if err != nil {
+			return errors.Wrap(err, "Failed to unmarshal body to json.")
+		}
 	}
+	return nil
 }
 
 func (c *Context) ReadBytes() []byte {

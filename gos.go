@@ -151,9 +151,8 @@ func RunAsk() {
 }
 
 func SendTransDataToServer(serverId int32, td *base.TransData) error {
-	data := td.GetData()
-	length := td.GetLength()
-	err := SendToServer(serverId, &data, length)
+	data := td.FormData()
+	err := SendToServer(serverId, &data, int32(len(data)))
 	if err != nil {
 		return errors.Wrap(err, "Failed to send transdata to server.")
 	}

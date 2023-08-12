@@ -59,7 +59,7 @@ func (m *Mgr) CommissionHandler(site int32, cid int32) {
 		td.AddUInt16(1023)
 		td.AddInt32(cid)
 		data := td.FormData()
-		err := gos.SendToServer(ERandomReturnServer, &data, td.GetLength())
+		err := gos.SendToServer(ERandomReturnServer, &data, int32(len(data)))
 
 		if err != nil {
 			// fmt.Printf("(m *Mgr) CommissionHandler | Failed to send to server %d: %v\nError: %+v\n", ERandomReturnServer, data, err)
