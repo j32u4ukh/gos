@@ -76,14 +76,72 @@ var logger *glog.Logger
 
 func init() {
 	gosLgger := glog.SetLogger(0, "gos", glog.DebugLevel)
-	gosLgger.SetOptions(glog.DefaultOption(true, true), glog.UtcOption(8))
-	gosLgger.SetFolder("log")
+	gosLgger.SetOptions(glog.UtcOption(8))
+	gosLgger.SetOptions(glog.FolderOption("log", glog.ShiftDayAndSize, 1, 5*glog.MB))
+	gosLgger.SetOptions(glog.BasicOption(&glog.Option{
+		Level:     glog.DebugLevel,
+		ToConsole: true,
+		ToFile:    false,
+		FileInfo:  true,
+		LineInfo:  true,
+	}))
+	gosLgger.SetOptions(glog.BasicOption(&glog.Option{
+		Level:     glog.InfoLevel,
+		ToConsole: true,
+		ToFile:    false,
+		FileInfo:  true,
+		LineInfo:  true,
+	}))
+	gosLgger.SetOptions(glog.BasicOption(&glog.Option{
+		Level:     glog.WarnLevel,
+		ToConsole: true,
+		ToFile:    true,
+		FileInfo:  true,
+		LineInfo:  true,
+	}))
+	gosLgger.SetOptions(glog.BasicOption(&glog.Option{
+		Level:     glog.ErrorLevel,
+		ToConsole: true,
+		ToFile:    true,
+		FileInfo:  true,
+		LineInfo:  true,
+	}))
 	gosLgger.SetSkip(3)
 	utils.SetLogger(gosLgger)
 
 	logger = glog.SetLogger(1, "DemoHttpServer", glog.DebugLevel)
 	logger.SetFolder("log")
 	logger.SetOptions(glog.DefaultOption(true, true), glog.UtcOption(8))
+	logger.SetOptions(glog.UtcOption(8))
+	logger.SetOptions(glog.FolderOption("log", glog.ShiftDayAndSize, 1, 5*glog.MB))
+	logger.SetOptions(glog.BasicOption(&glog.Option{
+		Level:     glog.DebugLevel,
+		ToConsole: true,
+		ToFile:    false,
+		FileInfo:  true,
+		LineInfo:  true,
+	}))
+	logger.SetOptions(glog.BasicOption(&glog.Option{
+		Level:     glog.InfoLevel,
+		ToConsole: true,
+		ToFile:    false,
+		FileInfo:  true,
+		LineInfo:  true,
+	}))
+	logger.SetOptions(glog.BasicOption(&glog.Option{
+		Level:     glog.WarnLevel,
+		ToConsole: true,
+		ToFile:    true,
+		FileInfo:  true,
+		LineInfo:  true,
+	}))
+	logger.SetOptions(glog.BasicOption(&glog.Option{
+		Level:     glog.ErrorLevel,
+		ToConsole: true,
+		ToFile:    true,
+		FileInfo:  true,
+		LineInfo:  true,
+	}))
 }
 
 func main() {

@@ -99,6 +99,21 @@ func (c *Context) ReadBytes() []byte {
 	return nil
 }
 
+func (c *Context) Release() {
+	c.Cid = -1
+	c.Wid = -1
+	c.State = 0
+	for key := range c.Header {
+		delete(c.Header, key)
+	}
+	c.Request.Release()
+	c.Response.Release()
+
+	// 讀取長度
+	c.ReadLength = 0
+	c.BodyLength = 0
+}
+
 // ====================================================================================================
 // Request
 // ====================================================================================================
@@ -353,8 +368,9 @@ func (r Request) ToRequestData() []byte {
 
 func (r *Request) Json(obj any) {
 	r.Header["Content-Type"] = jsonContentType
-	r.Body, _ = json.Marshal(obj)
-	r.BodyLength = int32(len(r.Body))
+	data, _ := json.Marshal(obj)
+	r.BodyLength = int32(len(data))
+	copy(r.Body[:r.BodyLength], data[:r.BodyLength])
 	r.SetContentLength()
 }
 
@@ -362,7 +378,7 @@ func (r *Request) Release() {
 	r.Method = ""
 	r.Query = ""
 	r.Proto = ""
-	r.Body = r.Body[:0]
+	// r.Body = r.Body[:0]
 	r.BodyLength = 0
 	r.ReadLength = 0
 	var key string
@@ -407,8 +423,9 @@ func (r *Response) Json(code int32, obj any) {
 	}
 
 	r.Header["Content-Type"] = jsonContentType
-	r.Body, _ = json.Marshal(obj)
-	r.BodyLength = int32(len(r.Body))
+	data, _ := json.Marshal(obj)
+	r.BodyLength = int32(len(data))
+	copy(r.Body[:r.BodyLength], data[:r.BodyLength])
 	r.SetContentLength()
 }
 
@@ -459,4 +476,9 @@ func (r Response) ToResponseData() []byte {
 	}
 
 	return buffer.Bytes()
+}
+
+func (r *Response) Release() {
+	r.Code = 0
+	r.Message = ""
 }

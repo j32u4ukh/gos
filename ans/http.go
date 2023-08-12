@@ -67,11 +67,10 @@ func NewHttpAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, err
 
 	// ===== Anser =====
 	a.Anser, err = newAnser(laddr, nConnect, nWork)
-	a.Anser.ReadTimeout = 5000 * time.Millisecond
-
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to new HttpAnser.")
 	}
+	a.Anser.ReadTimeout = 5000 * time.Millisecond
 
 	// ===== Router =====
 	a.Router = &Router{
@@ -353,7 +352,7 @@ func (a *HttpAnser) shouldClose(err error) bool {
 	a.httpConn = a.httpConns[a.currConn.GetId()]
 	if a.httpConn.State == 4 && a.currConn.WritableLength == 0 {
 		utils.Info("Conn(%d) 完成數據寫出，準備關閉連線", a.currConn.GetId())
-		a.httpConn.State = 0
+		a.httpConn.Release()
 		return true
 	}
 	return false
@@ -472,6 +471,7 @@ func (r *Router) handle(method string, path string, handlers ...HandlerFunc) {
 
 	if _, ok := endpoint.Handlers[method]; !ok {
 		endpoint.options = append(endpoint.options, method)
+		utils.Info("path: %s, options: %+v", endpoint.path, endpoint.options)
 	}
 
 	endpoint.Handlers[method] = r.combineHandlers(handlers)

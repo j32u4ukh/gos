@@ -158,6 +158,7 @@ func (c *Conn) Handler() {
 
 		default:
 			// utils.Debug("readIdx: %d, netConn: %v", c.readIdx, c.NetConn != nil)
+			// c.readPackets[c.readIdx].Release()
 
 			// 每次讀取至多長度為 MTU 的數據(Read 為阻塞型函式)
 			c.nRead, c.readErr = c.NetConn.Read(c.readPackets[c.readIdx].Data)
@@ -317,8 +318,8 @@ func (c *Conn) Release() {
 	// 關閉當前連線
 	c.NetConn.Close()
 
-	// // 清空連線物件
-	// c.NetConn = nil
+	// 清空連線物件
+	c.NetConn = nil
 
 	// 狀態設置為未使用
 	c.State = define.Unused
@@ -333,6 +334,35 @@ func (c *Conn) Release() {
 	// 重置讀取用索引值
 	c.readInput = 0
 	c.readOutput = 0
+
+	// 重置可讀取長度
+	c.ReadableLength = 0
+
+	// 重置讀取封包索引值
+	c.readIdx = 0
+
+	// 重置寫出用索引值
+	c.writeInput = 0
+	c.writeOutput = 0
+
+	// 重置可寫出長度
+	c.WritableLength = 0
+	c.writeIdx = 0
+
+	// 確保 stopCh 為空
+	notEmpty := true
+	var packet *Packet
+	for _, packet = range c.readPackets {
+		packet.Release()
+	}
+	for notEmpty {
+		select {
+		case packet = <-c.ReadCh:
+			packet.Release()
+		default:
+			notEmpty = false
+		}
+	}
 }
 
 func (c *Conn) String() string {
