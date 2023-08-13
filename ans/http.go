@@ -109,10 +109,10 @@ func (a *HttpAnser) read() bool {
 	// 讀取 第一行(ex: GET /foo/bar HTTP/1.1)
 	if a.context.State == ghttp.READ_FIRST_LINE {
 		if a.currConn.CheckReadable(a.context.HasLineData) {
-			a.currConn.Read(&a.readBuffer, a.context.ReadLength)
+			a.currConn.Read(&a.readBuffer, a.context.Request.ReadLength)
 
 			// 拆分第一行數據
-			a.lineString = strings.TrimRight(string(a.readBuffer[:a.context.ReadLength]), "\r\n")
+			a.lineString = strings.TrimRight(string(a.readBuffer[:a.context.Request.ReadLength]), "\r\n")
 			utils.Info("firstLine: %s", a.lineString)
 
 			if a.context.ParseFirstReqLine(a.lineString) {
@@ -133,24 +133,24 @@ func (a *HttpAnser) read() bool {
 
 		for a.context.State == ghttp.READ_HEADER && a.currConn.CheckReadable(a.context.HasLineData) {
 			// 讀取一行數據
-			a.currConn.Read(&a.readBuffer, a.context.ReadLength)
+			a.currConn.Read(&a.readBuffer, a.context.Request.ReadLength)
 
 			// mustHaveFieldNameColon ensures that, per RFC 7230, the field-name is on a single line,
 			// so the first line must contain a colon.
 			// 將讀到的數據從冒號拆分成 key, value
 			// k, v, ok := bytes.Cut(a.readBuffer[:a.currContext.ReadLength], COLON)
-			a.lineString = strings.TrimRight(string(a.readBuffer[:a.context.ReadLength]), "\r\n")
+			a.lineString = strings.TrimRight(string(a.readBuffer[:a.context.Request.ReadLength]), "\r\n")
 			key, value, ok = strings.Cut(a.lineString, ghttp.COLON)
 
 			if ok {
 				// 持續讀取 Header
-				if _, ok := a.context.Header[key]; !ok {
-					a.context.Header[key] = []string{}
+				if _, ok := a.context.Request.Header[key]; !ok {
+					a.context.Request.Header[key] = []string{}
 				}
 
 				value = strings.TrimLeft(value, " \t")
 				// value = strings.TrimRight(value, "\r\n")
-				a.context.Header[key] = append(a.context.Header[key], value)
+				a.context.Request.Header[key] = append(a.context.Request.Header[key], value)
 				// fmt.Printf("(a *HttpAnser) Read | Header, key: %s, value: %s\n", key, value)
 				utils.Debug("Header, key: %s, value: %s", key, value)
 
@@ -158,7 +158,7 @@ func (a *HttpAnser) read() bool {
 				// 當前這行數據不包含":"，結束 Header 的讀取
 
 				// Header 中包含 Content-Length，狀態值設為 2，等待讀取後續數據
-				if contentLength, ok := a.context.Header["Content-Length"]; ok {
+				if contentLength, ok := a.context.Request.Header["Content-Length"]; ok {
 					length, err := strconv.Atoi(contentLength[0])
 					// fmt.Printf("(a *HttpAnser) Read | Content-Length: %d\n", length)
 					utils.Debug("Content-Length: %d", length)
@@ -169,7 +169,7 @@ func (a *HttpAnser) read() bool {
 						return false
 					}
 
-					a.context.ReadLength = int32(length)
+					a.context.Request.ReadLength = int32(length)
 					a.context.State = ghttp.READ_BODY
 					utils.Debug("State: READ_HEADER -> READ_BODY")
 
@@ -196,14 +196,14 @@ func (a *HttpAnser) read() bool {
 	if a.context.State == ghttp.READ_BODY {
 		if a.currConn.CheckReadable(a.context.HasEnoughData) {
 			// 將傳入的數據，加入工作緩存中
-			a.currConn.Read(&a.readBuffer, a.context.ReadLength)
-			utils.Debug("Body 數據: %s", string(a.readBuffer[:a.context.ReadLength]))
+			a.currConn.Read(&a.readBuffer, a.context.Request.ReadLength)
+			utils.Debug("Body 數據: %s", string(a.readBuffer[:a.context.Request.ReadLength]))
 
 			// 考慮分包問題，收到完整一包數據傳完才傳到應用層
 			a.currWork.Index = a.currConn.GetId()
 			a.currWork.RequestTime = time.Now().UTC()
 			a.currWork.State = base.WORK_NEED_PROCESS
-			a.context.SetBody(a.readBuffer, a.context.ReadLength)
+			a.context.Request.SetBody(a.readBuffer, a.context.Request.ReadLength)
 
 			// 指向下一個工作結構
 			a.currWork = a.currWork.Next
@@ -295,11 +295,11 @@ func (a *HttpAnser) SetWorkHandler() {
 }
 
 func (a *HttpAnser) optionsRequestHandler(w *base.Work, c *ghttp.Context, options []string) {
-	a.context.SetHeader("Allow", strings.Join(options, ", "))
-	a.context.SetHeader("Connection", "close")
+	a.context.Response.SetHeader("Allow", strings.Join(options, ", "))
+	a.context.Response.SetHeader("Connection", "close")
 	a.context.Status(ghttp.StatusOK)
-	a.context.BodyLength = 0
-	a.context.SetContentLength()
+	a.context.Response.BodyLength = 0
+	a.context.Response.SetContentLength()
 	// 將 Response 回傳數據轉換成 Work 傳遞的格式
 	bs := a.context.ToResponseData()
 	w.Body.Clear()
@@ -314,7 +314,7 @@ func (a *HttpAnser) errorRequestHandler(w *base.Work, c *ghttp.Context, msg stri
 		"code": 400,
 		"msg":  msg,
 	})
-	c.SetHeader("Connection", "close")
+	c.Response.SetHeader("Connection", "close")
 
 	// 將 Response 回傳數據轉換成 Work 傳遞的格式
 	bs := c.ToResponseData()
@@ -332,7 +332,7 @@ func (a *HttpAnser) serverErrorHandler(w *base.Work, c *ghttp.Context, msg strin
 		"code": ghttp.StatusInternalServerError,
 		"msg":  msg,
 	})
-	c.SetHeader("Connection", "close")
+	c.Response.SetHeader("Connection", "close")
 
 	// 將 Response 回傳數據轉換成 Work 傳遞的格式
 	bs := c.ToResponseData()
@@ -366,7 +366,7 @@ func (a *HttpAnser) GetContext(cid int32) *ghttp.Context {
 }
 
 func (a *HttpAnser) Send(c *ghttp.Context) {
-	c.SetHeader("Connection", "close")
+	c.Response.SetHeader("Connection", "close")
 
 	// 將 Response 回傳數據轉換成 Work 傳遞的格式
 	bs := c.ToResponseData()

@@ -87,10 +87,10 @@ func (a *HttpAsker) read() {
 	// 讀取 第一行
 	if a.httpConn.State == ghttp.READ_FIRST_LINE {
 		if a.currConn.CheckReadable(a.httpConn.HasLineData) {
-			a.currConn.Read(&a.readBuffer, a.httpConn.ReadLength)
+			a.currConn.Read(&a.readBuffer, a.httpConn.Response.ReadLength)
 
 			// 拆分第一行數據 HTTP/1.1 200 OK\r\n
-			firstLine := strings.TrimRight(string(a.readBuffer[:a.httpConn.ReadLength]), "\r\n")
+			firstLine := strings.TrimRight(string(a.readBuffer[:a.httpConn.Response.ReadLength]), "\r\n")
 			// fmt.Printf("(a *HttpAsker) Read | firstLine: %s\n", firstLine)
 			utils.Debug("firstLine: %s", firstLine)
 
@@ -107,25 +107,25 @@ func (a *HttpAsker) read() {
 
 		for a.currConn.CheckReadable(a.httpConn.HasLineData) && a.httpConn.State == ghttp.READ_HEADER {
 			// 讀取一行數據
-			a.currConn.Read(&a.readBuffer, a.httpConn.ReadLength)
+			a.currConn.Read(&a.readBuffer, a.httpConn.Response.ReadLength)
 
 			// mustHaveFieldNameColon ensures that, per RFC 7230, the field-name is on a single line,
 			// so the first line must contain a colon.
 			// 將讀到的數據從冒號拆分成 key, value
-			headerLine = strings.TrimRight(string(a.readBuffer[:a.httpConn.ReadLength]), "\r\n")
+			headerLine = strings.TrimRight(string(a.readBuffer[:a.httpConn.Response.ReadLength]), "\r\n")
 			key, value, ok = strings.Cut(headerLine, ghttp.COLON)
 
 			if ok {
 				// 持續讀取 Header
 				// key := string(k)
 
-				if _, ok := a.httpConn.Header[key]; !ok {
-					a.httpConn.Header[key] = []string{}
+				if _, ok := a.httpConn.Response.Header[key]; !ok {
+					a.httpConn.Response.Header[key] = []string{}
 				}
 
 				value = strings.TrimLeft(value, " \t")
 				// value = strings.TrimRight(value, "\r\n")
-				a.httpConn.Header[key] = append(a.httpConn.Header[key], value)
+				a.httpConn.Response.Header[key] = append(a.httpConn.Response.Header[key], value)
 				// fmt.Printf("(a *HttpAsker) Read | Header, key: %s, value: %s\n", key, value)
 				utils.Debug("Header, key: %s, value: %s", key, value)
 
@@ -135,7 +135,7 @@ func (a *HttpAsker) read() {
 				utils.Debug("Empty line")
 
 				// Header 中包含 Content-Length，狀態值設為 2，等待讀取後續數據
-				if contentLength, ok := a.httpConn.Header["Content-Length"]; ok {
+				if contentLength, ok := a.httpConn.Response.Header["Content-Length"]; ok {
 					length, err := strconv.Atoi(contentLength[0])
 					// fmt.Printf("(a *HttpAsker) Read | Content-Length: %d\n", length)
 					utils.Debug("Content-Length: %d", length)
@@ -146,9 +146,9 @@ func (a *HttpAsker) read() {
 						return
 					}
 
-					a.httpConn.ReadLength = int32(length)
+					a.httpConn.Response.ReadLength = int32(length)
 					// fmt.Printf("(a *HttpAsker) Read | a.httpConn.ReadLength: %d\n", a.httpConn.ReadLength)
-					utils.Debug("a.httpConn.ReadLength: %d", a.httpConn.ReadLength)
+					utils.Debug("a.httpConn.ReadLength: %d", a.httpConn.Response.ReadLength)
 
 					a.httpConn.State = ghttp.READ_BODY
 					// fmt.Printf("(a *HttpAsker) Read | State: 1 -> 2\n")
@@ -170,17 +170,17 @@ func (a *HttpAsker) read() {
 
 	// 讀取 Body 數據
 	if a.httpConn.State == ghttp.READ_BODY {
-		utils.Debug("State READ_BODY, a.httpConn.ReadLength: %d", a.httpConn.ReadLength)
+		utils.Debug("State READ_BODY, a.httpConn.ReadLength: %d", a.httpConn.Response.ReadLength)
 
 		if a.currConn.CheckReadable(a.httpConn.HasEnoughData) {
 			// ==========
 			// 讀取 data
 			// ==========
 			// 將傳入的數據，加入工作緩存中
-			a.currConn.Read(&a.readBuffer, a.httpConn.ReadLength)
-			utils.Debug("State READ_BODY, data: %s", string(a.readBuffer[:a.httpConn.ReadLength]))
+			a.currConn.Read(&a.readBuffer, a.httpConn.Response.ReadLength)
+			utils.Debug("State READ_BODY, data: %s", string(a.readBuffer[:a.httpConn.Response.ReadLength]))
 
-			a.httpConn.SetBody(a.readBuffer, a.httpConn.ReadLength)
+			a.httpConn.Response.SetBody(a.readBuffer, a.httpConn.Response.ReadLength)
 
 			// 重置狀態值
 			a.httpConn.State = ghttp.READ_FIRST_LINE
