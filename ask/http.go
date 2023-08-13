@@ -85,7 +85,7 @@ func (a *HttpAsker) read() {
 	utils.Debug("Conn(%d), State: %d", a.currConn.GetId(), a.httpConn.State)
 
 	// 讀取 第一行
-	if a.httpConn.State == 0 {
+	if a.httpConn.State == ghttp.READ_FIRST_LINE {
 		if a.currConn.CheckReadable(a.httpConn.HasLineData) {
 			a.currConn.Read(&a.readBuffer, a.httpConn.ReadLength)
 
@@ -95,18 +95,18 @@ func (a *HttpAsker) read() {
 			utils.Debug("firstLine: %s", firstLine)
 
 			a.httpConn.ParseFirstResLine(firstLine)
-			a.httpConn.State = 1
+			a.httpConn.State = ghttp.READ_HEADER
 			// fmt.Printf("(a *HttpAsker) Read | State: 0 -> 1\n")
 			utils.Debug("State: 0 -> 1")
 		}
 	}
 
 	// 讀取 Header 數據
-	if a.httpConn.State == 1 {
+	if a.httpConn.State == ghttp.READ_HEADER {
 		var headerLine, key, value string
 		var ok bool
 
-		for a.currConn.CheckReadable(a.httpConn.HasLineData) && a.httpConn.State == 1 {
+		for a.currConn.CheckReadable(a.httpConn.HasLineData) && a.httpConn.State == ghttp.READ_HEADER {
 			// 讀取一行數據
 			a.currConn.Read(&a.readBuffer, a.httpConn.ReadLength)
 
@@ -151,13 +151,13 @@ func (a *HttpAsker) read() {
 					// fmt.Printf("(a *HttpAsker) Read | a.httpConn.ReadLength: %d\n", a.httpConn.ReadLength)
 					utils.Debug("a.httpConn.ReadLength: %d", a.httpConn.ReadLength)
 
-					a.httpConn.State = 2
+					a.httpConn.State = ghttp.READ_BODY
 					// fmt.Printf("(a *HttpAsker) Read | State: 1 -> 2\n")
 					utils.Debug("State: 1 -> 2")
 
 				} else {
 					// Header 中不包含 Content-Length，狀態值恢復為 0
-					a.httpConn.State = 0
+					a.httpConn.State = ghttp.READ_FIRST_LINE
 
 					// 數據已讀入 currR2 當中，此處工作結構僅負責觸發 WorkHandler，進一步觸發 Callback 函式
 					a.currWork.Index = a.currConn.GetId()
@@ -170,9 +170,8 @@ func (a *HttpAsker) read() {
 	}
 
 	// 讀取 Body 數據
-	if a.httpConn.State == 2 {
-		// fmt.Printf("(a *HttpAsker) Read | State 2, a.httpConn.ReadLength: %d\n", a.httpConn.ReadLength)
-		utils.Debug("State 2, a.httpConn.ReadLength: %d", a.httpConn.ReadLength)
+	if a.httpConn.State == ghttp.READ_BODY {
+		utils.Debug("State READ_BODY, a.httpConn.ReadLength: %d", a.httpConn.ReadLength)
 
 		if a.currConn.CheckReadable(a.httpConn.HasEnoughData) {
 			// ==========
@@ -180,15 +179,12 @@ func (a *HttpAsker) read() {
 			// ==========
 			// 將傳入的數據，加入工作緩存中
 			a.currConn.Read(&a.readBuffer, a.httpConn.ReadLength)
-			// fmt.Printf("(a *HttpAsker) Read | State 2, data: %s\n", string(a.readBuffer[:a.httpConn.ReadLength]))
-			utils.Debug("State 2, data: %s", string(a.readBuffer[:a.httpConn.ReadLength]))
+			utils.Debug("State READ_BODY, data: %s", string(a.readBuffer[:a.httpConn.ReadLength]))
 
 			a.httpConn.SetBody(a.readBuffer, a.httpConn.ReadLength)
-			// a.httpConn.BodyLength = a.httpConn.ReadLength
-			// copy(a.httpConn.Body[:a.httpConn.ReadLength], a.readBuffer[:a.httpConn.ReadLength])
 
 			// 重置狀態值
-			a.httpConn.State = 0
+			a.httpConn.State = ghttp.READ_FIRST_LINE
 
 			// 數據已讀入 httpConn 當中，此處工作結構僅負責觸發 WorkHandler，進一步觸發 Callback 函式
 			a.currWork.Index = a.currConn.GetId()

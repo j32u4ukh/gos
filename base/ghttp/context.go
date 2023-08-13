@@ -13,6 +13,21 @@ import (
 
 // 工作完成時的 Callback 函式
 type HandlerFunc func(*Context)
+type ContextState int8
+
+// HTTP 工作流程按照下方順序執行
+const (
+	// 讀取第一行
+	READ_FIRST_LINE ContextState = iota
+	// 讀取 Header
+	READ_HEADER
+	// 讀取 Data
+	READ_BODY
+	// 等待數據寫出(Response)
+	WRITE_RESPONSE
+	// 完成數據複製到寫出緩存
+	FINISH_RESPONSE
+)
 
 type Context struct {
 	// Context 唯一碼
@@ -23,7 +38,7 @@ type Context struct {
 	Wid int32
 	//////////////////////////////////////////////////
 	// 0: 讀取第一行, 1: 讀取 Header, 2: 讀取 Data, 3: 等待數據寫出(Response) 4. 完成數據複製到寫出緩存
-	State int8
+	State ContextState
 	Header
 	*Request
 	*Response
@@ -42,7 +57,7 @@ func NewContext(id int32) *Context {
 		id:         id,
 		Cid:        -1,
 		Wid:        -1,
-		State:      0,
+		State:      READ_FIRST_LINE,
 		Header:     map[string][]string{},
 		Body:       make([]byte, 64*1024),
 		BodyLength: 0,
@@ -102,7 +117,7 @@ func (c *Context) ReadBytes() []byte {
 func (c *Context) Release() {
 	c.Cid = -1
 	c.Wid = -1
-	c.State = 0
+	c.State = READ_FIRST_LINE
 	for key := range c.Header {
 		delete(c.Header, key)
 	}
@@ -184,6 +199,7 @@ func (r *Request) FormRequest(method string, uri string, params map[string]strin
 	r.Header["Host"] = []string{host}
 }
 
+// 檢查是否有一行數據(以換行符 '\n' 來區分)
 func (r *Request) HasLineData(buffer *[]byte, i int32, o int32, length int32) bool {
 	// fmt.Printf("(c *Context) HasLineData | i: %d, o: %d, length: %d\n", i, o, length)
 

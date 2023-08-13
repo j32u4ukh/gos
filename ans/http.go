@@ -37,11 +37,11 @@ type HttpAnser struct {
 	// 個數與 Anser 的 nConnect 相同，因此可利用 Conn 中的 id 作為索引值，來存取,
 	// 由於 Context 是使用 Conn 的 id 作為索引值，因此可以不用從第一個開始使用，結束使用後也不需要對順序進行調整
 	// ==================================================
-	httpConns []*ghttp.Context
-	httpConn  *ghttp.Context
+	contexts []*ghttp.Context
+	context  *ghttp.Context
 
 	contextPool sync.Pool
-	context     *ghttp.Context
+	_context    *ghttp.Context
 
 	// Temp variables
 	lineString string
@@ -59,10 +59,10 @@ func NewHttpAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, err
 			ghttp.MethodDelete: {},
 		},
 		EndPointHandlers: []*EndPoint{},
-		httpConns:        make([]*ghttp.Context, nConnect),
-		httpConn:         nil,
-		contextPool:      sync.Pool{New: func() any { return ghttp.NewContext(-1) }},
+		contexts:         make([]*ghttp.Context, nConnect),
 		context:          nil,
+		contextPool:      sync.Pool{New: func() any { return ghttp.NewContext(-1) }},
+		_context:         nil,
 	}
 
 	// ===== Anser =====
@@ -83,7 +83,7 @@ func NewHttpAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, err
 	// ===== Context =====
 	var i int32
 	for i = 0; i < nConnect; i++ {
-		a.httpConns[i] = ghttp.NewContext(i)
+		a.contexts[i] = ghttp.NewContext(i)
 	}
 
 	//////////////////////////////////////////////////
@@ -104,53 +104,53 @@ func (a *HttpAnser) Listen() {
 
 func (a *HttpAnser) read() bool {
 	// 根據 Conn 的 Id，存取對應的 httpConn
-	a.httpConn = a.httpConns[a.currConn.GetId()]
+	a.context = a.contexts[a.currConn.GetId()]
 
 	// 讀取 第一行(ex: GET /foo/bar HTTP/1.1)
-	if a.httpConn.State == 0 {
-		if a.currConn.CheckReadable(a.httpConn.HasLineData) {
-			a.currConn.Read(&a.readBuffer, a.httpConn.ReadLength)
+	if a.context.State == ghttp.READ_FIRST_LINE {
+		if a.currConn.CheckReadable(a.context.HasLineData) {
+			a.currConn.Read(&a.readBuffer, a.context.ReadLength)
 
 			// 拆分第一行數據
-			a.lineString = strings.TrimRight(string(a.readBuffer[:a.httpConn.ReadLength]), "\r\n")
+			a.lineString = strings.TrimRight(string(a.readBuffer[:a.context.ReadLength]), "\r\n")
 			utils.Info("firstLine: %s", a.lineString)
 
-			if a.httpConn.ParseFirstReqLine(a.lineString) {
-				if a.httpConn.Method == ghttp.MethodGet {
+			if a.context.ParseFirstReqLine(a.lineString) {
+				if a.context.Method == ghttp.MethodGet {
 					// 解析第一行數據中的請求路徑
-					a.httpConn.ParseQuery()
+					a.context.ParseQuery()
 				}
-				a.httpConn.State = 1
-				utils.Debug("State: 0 -> 1")
+				a.context.State = ghttp.READ_HEADER
+				utils.Debug("State: READ_FIRST_LINE -> READ_HEADER")
 			}
 		}
 	}
 
 	// 讀取 Header 數據
-	if a.httpConn.State == 1 {
+	if a.context.State == ghttp.READ_HEADER {
 		var key, value string
 		var ok bool
 
-		for a.httpConn.State == 1 && a.currConn.CheckReadable(a.httpConn.HasLineData) {
+		for a.context.State == ghttp.READ_HEADER && a.currConn.CheckReadable(a.context.HasLineData) {
 			// 讀取一行數據
-			a.currConn.Read(&a.readBuffer, a.httpConn.ReadLength)
+			a.currConn.Read(&a.readBuffer, a.context.ReadLength)
 
 			// mustHaveFieldNameColon ensures that, per RFC 7230, the field-name is on a single line,
 			// so the first line must contain a colon.
 			// 將讀到的數據從冒號拆分成 key, value
 			// k, v, ok := bytes.Cut(a.readBuffer[:a.currContext.ReadLength], COLON)
-			a.lineString = strings.TrimRight(string(a.readBuffer[:a.httpConn.ReadLength]), "\r\n")
+			a.lineString = strings.TrimRight(string(a.readBuffer[:a.context.ReadLength]), "\r\n")
 			key, value, ok = strings.Cut(a.lineString, ghttp.COLON)
 
 			if ok {
 				// 持續讀取 Header
-				if _, ok := a.httpConn.Header[key]; !ok {
-					a.httpConn.Header[key] = []string{}
+				if _, ok := a.context.Header[key]; !ok {
+					a.context.Header[key] = []string{}
 				}
 
 				value = strings.TrimLeft(value, " \t")
 				// value = strings.TrimRight(value, "\r\n")
-				a.httpConn.Header[key] = append(a.httpConn.Header[key], value)
+				a.context.Header[key] = append(a.context.Header[key], value)
 				// fmt.Printf("(a *HttpAnser) Read | Header, key: %s, value: %s\n", key, value)
 				utils.Debug("Header, key: %s, value: %s", key, value)
 
@@ -158,7 +158,7 @@ func (a *HttpAnser) read() bool {
 				// 當前這行數據不包含":"，結束 Header 的讀取
 
 				// Header 中包含 Content-Length，狀態值設為 2，等待讀取後續數據
-				if contentLength, ok := a.httpConn.Header["Content-Length"]; ok {
+				if contentLength, ok := a.context.Header["Content-Length"]; ok {
 					length, err := strconv.Atoi(contentLength[0])
 					// fmt.Printf("(a *HttpAnser) Read | Content-Length: %d\n", length)
 					utils.Debug("Content-Length: %d", length)
@@ -169,10 +169,9 @@ func (a *HttpAnser) read() bool {
 						return false
 					}
 
-					a.httpConn.ReadLength = int32(length)
-					a.httpConn.State = 2
-					// fmt.Printf("(a *HttpAnser) Read | State: 1 -> 2\n")
-					utils.Debug("State: 1 -> 2")
+					a.context.ReadLength = int32(length)
+					a.context.State = ghttp.READ_BODY
+					utils.Debug("State: READ_HEADER -> READ_BODY")
 
 				} else {
 					// 考慮分包問題，收到完整一包數據傳完才傳到應用層
@@ -185,9 +184,8 @@ func (a *HttpAnser) read() bool {
 					a.currWork = a.currWork.Next
 
 					// 等待數據寫出
-					a.httpConn.State = 3
-					// fmt.Printf("(a *HttpAnser) Read | State: 1 -> 3\n")
-					utils.Debug("State: 1 -> 3")
+					a.context.State = ghttp.WRITE_RESPONSE
+					utils.Debug("State: READ_HEADER -> WRITE_RESPONSE")
 					return true
 				}
 			}
@@ -195,25 +193,24 @@ func (a *HttpAnser) read() bool {
 	}
 
 	// 讀取 Body 數據
-	if a.httpConn.State == 2 {
-		if a.currConn.CheckReadable(a.httpConn.HasEnoughData) {
+	if a.context.State == ghttp.READ_BODY {
+		if a.currConn.CheckReadable(a.context.HasEnoughData) {
 			// 將傳入的數據，加入工作緩存中
-			a.currConn.Read(&a.readBuffer, a.httpConn.ReadLength)
-			utils.Debug("Body 數據: %s", string(a.readBuffer[:a.httpConn.ReadLength]))
+			a.currConn.Read(&a.readBuffer, a.context.ReadLength)
+			utils.Debug("Body 數據: %s", string(a.readBuffer[:a.context.ReadLength]))
 
 			// 考慮分包問題，收到完整一包數據傳完才傳到應用層
 			a.currWork.Index = a.currConn.GetId()
 			a.currWork.RequestTime = time.Now().UTC()
 			a.currWork.State = 1
-			a.httpConn.SetBody(a.readBuffer, a.httpConn.ReadLength)
+			a.context.SetBody(a.readBuffer, a.context.ReadLength)
 
 			// 指向下一個工作結構
 			a.currWork = a.currWork.Next
 
 			// 等待數據寫出
-			a.httpConn.State = 3
-			// fmt.Printf("(a *HttpAnser) Read | State: 2 -> 3\n")
-			utils.Debug("State: 2 -> 3")
+			a.context.State = ghttp.WRITE_RESPONSE
+			utils.Debug("State: READ_BODY -> WRITE_RESPONSE")
 			return false
 		}
 	}
@@ -232,57 +229,58 @@ func (a *HttpAnser) write(cid int32, data *[]byte, length int32) error {
 	a.currConn.SetWriteBuffer(data, length)
 
 	// 完成數據複製到寫出緩存
-	a.httpConn.State = 4
+	a.context.State = ghttp.FINISH_RESPONSE
 	return nil
 }
 
 // 由外部定義 workHandler，定義如何處理工作
 func (a *HttpAnser) SetWorkHandler() {
+	// 在此將通用的 Work 轉換成 Http 專用的 Context
 	a.workHandler = func(w *base.Work) {
 		defer func() {
 			if err := recover(); err != nil {
 				utils.Error("Recover err: %+v", err)
-				a.serverErrorHandler(w, a.httpConn, "Internal Server Error")
+				a.serverErrorHandler(w, a.context, "Internal Server Error")
 			}
 		}()
-		a.httpConn = a.httpConns[w.Index]
-		a.httpConn.Cid = w.Index
-		a.httpConn.Wid = w.GetId()
-		utils.Debug("Cid: %d, Wid: %d", a.httpConn.Cid, a.httpConn.Wid)
+		a.context = a.contexts[w.Index]
+		a.context.Cid = w.Index
+		a.context.Wid = w.GetId()
+		utils.Debug("Cid: %d, Wid: %d", a.context.Cid, a.context.Wid)
 		var key string
 		var value any
 		var unmatched bool = true
 		var nSplit int32
 		var splits []string
 
-		if a.httpConn.Query == "" || a.httpConn.Query == "/" {
+		if a.context.Query == "" || a.context.Query == "/" {
 			nSplit = 1
 			splits = []string{""}
 		} else {
-			a.httpConn.Query = strings.TrimSuffix(a.httpConn.Query, "/")
-			splits = strings.Split(a.httpConn.Query, "/")
+			a.context.Query = strings.TrimSuffix(a.context.Query, "/")
+			splits = strings.Split(a.context.Query, "/")
 			nSplit = int32(len(splits))
 		}
 
 		for _, endpoint := range a.EndPointHandlers {
 			if endpoint.nNode == nSplit {
-				if handlers, ok := endpoint.Handlers[a.httpConn.Method]; ok {
+				if handlers, ok := endpoint.Handlers[a.context.Method]; ok {
 					if endpoint.Macth(splits) {
 						utils.Debug("endpoint path: %s", endpoint.path)
 						unmatched = false
-						if a.httpConn.Method == ghttp.MethodOptions {
-							a.optionsRequestHandler(w, a.httpConn, endpoint.options)
+						if a.context.Method == ghttp.MethodOptions {
+							a.optionsRequestHandler(w, a.context, endpoint.options)
 						} else {
 							for key, value = range endpoint.params {
-								if _, ok = a.httpConn.Params[key]; !ok {
-									a.httpConn.Params[key] = fmt.Sprintf("%v", value)
+								if _, ok = a.context.Params[key]; !ok {
+									a.context.Params[key] = fmt.Sprintf("%v", value)
 								}
-								if _, ok = a.httpConn.Values[key]; !ok {
-									a.httpConn.Values[key] = value
+								if _, ok = a.context.Values[key]; !ok {
+									a.context.Values[key] = value
 								}
 							}
 							for _, function := range handlers {
-								function(a.httpConn)
+								function(a.context)
 							}
 						}
 						break
@@ -291,19 +289,19 @@ func (a *HttpAnser) SetWorkHandler() {
 			}
 		}
 		if unmatched {
-			a.errorRequestHandler(w, a.httpConn, "Unmatched endpoint.")
+			a.errorRequestHandler(w, a.context, "Unmatched endpoint.")
 		}
 	}
 }
 
 func (a *HttpAnser) optionsRequestHandler(w *base.Work, c *ghttp.Context, options []string) {
-	a.httpConn.SetHeader("Allow", strings.Join(options, ", "))
-	a.httpConn.SetHeader("Connection", "close")
-	a.httpConn.Status(ghttp.StatusOK)
-	a.httpConn.BodyLength = 0
-	a.httpConn.SetContentLength()
+	a.context.SetHeader("Allow", strings.Join(options, ", "))
+	a.context.SetHeader("Connection", "close")
+	a.context.Status(ghttp.StatusOK)
+	a.context.BodyLength = 0
+	a.context.SetContentLength()
 	// 將 Response 回傳數據轉換成 Work 傳遞的格式
-	bs := a.httpConn.ToResponseData()
+	bs := a.context.ToResponseData()
 	w.Body.Clear()
 	w.Body.AddRawData(bs)
 	w.Send()
@@ -349,10 +347,10 @@ func (a *HttpAnser) shouldClose(err error) bool {
 	if a.Anser.shouldClose(err) {
 		return true
 	}
-	a.httpConn = a.httpConns[a.currConn.GetId()]
-	if a.httpConn.State == 4 && a.currConn.WritableLength == 0 {
+	a.context = a.contexts[a.currConn.GetId()]
+	if a.context.State == ghttp.FINISH_RESPONSE && a.currConn.WritableLength == 0 {
 		utils.Info("Conn(%d) 完成數據寫出，準備關閉連線", a.currConn.GetId())
-		a.httpConn.Release()
+		a.context.Release()
 		return true
 	}
 	return false
@@ -360,10 +358,10 @@ func (a *HttpAnser) shouldClose(err error) bool {
 
 func (a *HttpAnser) GetContext(cid int32) *ghttp.Context {
 	if cid == -1 {
-		a.context = a.contextPool.Get().(*ghttp.Context)
-		return a.context
+		a._context = a.contextPool.Get().(*ghttp.Context)
+		return a._context
 	} else {
-		return a.httpConns[cid]
+		return a.contexts[cid]
 	}
 }
 
