@@ -10,7 +10,7 @@ type RandomReturnServer struct {
 }
 
 func (rrs *RandomReturnServer) Handler(work *base.Work) {
-	cmd := work.Body.PopByte()
+	cmd := work.Body.PopInt32()
 
 	switch cmd {
 	case 0:
@@ -18,51 +18,43 @@ func (rrs *RandomReturnServer) Handler(work *base.Work) {
 	case 1:
 		rrs.handleCommission(work)
 	default:
-		// fmt.Printf("Unsupport command: %d\n", cmd)
 		logger.Error("Unsupport command: %d", cmd)
 		work.Finish()
 	}
 }
 
-func (rrs *RandomReturnServer) Run() {
-
-}
-
 func (rrs *RandomReturnServer) handleSystemCommand(work *base.Work) {
-	service := work.Body.PopUInt16()
+	service := work.Body.PopInt32()
 
 	switch service {
 	case 0:
-		// fmt.Printf("Heart beat! Now: %+v\n", time.Now())
 		logger.Debug("Heart beat! Now: %+v", time.Now())
 		work.Body.Clear()
-		work.Body.AddByte(0)
-		work.Body.AddUInt16(0)
+		work.Body.AddInt32(0)
+		work.Body.AddInt32(0)
 		work.Body.AddString("OK")
 		work.SendTransData()
 	default:
-		// fmt.Printf("Unsupport service: %d\n", service)
 		logger.Error("Unsupport service: %d", service)
 		work.Finish()
 	}
 }
 
 func (rrs *RandomReturnServer) handleCommission(work *base.Work) {
-	commission := work.Body.PopUInt16()
+	commission := work.Body.PopInt32()
 
 	switch commission {
 	case 1023:
 		cid := work.Body.PopInt32()
 		work.Body.Clear()
 
-		work.Body.AddByte(1)
-		work.Body.AddUInt16(1023)
+		work.Body.AddInt32(1)
+		work.Body.AddInt32(1023)
 		work.Body.AddInt32(cid)
 		work.Body.AddString("Commission completed.")
 		work.SendTransData()
 
 	default:
-		// fmt.Printf("Unsupport commission: %d\n", commission)
 		logger.Error("Unsupport commission: %d", commission)
 		work.Finish()
 	}

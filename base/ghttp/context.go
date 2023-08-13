@@ -264,13 +264,11 @@ func (r *Request) ParseParams(params string) error {
 		key, params, _ = strings.Cut(params, "&")
 
 		if strings.Contains(key, ";") {
-			// fmt.Printf("(r *Request) ParseParams | invalid semicolon separator in query(%s)\n", key)
 			utils.Warn("invalid semicolon separator in query(%s)", key)
 			continue
 		}
 
 		if key == "" {
-			// fmt.Printf("(r *Request) ParseParams | Empty query is found.\n")
 			utils.Warn("Empty query is found.")
 			continue
 		}
@@ -305,8 +303,6 @@ func (r Request) GetValue(key string) any {
 func (r *Request) Json(obj any) {
 	r.Header["Content-Type"] = jsonContentType
 	data, _ := json.Marshal(obj)
-	// r.BodyLength = int32(len(data))
-	// copy(r.Body[:r.BodyLength], data[:r.BodyLength])
 	r.SetBody(data, int32(len(data)))
 	r.SetContentLength()
 }
@@ -463,8 +459,6 @@ func (r *Response) Json(code int32, obj any) {
 
 	r.Header["Content-Type"] = jsonContentType
 	data, _ := json.Marshal(obj)
-	// r.BodyLength = int32(len(data))
-	// copy(r.Body[:r.BodyLength], data[:r.BodyLength])
 	r.SetBody(data, int32(len(data)))
 	r.SetContentLength()
 }
@@ -490,6 +484,7 @@ func (r Response) ToResponseData() []byte {
 		buffer.WriteString(fmt.Sprintf("%s: %s\r\n", k, strings.Join(v, ", ")))
 	}
 
+	// Body
 	if _, ok := r.Header["Content-Length"]; ok {
 		buffer.WriteString("\r\n")
 		buffer.Write(r.Body[:r.BodyLength])

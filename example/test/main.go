@@ -67,7 +67,6 @@ type Protocol struct {
 
 func (m *Mgr) Handler(router *ans.Router) {
 	router.GET("/", func(c *ghttp.Context) {
-		defer m.HttpAnswer.Send(c)
 		defer func() {
 			if err := recover(); err != nil {
 				c.Json(ghttp.StatusInternalServerError, ghttp.H{

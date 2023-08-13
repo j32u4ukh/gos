@@ -283,7 +283,12 @@ func (a *HttpAnser) SetWorkHandler() {
 								function(a.context)
 							}
 							// TODO: Unit test 檢查 Response
-							// TODO: 檢查 Response 是否需要寫出
+							// 檢查 Response 是否需要寫出
+							if a.context.Code != -1 {
+								a.Send(a.context)
+							} else {
+								a.Finish(a.context)
+							}
 						}
 						break
 					}
@@ -346,10 +351,11 @@ func (a *HttpAnser) serverErrorHandler(w *base.Work, c *ghttp.Context, msg strin
 
 // 當前連線是否應斷線
 func (a *HttpAnser) shouldClose(err error) bool {
+	a.context = a.contexts[a.currConn.GetId()]
 	if a.Anser.shouldClose(err) {
+		a.context.Release()
 		return true
 	}
-	a.context = a.contexts[a.currConn.GetId()]
 	if a.context.State == ghttp.FINISH_RESPONSE && a.currConn.WritableLength == 0 {
 		utils.Info("Conn(%d) 完成數據寫出，準備關閉連線", a.currConn.GetId())
 		a.context.Release()
@@ -372,23 +378,16 @@ func (a *HttpAnser) Send(c *ghttp.Context) {
 
 	// 將 Response 回傳數據轉換成 Work 傳遞的格式
 	bs := c.ToResponseData()
-
-	// fmt.Printf("Response: %s\n", string(bs))
-	// fmt.Printf("Raw Response: %+v\n", utils.SliceToString(bs))
 	utils.Debug("Response: %s", string(bs))
-	utils.Debug("Raw Response: %s", utils.SliceToString(bs))
 
 	w := a.getWork(c.Wid)
-	// fmt.Printf("Wid: %d, w: %+v\n", c.Wid, w)
 	utils.Debug("Wid: %d, w: %+v", c.Wid, w)
 
 	w.Index = c.Cid
-	// fmt.Printf("c.Cid: %d, w.Index: %d\n", c.Cid, w.Index)
 	utils.Debug("c.Cid: %d, w.Index: %d", c.Cid, w.Index)
 
 	w.Body.AddRawData(bs)
 	w.Send()
-	// fmt.Printf("Wid: %d, w: %+v\n", c.Wid, w)
 	utils.Debug("Wid: %d, w: %+v", c.Wid, w)
 
 	// 若 Context 是從 contextPool 中取得，id 會是 -1，因此需要回收

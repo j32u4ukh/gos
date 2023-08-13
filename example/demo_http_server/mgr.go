@@ -16,7 +16,6 @@ type Protocol struct {
 }
 
 type Mgr struct {
-	HttpAnswer *ans.HttpAnser
 }
 
 func (m *Mgr) Handler(router *ans.Router) {
@@ -25,14 +24,12 @@ func (m *Mgr) Handler(router *ans.Router) {
 			"index": 1,
 			"msg":   "GET | /",
 		})
-		m.HttpAnswer.Send(c)
 	})
 	router.POST("/", func(c *ghttp.Context) {
 		c.Json(200, ghttp.H{
 			"index": 2,
 			"msg":   "POST | /",
 		})
-		m.HttpAnswer.Send(c)
 	})
 
 	rAbc := router.NewRouter("/abc")
@@ -48,7 +45,6 @@ func (m *Mgr) AbcHander(router *ans.Router) {
 			"index": 3,
 			"msg":   "GET | /abc/get",
 		})
-		m.HttpAnswer.Send(c)
 	})
 	router.POST("/post/", func(c *ghttp.Context) {
 		type Protocol struct {
@@ -62,7 +58,6 @@ func (m *Mgr) AbcHander(router *ans.Router) {
 			"index": 4,
 			"msg":   fmt.Sprintf("POST | /abc/post | protocol: %v", protocol),
 		})
-		m.HttpAnswer.Send(c)
 	})
 
 	rName := router.NewRouter("<name>")
@@ -86,7 +81,6 @@ func (m *Mgr) AbcNameHander(router *ans.Router) {
 			"index": 5,
 			"msg":   fmt.Sprintf("POST | /abc/<name>/<tag> | protocol: %v, tag: %s", protocol, tag),
 		})
-		m.HttpAnswer.Send(c)
 	})
 	router.POST("/def", func(c *ghttp.Context) {
 		protocol := &Protocol{}
@@ -99,7 +93,6 @@ func (m *Mgr) AbcNameHander(router *ans.Router) {
 			"index": 6,
 			"msg":   fmt.Sprintf("POST | /abc/<name>/def | protocol: %v", protocol),
 		})
-		m.HttpAnswer.Send(c)
 	})
 	router.POST("/<id int>", func(c *ghttp.Context) {
 		protocol := &Protocol{}
@@ -117,7 +110,6 @@ func (m *Mgr) AbcNameHander(router *ans.Router) {
 			"index": 7,
 			"msg":   fmt.Sprintf("POST | /abc/<name>/<id int> | protocol: %v, id: %d", protocol, id),
 		})
-		m.HttpAnswer.Send(c)
 	})
 	router.POST("/<pi float>", func(c *ghttp.Context) {
 		protocol := &Protocol{}
@@ -135,7 +127,6 @@ func (m *Mgr) AbcNameHander(router *ans.Router) {
 			"index": 8,
 			"msg":   fmt.Sprintf("POST | /abc/<name>/<pi float> | protocol: %v, pi: %v", protocol, pi),
 		})
-		m.HttpAnswer.Send(c)
 	})
 	router.GET("/get/<user_id int>", func(c *ghttp.Context) {
 		_, name := c.GetParam("name")
@@ -150,7 +141,6 @@ func (m *Mgr) AbcNameHander(router *ans.Router) {
 			"msg":   fmt.Sprintf("GET | /abc/<name>/get/<user_id int> | name: %s, id: %d", name, id),
 			"dt":    dt,
 		})
-		m.HttpAnswer.Send(c)
 	})
 	router.GET("/uint/<value uint>", func(c *ghttp.Context) {
 		_, name := c.GetParam("name")
@@ -165,7 +155,6 @@ func (m *Mgr) AbcNameHander(router *ans.Router) {
 			"msg":   fmt.Sprintf("GET | /abc/<name>/uint/<value uint> | name: %s, id(#id = %d): %d", name, len(fmt.Sprintf("%d", id)), id),
 			"dt":    dt,
 		})
-		m.HttpAnswer.Send(c)
 	})
 	router.GET("/uint/<value int>", func(c *ghttp.Context) {
 		name := c.GetValue("name").(string)
@@ -180,7 +169,6 @@ func (m *Mgr) AbcNameHander(router *ans.Router) {
 			"msg":   fmt.Sprintf("GET | /abc/<name>/uint/<value int> | name: %s, id(#id = %d): %d", name, len(fmt.Sprintf("%d", id)), id),
 			"dt":    dt,
 		})
-		m.HttpAnswer.Send(c)
 	})
 }
 
@@ -190,13 +178,12 @@ func (m *Mgr) MethodHander(router *ans.Router) {
 		c.Response.SetHeader("HeadMessage", "Message from head router.")
 		c.Response.BodyLength = 0
 		c.Response.SetContentLength()
-		m.HttpAnswer.Send(c)
+
 	})
 	router.GET("/", func(c *ghttp.Context) {
 		c.Json(200, ghttp.H{
 			"msg": "GET | /",
 		})
-		m.HttpAnswer.Send(c)
 	})
 	router.POST("/", func(c *ghttp.Context) {
 		p := &Protocol{}
@@ -204,7 +191,6 @@ func (m *Mgr) MethodHander(router *ans.Router) {
 		c.Json(200, ghttp.H{
 			"msg": fmt.Sprintf("POST | /, %+v", p),
 		})
-		m.HttpAnswer.Send(c)
 	})
 	router.PUT("/", func(c *ghttp.Context) {
 		p := &Protocol{}
@@ -212,7 +198,6 @@ func (m *Mgr) MethodHander(router *ans.Router) {
 		c.Json(200, ghttp.H{
 			"msg": fmt.Sprintf("PUT | /, %+v", p),
 		})
-		m.HttpAnswer.Send(c)
 	})
 	router.PATCH("/", func(c *ghttp.Context) {
 		p := &Protocol{}
@@ -220,7 +205,6 @@ func (m *Mgr) MethodHander(router *ans.Router) {
 		c.Json(200, ghttp.H{
 			"msg": fmt.Sprintf("PATCH | /, %+v", p),
 		})
-		m.HttpAnswer.Send(c)
 	})
 	router.DELETE("/<id int>", func(c *ghttp.Context) {
 		value := c.GetValue("id")
@@ -233,6 +217,5 @@ func (m *Mgr) MethodHander(router *ans.Router) {
 				"msg": "DELETE | /<id int>",
 			})
 		}
-		m.HttpAnswer.Send(c)
 	})
 }

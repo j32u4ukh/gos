@@ -177,7 +177,6 @@ func RunAns(port int) {
 
 	httpAnswer := anser.(*ans.HttpAnser)
 	mgr := &Mgr{}
-	mgr.HttpAnswer = httpAnswer
 	mgr.Handler(httpAnswer.Router)
 	logger.Debug("伺服器初始化完成")
 
