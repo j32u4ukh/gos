@@ -67,7 +67,7 @@ func NewHttpAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, err
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to new HttpAnser.")
 	}
-	a.Anser.ReadTimeout = 5000 * time.Millisecond
+	a.Anser.ReadTimeout = utils.GosConfig.HttpAnserReadTimeout
 
 	// ===== Router =====
 	a.Router = &Router{

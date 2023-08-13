@@ -33,7 +33,11 @@ func init() {
 func Listen(socketType define.SocketType, port int32) (ans.IAnswer, error) {
 	if _, ok := server.anserMap[port]; !ok {
 		laddr, _ := net.ResolveTCPAddr("tcp", fmt.Sprintf(":%d", port))
-		anser, err := ans.NewAnser(socketType, laddr, 10, 10)
+		anser, err := ans.NewAnser(
+			socketType,
+			laddr,
+			utils.GosConfig.AnswerConnectNumbers[socketType],
+			utils.GosConfig.AnswerWorkNumbers[socketType])
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to listen on port %d.", port)
 		}
@@ -58,7 +62,15 @@ func StartListen() {
 func Bind(serverId int32, ip string, port int, socketType define.SocketType, onEvents base.OnEventsFunc, introduction *[]byte, heartbeat *[]byte) (ask.IAsker, error) {
 	if _, ok := server.askerMap[serverId]; !ok {
 		laddr := &net.TCPAddr{IP: net.ParseIP(ip), Port: port, Zone: ""}
-		asker, err := ask.NewAsker(socketType, serverId, laddr, 10, onEvents, introduction, heartbeat)
+		asker, err := ask.NewAsker(
+			socketType,
+			serverId,
+			laddr,
+			utils.GosConfig.AskerWorkNumbers[socketType],
+			onEvents,
+			introduction,
+			heartbeat,
+		)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to create an Asker for %s:%d.", ip, port)
 		}
