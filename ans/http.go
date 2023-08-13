@@ -29,7 +29,7 @@ type HttpAnser struct {
 	*Router
 
 	// key1: Method(Get/Post); key2: node number of EndPoint; value: []*EndPoint
-	Handlers         map[string]map[int32][]*EndPoint
+	// Handlers         map[string]map[int32][]*EndPoint
 	EndPointHandlers []*EndPoint
 
 	// ==================================================
@@ -37,11 +37,9 @@ type HttpAnser struct {
 	// 個數與 Anser 的 nConnect 相同，因此可利用 Conn 中的 id 作為索引值，來存取,
 	// 由於 Context 是使用 Conn 的 id 作為索引值，因此可以不用從第一個開始使用，結束使用後也不需要對順序進行調整
 	// ==================================================
-	contexts []*ghttp.Context
-	context  *ghttp.Context
-
 	contextPool sync.Pool
-	_context    *ghttp.Context
+	contexts    []*ghttp.Context
+	context     *ghttp.Context
 
 	// Temp variables
 	lineString string
@@ -50,19 +48,18 @@ type HttpAnser struct {
 func NewHttpAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, error) {
 	var err error
 	a := &HttpAnser{
-		Handlers: map[string]map[int32][]*EndPoint{
-			ghttp.MethodHead:   {},
-			ghttp.MethodGet:    {},
-			ghttp.MethodPost:   {},
-			ghttp.MethodPut:    {},
-			ghttp.MethodPatch:  {},
-			ghttp.MethodDelete: {},
-		},
+		// Handlers: map[string]map[int32][]*EndPoint{
+		// 	ghttp.MethodHead:   {},
+		// 	ghttp.MethodGet:    {},
+		// 	ghttp.MethodPost:   {},
+		// 	ghttp.MethodPut:    {},
+		// 	ghttp.MethodPatch:  {},
+		// 	ghttp.MethodDelete: {},
+		// },
 		EndPointHandlers: []*EndPoint{},
 		contexts:         make([]*ghttp.Context, nConnect),
 		context:          nil,
 		contextPool:      sync.Pool{New: func() any { return ghttp.NewContext(-1) }},
-		_context:         nil,
 	}
 
 	// ===== Anser =====
@@ -366,11 +363,11 @@ func (a *HttpAnser) shouldClose(err error) bool {
 
 func (a *HttpAnser) GetContext(cid int32) *ghttp.Context {
 	if cid == -1 {
-		a._context = a.contextPool.Get().(*ghttp.Context)
-		return a._context
+		a.context = a.contextPool.Get().(*ghttp.Context)
 	} else {
-		return a.contexts[cid]
+		a.context = a.contexts[cid]
 	}
+	return a.context
 }
 
 func (a *HttpAnser) Send(c *ghttp.Context) {
