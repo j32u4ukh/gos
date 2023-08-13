@@ -104,7 +104,7 @@ func newAsker(site int32, laddr *net.TCPAddr, nConnect int32, nWork int32, intro
 		order:             binary.LittleEndian,
 		index:             site,
 		maxConn:           nConnect,
-		conns:             base.NewConn(0, define.BUFFER_SIZE),
+		conns:             base.NewConn(0, utils.GosConfig.ConnBufferSize),
 		readBuffer:        make([]byte, 64*1024),
 		connBuffer:        make(chan base.ConnBuffer, nWork),
 		works:             base.NewWork(0),
@@ -133,7 +133,7 @@ func newAsker(site int32, laddr *net.TCPAddr, nConnect int32, nWork int32, intro
 	a.lastConn = a.conns
 
 	for i = 1; i < nConnect; i++ {
-		nextConn = base.NewConn(i, define.BUFFER_SIZE)
+		nextConn = base.NewConn(i, utils.GosConfig.ConnBufferSize)
 		a.lastConn.Next = nextConn
 		a.lastConn = nextConn
 	}

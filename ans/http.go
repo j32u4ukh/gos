@@ -29,7 +29,6 @@ type HttpAnser struct {
 	*Router
 
 	// key1: Method(Get/Post); key2: node number of EndPoint; value: []*EndPoint
-	// Handlers         map[string]map[int32][]*EndPoint
 	EndPointHandlers []*EndPoint
 
 	// ==================================================
@@ -48,14 +47,6 @@ type HttpAnser struct {
 func NewHttpAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, error) {
 	var err error
 	a := &HttpAnser{
-		// Handlers: map[string]map[int32][]*EndPoint{
-		// 	ghttp.MethodHead:   {},
-		// 	ghttp.MethodGet:    {},
-		// 	ghttp.MethodPost:   {},
-		// 	ghttp.MethodPut:    {},
-		// 	ghttp.MethodPatch:  {},
-		// 	ghttp.MethodDelete: {},
-		// },
 		EndPointHandlers: []*EndPoint{},
 		contexts:         make([]*ghttp.Context, nConnect),
 		context:          nil,
@@ -237,7 +228,7 @@ func (a *HttpAnser) SetWorkHandler() {
 		defer func() {
 			if err := recover(); err != nil {
 				utils.Error("Recover err: %+v", err)
-				a.serverErrorHandler(w, a.context, "Internal Server Error")
+				a.serverErrorHandler(a.context, "Internal Server Error")
 			}
 		}()
 		a.context = a.contexts[w.Index]
@@ -293,7 +284,7 @@ func (a *HttpAnser) SetWorkHandler() {
 			}
 		}
 		if unmatched {
-			a.errorRequestHandler(w, a.context, "Unmatched endpoint.")
+			a.errorRequestHandler(a.context, "Unmatched endpoint.")
 		}
 	}
 }
@@ -311,39 +302,20 @@ func (a *HttpAnser) optionsRequestHandler(w *base.Work, c *ghttp.Context, option
 	w.Send()
 }
 
-func (a *HttpAnser) errorRequestHandler(w *base.Work, c *ghttp.Context, msg string) {
-	utils.Debug("method: %s, query: %s", c.Method, c.Query)
-
-	c.Json(400, ghttp.H{
-		"code": 400,
-		"msg":  msg,
+func (a *HttpAnser) errorRequestHandler(c *ghttp.Context, msg string) {
+	utils.Error("method: %s, query: %s", c.Method, c.Query)
+	c.Json(ghttp.StatusBadRequest, ghttp.H{
+		"error": msg,
 	})
-	c.Response.SetHeader("Connection", "close")
-
-	// 將 Response 回傳數據轉換成 Work 傳遞的格式
-	bs := c.ToResponseData()
-	// fmt.Printf("Response: %s\n", string(bs))
-	utils.Debug("Response: %s", string(bs))
-
-	w.Body.AddRawData(bs)
-	w.Send()
+	a.Send(c)
 }
 
-func (a *HttpAnser) serverErrorHandler(w *base.Work, c *ghttp.Context, msg string) {
-	utils.Debug("method: %s, query: %s", c.Method, c.Query)
-
+func (a *HttpAnser) serverErrorHandler(c *ghttp.Context, msg string) {
+	utils.Error("method: %s, query: %s", c.Method, c.Query)
 	c.Json(ghttp.StatusInternalServerError, ghttp.H{
-		"code": ghttp.StatusInternalServerError,
-		"msg":  msg,
+		"error": msg,
 	})
-	c.Response.SetHeader("Connection", "close")
-
-	// 將 Response 回傳數據轉換成 Work 傳遞的格式
-	bs := c.ToResponseData()
-	utils.Debug("Response: %s", string(bs))
-	w.Body.Clear()
-	w.Body.AddRawData(bs)
-	w.Send()
+	a.Send(c)
 }
 
 // 當前連線是否應斷線

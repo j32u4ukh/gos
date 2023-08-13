@@ -108,8 +108,8 @@ func newAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (*Anser, error) {
 		index:      0,
 		nConn:      0,
 		maxConn:    nConnect,
-		conns:      base.NewConn(0, define.BUFFER_SIZE),
-		readBuffer: make([]byte, 64*1024),
+		conns:      base.NewConn(0, utils.GosConfig.ConnBufferSize),
+		readBuffer: make([]byte, utils.GosConfig.AnswerReadBuffer),
 		order:      binary.LittleEndian,
 		connBuffer: make(chan net.Conn, nWork),
 		works:      base.NewWork(0),
@@ -122,7 +122,7 @@ func newAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (*Anser, error) {
 	a.lastConn = a.conns
 
 	for i = 1; i < nConnect; i++ {
-		nextConn = base.NewConn(i, define.BUFFER_SIZE)
+		nextConn = base.NewConn(i, utils.GosConfig.ConnBufferSize)
 		a.lastConn.Next = nextConn
 		a.lastConn = nextConn
 	}
@@ -250,7 +250,7 @@ func (a *Anser) connectedHandler() {
 			a.currConn.State = define.Disconnect
 
 			// 設定 3 秒後斷線
-			a.currConn.SetDisconnectTime(3)
+			a.currConn.SetDisconnectTime(utils.GosConfig.DisconnectTime)
 
 			// 指標指向下一個連線物件
 			a.preConn = a.currConn
@@ -271,7 +271,7 @@ func (a *Anser) connectedHandler() {
 			a.currConn.State = define.Disconnect
 
 			// 設定 3 秒後斷線
-			a.currConn.SetDisconnectTime(3)
+			a.currConn.SetDisconnectTime(utils.GosConfig.DisconnectTime)
 
 			// 指標指向下一個連線物件
 			a.preConn = a.currConn
@@ -292,7 +292,7 @@ func (a *Anser) connectedHandler() {
 			a.currConn.State = define.Disconnect
 
 			// 設定 3 秒後斷線
-			a.currConn.SetDisconnectTime(3)
+			a.currConn.SetDisconnectTime(utils.GosConfig.DisconnectTime)
 		}
 
 		// 指標指向下一個連線物件
@@ -449,7 +449,6 @@ func (a *Anser) Write(cid int32, data *[]byte, length int32) error {
 	}
 
 	c.SetWriteBuffer(data, length)
-	// a.currWork.State = 0
 	return nil
 }
 

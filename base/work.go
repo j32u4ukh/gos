@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/j32u4ukh/gos/define"
+	"github.com/j32u4ukh/gos/utils"
 )
 
 type WorkState int32
@@ -43,7 +44,7 @@ type Work struct {
 	// ==================================================
 	// Work 唯一碼
 	id int32
-	// 對應的 Conn id 的 Index
+	// 對應的 Conn id 的 Index(空閒 Context id = -1，因此 Index 預設值為 -2，要和前者做區分)
 	Index int32
 	// 請求發起的時間(若距離實際處理的時間過長，則不處理)
 	RequestTime time.Time
@@ -69,7 +70,7 @@ func NewWork(id int32) *Work {
 		Index:       -2,
 		RequestTime: time.Now().UTC(),
 		Next:        nil,
-		Data:        make([]byte, define.BUFFER_SIZE*define.MTU),
+		Data:        make([]byte, utils.GosConfig.ConnBufferSize*define.MTU),
 		Body:        NewTransData(),
 		State:       WORK_FREE,
 	}
@@ -95,18 +96,20 @@ func (w *Work) Read() []byte {
 // 原始數據寫入緩存
 func (w *Work) Send() {
 	data := w.Body.GetData()
-	w.Length = int32(len(data))
-	copy(w.Data[:w.Length], data)
-	w.Body.ResetIndex()
-	w.State = WORK_OUTPUT
+	w.send(data)
 }
 
 // 格式化數據寫入緩存
 func (w *Work) SendTransData() {
 	data := w.Body.FormData()
+	w.send(data)
+}
+
+// 數據寫入緩存
+func (w *Work) send(data []byte) {
 	w.Body.ResetIndex()
 	w.Length = int32(len(data))
-	copy(w.Data, data)
+	copy(w.Data[:w.Length], data)
 	w.State = WORK_OUTPUT
 }
 
