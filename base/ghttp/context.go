@@ -29,6 +29,23 @@ const (
 	FINISH_RESPONSE
 )
 
+func (cs ContextState) String() string {
+	switch cs {
+	case READ_FIRST_LINE:
+		return "READ_FIRST_LINE"
+	case READ_HEADER:
+		return "READ_HEADER"
+	case READ_BODY:
+		return "READ_BODY"
+	case WRITE_RESPONSE:
+		return "WRITE_RESPONSE"
+	case FINISH_RESPONSE:
+		return "FINISH_RESPONSE"
+	default:
+		return "Unknown ContextState"
+	}
+}
+
 type Context struct {
 	// Context 唯一碼
 	id int32

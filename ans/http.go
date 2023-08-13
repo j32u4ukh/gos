@@ -177,7 +177,7 @@ func (a *HttpAnser) read() bool {
 					// 考慮分包問題，收到完整一包數據傳完才傳到應用層
 					a.currWork.Index = a.currConn.GetId()
 					a.currWork.RequestTime = time.Now().UTC()
-					a.currWork.State = 1
+					a.currWork.State = base.WORK_NEED_PROCESS
 					a.currWork.Body.ResetIndex()
 
 					// 指向下一個工作結構
@@ -202,7 +202,7 @@ func (a *HttpAnser) read() bool {
 			// 考慮分包問題，收到完整一包數據傳完才傳到應用層
 			a.currWork.Index = a.currConn.GetId()
 			a.currWork.RequestTime = time.Now().UTC()
-			a.currWork.State = 1
+			a.currWork.State = base.WORK_NEED_PROCESS
 			a.context.SetBody(a.readBuffer, a.context.ReadLength)
 
 			// 指向下一個工作結構
@@ -469,7 +469,6 @@ func (r *Router) handle(method string, path string, handlers ...HandlerFunc) {
 
 	if _, ok := endpoint.Handlers[method]; !ok {
 		endpoint.options = append(endpoint.options, method)
-		utils.Info("path: %s, options: %+v", endpoint.path, endpoint.options)
 	}
 
 	endpoint.Handlers[method] = r.combineHandlers(handlers)

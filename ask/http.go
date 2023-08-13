@@ -82,7 +82,7 @@ func (a *HttpAsker) read() {
 	// 根據 Conn 的 Id，存取對應的 httpConn
 	a.httpConn = a.httpConns[a.currConn.GetId()]
 	// fmt.Printf("(a *HttpAsker) Read | Conn(%d), State: %d\n", a.currConn.GetId(), a.httpConn.State)
-	utils.Debug("Conn(%d), State: %d", a.currConn.GetId(), a.httpConn.State)
+	utils.Debug("Conn(%d), State: %s", a.currConn.GetId(), a.httpConn.State)
 
 	// 讀取 第一行
 	if a.httpConn.State == ghttp.READ_FIRST_LINE {
@@ -96,8 +96,7 @@ func (a *HttpAsker) read() {
 
 			a.httpConn.ParseFirstResLine(firstLine)
 			a.httpConn.State = ghttp.READ_HEADER
-			// fmt.Printf("(a *HttpAsker) Read | State: 0 -> 1\n")
-			utils.Debug("State: 0 -> 1")
+			utils.Debug("State: READ_FIRST_LINE -> READ_HEADER")
 		}
 	}
 
@@ -153,7 +152,7 @@ func (a *HttpAsker) read() {
 
 					a.httpConn.State = ghttp.READ_BODY
 					// fmt.Printf("(a *HttpAsker) Read | State: 1 -> 2\n")
-					utils.Debug("State: 1 -> 2")
+					utils.Debug("State: READ_HEADER -> READ_BODY")
 
 				} else {
 					// Header 中不包含 Content-Length，狀態值恢復為 0
@@ -162,7 +161,7 @@ func (a *HttpAsker) read() {
 					// 數據已讀入 currR2 當中，此處工作結構僅負責觸發 WorkHandler，進一步觸發 Callback 函式
 					a.currWork.Index = a.currConn.GetId()
 					a.currWork.RequestTime = time.Now().UTC()
-					a.currWork.State = 1
+					a.currWork.State = base.WORK_NEED_PROCESS
 				}
 				return
 			}
@@ -189,7 +188,7 @@ func (a *HttpAsker) read() {
 			// 數據已讀入 httpConn 當中，此處工作結構僅負責觸發 WorkHandler，進一步觸發 Callback 函式
 			a.currWork.Index = a.currConn.GetId()
 			a.currWork.RequestTime = time.Now().UTC()
-			a.currWork.State = 1
+			a.currWork.State = base.WORK_NEED_PROCESS
 
 			// 指向下一個工作結構
 			a.currWork = a.currWork.Next
@@ -228,7 +227,7 @@ func (a *HttpAsker) write(id int32, data *[]byte, length int32) error {
 	utils.Debug("WriteBuffer, length: %d, data: %+v", length, (*data)[:length])
 
 	a.currConn.SetWriteBuffer(data, length)
-	a.currWork.State = 0
+	a.currWork.State = base.WORK_DONE
 	return nil
 }
 

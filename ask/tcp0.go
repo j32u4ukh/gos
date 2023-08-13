@@ -78,7 +78,7 @@ func (a *Tcp0Asker) read() {
 			// 考慮分包問題，收到完整一包數據傳完才傳到應用層
 			a.currWork.Index = a.currConn.GetId()
 			a.currWork.RequestTime = time.Now().UTC()
-			a.currWork.State = 1
+			a.currWork.State = base.WORK_NEED_PROCESS
 
 			// fmt.Printf("(a *Asker) handler | 將傳入的數據，加入工作緩存中, Index: %d, state: %d\n", work.Index, work.state)
 			a.currWork.Body.AddRawData(a.readBuffer[:a.currTcp0.ReadLength])
@@ -96,7 +96,7 @@ func (a *Tcp0Asker) read() {
 // 內部寫出數據
 func (a *Tcp0Asker) write(id int32, data *[]byte, length int32) error {
 	a.Write(data, length)
-	a.currWork.State = 0
+	a.currWork.State = base.WORK_DONE
 	return nil
 }
 
