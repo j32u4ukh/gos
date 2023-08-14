@@ -108,8 +108,8 @@ func newAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (*Anser, error) {
 		index:      0,
 		nConn:      0,
 		maxConn:    nConnect,
-		conns:      base.NewConn(0, define.BUFFER_SIZE),
-		readBuffer: make([]byte, 64*1024),
+		conns:      base.NewConn(0, utils.GosConfig.ConnBufferSize),
+		readBuffer: make([]byte, utils.GosConfig.AnswerReadBuffer),
 		order:      binary.LittleEndian,
 		connBuffer: make(chan net.Conn, nWork),
 		works:      base.NewWork(0),
@@ -122,7 +122,7 @@ func newAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (*Anser, error) {
 	a.lastConn = a.conns
 
 	for i = 1; i < nConnect; i++ {
-		nextConn = base.NewConn(i, define.BUFFER_SIZE)
+		nextConn = base.NewConn(i, utils.GosConfig.ConnBufferSize)
 		a.lastConn.Next = nextConn
 		a.lastConn = nextConn
 	}
@@ -250,7 +250,7 @@ func (a *Anser) connectedHandler() {
 			a.currConn.State = define.Disconnect
 
 			// 設定 3 秒後斷線
-			a.currConn.SetDisconnectTime(3)
+			a.currConn.SetDisconnectTime(utils.GosConfig.DisconnectTime)
 
 			// 指標指向下一個連線物件
 			a.preConn = a.currConn
@@ -271,7 +271,7 @@ func (a *Anser) connectedHandler() {
 			a.currConn.State = define.Disconnect
 
 			// 設定 3 秒後斷線
-			a.currConn.SetDisconnectTime(3)
+			a.currConn.SetDisconnectTime(utils.GosConfig.DisconnectTime)
 
 			// 指標指向下一個連線物件
 			a.preConn = a.currConn
@@ -292,7 +292,7 @@ func (a *Anser) connectedHandler() {
 			a.currConn.State = define.Disconnect
 
 			// 設定 3 秒後斷線
-			a.currConn.SetDisconnectTime(3)
+			a.currConn.SetDisconnectTime(utils.GosConfig.DisconnectTime)
 		}
 
 		// 指標指向下一個連線物件
@@ -366,10 +366,9 @@ func (a *Anser) getWork(wid int32) *base.Work {
 	work := a.works
 	if wid == -1 {
 		for work != nil {
-			if work.State == -1 {
+			if work.State == base.WORK_FREE {
 				return work
 			}
-
 			work = work.Next
 		}
 	} else {
@@ -377,7 +376,6 @@ func (a *Anser) getWork(wid int32) *base.Work {
 			if work.GetId() == wid {
 				return work
 			}
-
 			work = work.Next
 		}
 	}
@@ -389,37 +387,37 @@ func (a *Anser) dealWork() {
 	a.currWork = a.works
 	var finished, yet *base.Work = nil, nil
 
-	for a.currWork.State != -1 {
+	for a.currWork.State != base.WORK_FREE {
 		switch a.currWork.State {
 		// 工作已完成
-		case 0:
+		case base.WORK_DONE:
 			finished = a.relinkWork(finished, true)
-		case 1:
+		case base.WORK_NEED_PROCESS:
 			// 對工作進行處理
 			a.workHandler(a.currWork)
 
 			switch a.currWork.State {
-			case 0:
+			case base.WORK_DONE:
 				// 將完成的工作加入 finished，並更新 work 所指向的工作結構
 				finished = a.relinkWork(finished, true)
-			case 1:
+			case base.WORK_NEED_PROCESS:
 				// 將工作接入待處理的區塊，下次回圈再行處理
 				yet = a.relinkWork(yet, false)
-			case 2:
+			case base.WORK_OUTPUT:
 				// 將向客戶端傳輸數據，寫入 writeBuffer
 				a.writeFunc(a.currWork.Index, &a.currWork.Data, a.currWork.Length)
 
 				// 將完成的工作加入 finished，並更新 work 所指向的工作結構
 				finished = a.relinkWork(finished, true)
 			}
-		case 2:
+		case base.WORK_OUTPUT:
 			// 將向客戶端傳輸數據，寫入 writeBuffer
 			a.writeFunc(a.currWork.Index, &a.currWork.Data, a.currWork.Length)
 
 			// 將完成的工作加入 finished，並更新 work 所指向的工作結構
 			finished = a.relinkWork(finished, true)
 		default:
-			utils.Error("連線 %d 發生異常工作 state(%d)，直接將工作結束", a.currWork.Index, a.currWork.State)
+			utils.Error("連線 %d 發生異常工作 state(%s)，直接將工作結束", a.currWork.Index, a.currWork.State)
 
 			// 將完成的工作加入 finished，並更新 work 所指向的工作結構
 			finished = a.relinkWork(finished, true)
@@ -451,7 +449,6 @@ func (a *Anser) Write(cid int32, data *[]byte, length int32) error {
 	}
 
 	c.SetWriteBuffer(data, length)
-	// a.currWork.State = 0
 	return nil
 }
 

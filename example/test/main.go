@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/j32u4ukh/gos"
@@ -12,10 +11,16 @@ import (
 )
 
 func main() {
-	// RunAns(1000)
-	ss := []string{"a", "b", "c", "d", "e", "f"}
-	result := strings.Join(ss, ", ")
-	fmt.Println(result)
+	data := make([]int, 10)
+	data[0] = 1
+	data[1] = 3
+	data[2] = 5
+	data[3] = 7
+	data[4] = 11
+	fmt.Printf("#data: %d, data: %+v\n", len(data), data)
+	data = data[:0]
+	data[0] = 13
+	fmt.Printf("#data: %d, data: %+v\n", len(data), data)
 }
 
 func RunAns(port int) {
@@ -62,7 +67,6 @@ type Protocol struct {
 
 func (m *Mgr) Handler(router *ans.Router) {
 	router.GET("/", func(c *ghttp.Context) {
-		defer m.HttpAnswer.Send(c)
 		defer func() {
 			if err := recover(); err != nil {
 				c.Json(ghttp.StatusInternalServerError, ghttp.H{

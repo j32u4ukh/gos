@@ -26,7 +26,7 @@ func NewPacket() *Packet {
 	return p
 }
 
-func (p *Packet) Release(length int32) {
+func (p *Packet) Release() {
 	p.Length = 0
 	p.Error = nil
 }

@@ -13,7 +13,43 @@ import (
 
 // 工作完成時的 Callback 函式
 type HandlerFunc func(*Context)
+type ContextState int8
 
+// HTTP 工作流程按照下方順序執行
+const (
+	// 讀取第一行
+	READ_FIRST_LINE ContextState = iota
+	// 讀取 Header
+	READ_HEADER
+	// 讀取 Data
+	READ_BODY
+	// 等待數據寫出(Response)
+	WRITE_RESPONSE
+	// 完成數據複製到寫出緩存
+	FINISH_RESPONSE
+)
+
+func (cs ContextState) String() string {
+	switch cs {
+	case READ_FIRST_LINE:
+		return "READ_FIRST_LINE"
+	case READ_HEADER:
+		return "READ_HEADER"
+	case READ_BODY:
+		return "READ_BODY"
+	case WRITE_RESPONSE:
+		return "WRITE_RESPONSE"
+	case FINISH_RESPONSE:
+		return "FINISH_RESPONSE"
+	default:
+		return "Unknown ContextState"
+	}
+}
+
+/*
+Request 和 Response 的 Header 應該分開來，因為端點函式中既會讀取 Request 的 Header，也會寫出 Response 的 Header。
+透過不同函式來讀寫即可，記得保留 Context 送出 Request 的能力。
+*/
 type Context struct {
 	// Context 唯一碼
 	id int32
@@ -21,12 +57,74 @@ type Context struct {
 	Cid int32
 	// 對應 工作結構 的 id
 	Wid int32
-	//////////////////////////////////////////////////
-	// 0: 讀取第一行, 1: 讀取 Header, 2: 讀取 Data, 3: 等待數據寫出(Response) 4. 完成數據複製到寫出緩存
-	State int8
-	Header
+	// 工作流程當前階段
+	State ContextState
 	*Request
 	*Response
+}
+
+func NewContext(id int32) *Context {
+	c := &Context{
+		id:       id,
+		Cid:      -1,
+		Wid:      -1,
+		State:    READ_FIRST_LINE,
+		Request:  newRequest(),
+		Response: newResponse(),
+	}
+	return c
+}
+
+func (c *Context) GetId() int32 {
+	return c.id
+}
+
+func (c *Context) Json(code int32, obj any) {
+	c.Response.Json(code, obj)
+}
+
+func (c Context) ReadJson(obj any) error {
+	if c.Request.BodyLength > 0 {
+		data := c.Request.Body[:c.Request.BodyLength]
+		err := json.Unmarshal(data, obj)
+		if err != nil {
+			return errors.Wrap(err, "Failed to unmarshal body to json.")
+		}
+	}
+	return nil
+}
+
+func (c Context) ReadBytes() []byte {
+	if c.Request.BodyLength > 0 {
+		result := make([]byte, c.Request.BodyLength)
+		copy(result, c.Request.Body[:c.Request.BodyLength])
+		return result
+	}
+	return nil
+}
+
+func (c *Context) Release() {
+	c.Cid = -1
+	c.Wid = -1
+	c.State = READ_FIRST_LINE
+	c.Request.Release()
+	c.Response.Release()
+}
+
+// ====================================================================================================
+// Request
+// ====================================================================================================
+type Request struct {
+	// ex: GET
+	Method string
+	// ex: /user/get
+	Query string
+	// ex: HTTP/1.1
+	Proto  string
+	Params map[string]string
+	Values map[string]any
+
+	Header
 
 	// 讀取長度
 	ReadLength int32
@@ -37,109 +135,21 @@ type Context struct {
 	BodyLength int32
 }
 
-func NewContext(id int32) *Context {
-	c := &Context{
-		id:         id,
-		Cid:        -1,
-		Wid:        -1,
-		State:      0,
-		Header:     map[string][]string{},
-		Body:       make([]byte, 64*1024),
-		BodyLength: 0,
-	}
-	c.Request = newRequest(c)
-	c.Response = newResponse(c)
-	return c
-}
-
-func (c *Context) GetId() int32 {
-	return c.id
-}
-
-func (c *Context) SetHeader(key string, value string) {
-	if _, ok := c.Header[key]; !ok {
-		c.Header[key] = []string{value}
-	} else {
-		c.Header[key] = append(c.Header[key], value)
-	}
-}
-
-// 供 HTTP 套件設置 Body 數據
-func (c *Context) SetBody(data []byte, length int32) {
-	c.BodyLength = length
-	copy(c.Body[:length], data[:length])
-}
-
-// 協助設置標頭檔的 Content-Length
-func (c *Context) SetContentLength() {
-	c.Header["Content-Length"] = []string{strconv.Itoa(int(c.BodyLength))}
-}
-
-func (c *Context) Json(code int32, obj any) {
-	c.Response.Json(code, obj)
-}
-
-func (c *Context) ReadJson(obj any) {
-	if c.BodyLength > 0 {
-		data := c.Body[:c.BodyLength]
-		json.Unmarshal(data, obj)
-	}
-}
-
-func (c *Context) ReadBytes() []byte {
-	if c.BodyLength > 0 {
-		result := make([]byte, c.BodyLength)
-		copy(result, c.Body[:c.BodyLength])
-		return result
-	}
-	return nil
-}
-
-// ====================================================================================================
-// Request
-// ====================================================================================================
-type Request struct {
-	*Context
-	// ex: GET
-	Method string
-	// ex: /user/get
-	Query string
-	// ex: HTTP/1.1
-	Proto  string
-	Params map[string]string
-	Values map[string]any
-}
-
 func NewRequest(method string, uri string, params map[string]string) (*Request, error) {
 	c := NewContext(-1)
-	c.Method = method
-	c.Proto = "HTTP/1.1"
-	c.Params = params
-	if c.Values == nil {
-		c.Values = make(map[string]any)
-	}
-	for key, value := range params {
-		c.Values[key] = value
-	}
-
-	var host string
-	var ok bool
-	host, c.Query, ok = strings.Cut(uri, "/")
-	if ok {
-		c.Query = fmt.Sprintf("/%s", c.Query)
-		// fmt.Printf("NewRequest | Query: %s\n", c.Query)
-		utils.Debug("Query: %s", c.Query)
-	}
-	c.Header["Host"] = []string{host}
+	c.Request.FormRequest(method, uri, params)
 	return c.Request, nil
 }
 
-func newRequest(c *Context) *Request {
+func newRequest() *Request {
 	r := &Request{
-		Context: c,
-		Proto:   "HTTP/1.1",
-		Params:  map[string]string{},
-		Values:  make(map[string]any),
+		Proto:      "HTTP/1.1",
+		Params:     map[string]string{},
+		Values:     make(map[string]any),
+		Header:     make(Header),
+		ReadLength: 0,
+		Body:       make([]byte, 64*1024),
+		BodyLength: 0,
 	}
 	return r
 }
@@ -148,23 +158,18 @@ func (r *Request) FormRequest(method string, uri string, params map[string]strin
 	r.Method = method
 	r.Proto = "HTTP/1.1"
 	r.Params = params
-	if r.Values == nil {
-		r.Values = make(map[string]any)
-	}
 	for key, value := range params {
 		r.Values[key] = value
 	}
-	var host string
-	var ok bool
-	host, r.Query, ok = strings.Cut(uri, "/")
+	host, query, ok := strings.Cut(uri, "/")
 	if ok {
-		r.Query = fmt.Sprintf("/%s", r.Query)
-		// fmt.Printf("NewRequest | Query: %s\n", r.Query)
+		r.Query = fmt.Sprintf("/%s", query)
 		utils.Debug("Query: %s", r.Query)
 	}
 	r.Header["Host"] = []string{host}
 }
 
+// 檢查是否有一行數據(以換行符 '\n' 來區分)
 func (r *Request) HasLineData(buffer *[]byte, i int32, o int32, length int32) bool {
 	// fmt.Printf("(c *Context) HasLineData | i: %d, o: %d, length: %d\n", i, o, length)
 
@@ -208,7 +213,6 @@ func (r *Request) HasLineData(buffer *[]byte, i int32, o int32, length int32) bo
 }
 
 func (r *Request) HasEnoughData(buffer *[]byte, i int32, o int32, length int32) bool {
-	// fmt.Printf("(c *Context) HasEnoughData | length: %d, ReadLength: %d\n", length, r.ReadLength)
 	utils.Debug("length: %d, ReadLength: %d", length, r.ReadLength)
 	return length >= r.ReadLength
 }
@@ -218,20 +222,14 @@ func (r *Request) HasEnoughData(buffer *[]byte, i int32, o int32, length int32) 
 func (r *Request) ParseFirstReqLine(line string) bool {
 	var ok bool
 	r.Method, r.Query, ok = strings.Cut(line, " ")
-
 	if !ok {
 		return false
 	}
-
 	r.Query, r.Proto, ok = strings.Cut(r.Query, " ")
-
 	if !ok {
 		return false
 	}
-
 	r.Query = strings.TrimPrefix(r.Query, "?")
-
-	// fmt.Printf("(r *Request) ParseFirstLine | Method: %s, Query: %s, Proto: %s\n", r.Method, r.Query, r.Proto)
 	utils.Debug("Method: %s, Query: %s, Proto: %s", r.Method, r.Query, r.Proto)
 	return true
 }
@@ -241,12 +239,9 @@ func (r *Request) ParseQuery() (bool, error) {
 	var ok bool
 	var params string
 	r.Query, params, ok = strings.Cut(r.Query, "?")
-
 	if !ok {
 		return false, nil
 	}
-
-	// fmt.Printf("(r *Request) ParseQuery | Query: %s, params: %s\n", r.Query, params)
 	utils.Debug("Query: %s, params: %s", r.Query, params)
 	err := r.ParseParams(params)
 
@@ -269,13 +264,11 @@ func (r *Request) ParseParams(params string) error {
 		key, params, _ = strings.Cut(params, "&")
 
 		if strings.Contains(key, ";") {
-			// fmt.Printf("(r *Request) ParseParams | invalid semicolon separator in query(%s)\n", key)
 			utils.Warn("invalid semicolon separator in query(%s)", key)
 			continue
 		}
 
 		if key == "" {
-			// fmt.Printf("(r *Request) ParseParams | Empty query is found.\n")
 			utils.Warn("Empty query is found.")
 			continue
 		}
@@ -305,6 +298,24 @@ func (r Request) GetValue(key string) any {
 		return value
 	}
 	return nil
+}
+
+func (r *Request) Json(obj any) {
+	r.Header["Content-Type"] = jsonContentType
+	data, _ := json.Marshal(obj)
+	r.SetBody(data, int32(len(data)))
+	r.SetContentLength()
+}
+
+// 供 Request 設置 Body 數據
+func (r *Request) SetBody(data []byte, length int32) {
+	r.BodyLength = length
+	copy(r.Body[:length], data[:length])
+}
+
+// 協助設置標頭檔的 Content-Length
+func (r *Request) SetContentLength() {
+	r.Header["Content-Length"] = []string{strconv.Itoa(int(r.BodyLength))}
 }
 
 func (r Request) ToRequestData() []byte {
@@ -342,23 +353,14 @@ func (r Request) ToRequestData() []byte {
 		buffer.Write(r.Body[:r.BodyLength])
 	}
 	result := buffer.Bytes()
-	// fmt.Printf("(r Request) FormRequest | result: %s\n", string(result))
 	utils.Debug("result: %s", string(result))
 	return result
-}
-
-func (r *Request) Json(obj any) {
-	r.Header["Content-Type"] = jsonContentType
-	r.Body, _ = json.Marshal(obj)
-	r.BodyLength = int32(len(r.Body))
-	r.SetContentLength()
 }
 
 func (r *Request) Release() {
 	r.Method = ""
 	r.Query = ""
 	r.Proto = ""
-	r.Body = r.Body[:0]
 	r.BodyLength = 0
 	r.ReadLength = 0
 	var key string
@@ -377,35 +379,32 @@ func (r *Request) Release() {
 // Response
 // ====================================================================================================
 type Response struct {
-	*Context
 	Code    int32
 	Message string
+	Proto   string
+
+	Header
+
+	// 讀取長度
+	ReadLength int32
+
+	// Body 數據
+	// NOTE: Body 和 BodyLength 之後將改為私有變數，要存取的話需透過函式來操作。
+	Body       []byte
+	BodyLength int32
 }
 
-func newResponse(c *Context) *Response {
+func newResponse() *Response {
 	r := &Response{
-		Context: c,
+		Code:       -1,
+		Message:    "",
+		Proto:      "HTTP/1.1",
+		Header:     make(Header),
+		ReadLength: 0,
+		Body:       make([]byte, 64*1024),
+		BodyLength: 0,
 	}
 	return r
-}
-
-// Status sets the HTTP response code.
-func (r *Response) Status(code int32) {
-	r.Code = code
-	r.Message = StatusText(code)
-}
-
-func (r *Response) Json(code int32, obj any) {
-	r.Status(code)
-
-	for k := range r.Context.Header {
-		delete(r.Header, k)
-	}
-
-	r.Header["Content-Type"] = jsonContentType
-	r.Body, _ = json.Marshal(obj)
-	r.BodyLength = int32(len(r.Body))
-	r.SetContentLength()
 }
 
 // 解析第一行數據
@@ -433,9 +432,45 @@ func (r *Response) ParseFirstResLine(line string) bool {
 	}
 
 	r.Code = int32(code)
-	// fmt.Printf("(r *Response) ParseFirstLine | Proto: %s, Code: %d, Message: %s\n", r.Proto, r.Code, r.Message)
 	utils.Debug("Proto: %s, Code: %d, Message: %s", r.Proto, r.Code, r.Message)
 	return true
+}
+
+func (r *Response) SetHeader(key string, value string) {
+	if _, ok := r.Header[key]; !ok {
+		r.Header[key] = []string{value}
+	} else {
+		r.Header[key] = append(r.Header[key], value)
+	}
+}
+
+// Status sets the HTTP response code.
+func (r *Response) Status(code int32) {
+	r.Code = code
+	r.Message = StatusText(code)
+}
+
+func (r *Response) Json(code int32, obj any) {
+	r.Status(code)
+
+	for k := range r.Header {
+		delete(r.Header, k)
+	}
+
+	r.Header["Content-Type"] = jsonContentType
+	data, _ := json.Marshal(obj)
+	r.SetBody(data, int32(len(data)))
+	r.SetContentLength()
+}
+
+// 供 Request 設置 Body 數據
+func (r *Response) SetBody(data []byte, length int32) {
+	r.BodyLength = length
+	copy(r.Body[:length], data[:length])
+}
+
+func (r *Response) SetContentLength() {
+	r.Header["Content-Length"] = []string{strconv.Itoa(int(r.BodyLength))}
 }
 
 // 生成 Response message
@@ -449,10 +484,22 @@ func (r Response) ToResponseData() []byte {
 		buffer.WriteString(fmt.Sprintf("%s: %s\r\n", k, strings.Join(v, ", ")))
 	}
 
+	// Body
 	if _, ok := r.Header["Content-Length"]; ok {
 		buffer.WriteString("\r\n")
 		buffer.Write(r.Body[:r.BodyLength])
 	}
 
 	return buffer.Bytes()
+}
+
+func (r *Response) Release() {
+	r.Code = -1
+	r.Message = ""
+	r.ReadLength = 0
+	r.BodyLength = 0
+
+	for k := range r.Header {
+		delete(r.Header, k)
+	}
 }

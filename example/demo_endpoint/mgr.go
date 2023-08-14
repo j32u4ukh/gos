@@ -25,14 +25,12 @@ func (m *Mgr) Handler(router *ans.Router) {
 			"index": 1,
 			"msg":   "GET | /",
 		})
-		m.HttpAnswer.Send(c)
 	})
 	router.POST("/", func(c *ghttp.Context) {
 		c.Response.Json(200, ghttp.H{
 			"index": 2,
 			"msg":   "POST | /",
 		})
-		m.HttpAnswer.Send(c)
 	})
 
 	r1 := router.NewRouter("/abc")
@@ -42,7 +40,6 @@ func (m *Mgr) Handler(router *ans.Router) {
 			"index": 3,
 			"msg":   "GET | /abc/get",
 		})
-		m.HttpAnswer.Send(c)
 	})
 	r1.POST("/post", func(c *ghttp.Context) {
 		protocol := &Protocol{}
@@ -51,7 +48,6 @@ func (m *Mgr) Handler(router *ans.Router) {
 			"index": 4,
 			"msg":   fmt.Sprintf("POST | /abc/post | protocol: %v", protocol),
 		})
-		m.HttpAnswer.Send(c)
 	})
 
 	rName := r1.NewRouter("<name>")
@@ -71,7 +67,6 @@ func (m *Mgr) Handler(router *ans.Router) {
 			"index": 5,
 			"msg":   fmt.Sprintf("POST | /abc/<name>/<tag> | protocol: %v, tag: %s", protocol, tag),
 		})
-		m.HttpAnswer.Send(c)
 	})
 	rName.POST("/def", func(c *ghttp.Context) {
 		protocol := &Protocol{}
@@ -84,7 +79,6 @@ func (m *Mgr) Handler(router *ans.Router) {
 			"index": 6,
 			"msg":   fmt.Sprintf("POST | /abc/<name>/def | protocol: %v", protocol),
 		})
-		m.HttpAnswer.Send(c)
 	})
 	rName.POST("/<id int>", func(c *ghttp.Context) {
 		protocol := &Protocol{}
@@ -102,7 +96,6 @@ func (m *Mgr) Handler(router *ans.Router) {
 			"index": 7,
 			"msg":   fmt.Sprintf("POST | /abc/<name>/<id int> | protocol: %v, id: %d", protocol, id),
 		})
-		m.HttpAnswer.Send(c)
 	})
 	rName.POST("/<pi float>", func(c *ghttp.Context) {
 		protocol := &Protocol{}
@@ -120,7 +113,6 @@ func (m *Mgr) Handler(router *ans.Router) {
 			"index": 8,
 			"msg":   fmt.Sprintf("POST | /abc/<name>/<pi float> | protocol: %v, pi: %v", protocol, pi),
 		})
-		m.HttpAnswer.Send(c)
 	})
 	rName.GET("/get/<user_id int>", func(c *ghttp.Context) {
 		_, name := c.GetParam("name")
@@ -135,7 +127,6 @@ func (m *Mgr) Handler(router *ans.Router) {
 			"msg":   fmt.Sprintf("GET | /abc/<name>/get/<user_id int> | name: %s, id: %d", name, id),
 			"dt":    dt,
 		})
-		m.HttpAnswer.Send(c)
 	})
 	rName.GET("/uint/<value uint>", func(c *ghttp.Context) {
 		_, name := c.GetParam("name")
@@ -150,7 +141,6 @@ func (m *Mgr) Handler(router *ans.Router) {
 			"msg":   fmt.Sprintf("GET | /abc/<name>/uint/<value uint> | name: %s, id(#id = %d): %d", name, len(fmt.Sprintf("%d", id)), id),
 			"dt":    dt,
 		})
-		m.HttpAnswer.Send(c)
 	})
 	rName.GET("/uint/<value int>", func(c *ghttp.Context) {
 		name := c.GetValue("name").(string)
@@ -165,6 +155,5 @@ func (m *Mgr) Handler(router *ans.Router) {
 			"msg":   fmt.Sprintf("GET | /abc/<name>/uint/<value int> | name: %s, id(#id = %d): %d", name, len(fmt.Sprintf("%d", id)), id),
 			"dt":    dt,
 		})
-		m.HttpAnswer.Send(c)
 	})
 }

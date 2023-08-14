@@ -24,10 +24,8 @@ type HttpAsker struct {
 	// 可以不用從第一個開始使用，結束使用後也不需要對順序進行調整
 	// 和工作結構不同，一個 Conn 和一個 httpConn 一一對應，但可以有 0 到多個工作結構
 	// ==================================================
-	httpConns []*ghttp.Context
-	httpConn  *ghttp.Context
-
 	contextPool sync.Pool
+	contexts    []*ghttp.Context
 	context     *ghttp.Context
 
 	// 依序處理請求
@@ -37,10 +35,9 @@ type HttpAsker struct {
 func NewHttpAsker(site int32, laddr *net.TCPAddr, nConnect int32, nWork int32) (IAsker, error) {
 	var err error
 	a := &HttpAsker{
-		httpConns:   make([]*ghttp.Context, nConnect),
-		httpConn:    nil,
-		contextPool: sync.Pool{New: func() any { return &ghttp.Context{} }},
+		contexts:    make([]*ghttp.Context, nConnect),
 		context:     nil,
+		contextPool: sync.Pool{New: func() any { return &ghttp.Context{} }},
 		Handlers:    map[int32]ghttp.HandlerFunc{},
 	}
 
@@ -61,7 +58,7 @@ func NewHttpAsker(site int32, laddr *net.TCPAddr, nConnect int32, nWork int32) (
 	// ===== Context =====
 	var i int32
 	for i = 0; i < nConnect; i++ {
-		a.httpConns[i] = ghttp.NewContext(i)
+		a.contexts[i] = ghttp.NewContext(i)
 	}
 
 	//////////////////////////////////////////////////
@@ -80,89 +77,76 @@ func (a *HttpAsker) Connect() error {
 
 func (a *HttpAsker) read() {
 	// 根據 Conn 的 Id，存取對應的 httpConn
-	a.httpConn = a.httpConns[a.currConn.GetId()]
-	// fmt.Printf("(a *HttpAsker) Read | Conn(%d), State: %d\n", a.currConn.GetId(), a.httpConn.State)
-	utils.Debug("Conn(%d), State: %d", a.currConn.GetId(), a.httpConn.State)
+	a.context = a.contexts[a.currConn.GetId()]
+	utils.Debug("Conn(%d), State: %s", a.currConn.GetId(), a.context.State)
 
 	// 讀取 第一行
-	if a.httpConn.State == 0 {
-		if a.currConn.CheckReadable(a.httpConn.HasLineData) {
-			a.currConn.Read(&a.readBuffer, a.httpConn.ReadLength)
+	if a.context.State == ghttp.READ_FIRST_LINE {
+		if a.currConn.CheckReadable(a.context.HasLineData) {
+			a.currConn.Read(&a.readBuffer, a.context.Response.ReadLength)
 
 			// 拆分第一行數據 HTTP/1.1 200 OK\r\n
-			firstLine := strings.TrimRight(string(a.readBuffer[:a.httpConn.ReadLength]), "\r\n")
-			// fmt.Printf("(a *HttpAsker) Read | firstLine: %s\n", firstLine)
+			firstLine := strings.TrimRight(string(a.readBuffer[:a.context.Response.ReadLength]), "\r\n")
 			utils.Debug("firstLine: %s", firstLine)
 
-			a.httpConn.ParseFirstResLine(firstLine)
-			a.httpConn.State = 1
-			// fmt.Printf("(a *HttpAsker) Read | State: 0 -> 1\n")
-			utils.Debug("State: 0 -> 1")
+			a.context.ParseFirstResLine(firstLine)
+			a.context.State = ghttp.READ_HEADER
+			utils.Debug("State: READ_FIRST_LINE -> READ_HEADER")
 		}
 	}
 
 	// 讀取 Header 數據
-	if a.httpConn.State == 1 {
+	if a.context.State == ghttp.READ_HEADER {
 		var headerLine, key, value string
 		var ok bool
 
-		for a.currConn.CheckReadable(a.httpConn.HasLineData) && a.httpConn.State == 1 {
+		for a.currConn.CheckReadable(a.context.HasLineData) && a.context.State == ghttp.READ_HEADER {
 			// 讀取一行數據
-			a.currConn.Read(&a.readBuffer, a.httpConn.ReadLength)
+			a.currConn.Read(&a.readBuffer, a.context.Response.ReadLength)
 
 			// mustHaveFieldNameColon ensures that, per RFC 7230, the field-name is on a single line,
 			// so the first line must contain a colon.
 			// 將讀到的數據從冒號拆分成 key, value
-			headerLine = strings.TrimRight(string(a.readBuffer[:a.httpConn.ReadLength]), "\r\n")
+			headerLine = strings.TrimRight(string(a.readBuffer[:a.context.Response.ReadLength]), "\r\n")
 			key, value, ok = strings.Cut(headerLine, ghttp.COLON)
 
 			if ok {
 				// 持續讀取 Header
-				// key := string(k)
-
-				if _, ok := a.httpConn.Header[key]; !ok {
-					a.httpConn.Header[key] = []string{}
+				if _, ok := a.context.Response.Header[key]; !ok {
+					a.context.Response.Header[key] = []string{}
 				}
-
 				value = strings.TrimLeft(value, " \t")
-				// value = strings.TrimRight(value, "\r\n")
-				a.httpConn.Header[key] = append(a.httpConn.Header[key], value)
-				// fmt.Printf("(a *HttpAsker) Read | Header, key: %s, value: %s\n", key, value)
+				a.context.Response.Header[key] = append(a.context.Response.Header[key], value)
 				utils.Debug("Header, key: %s, value: %s", key, value)
 
 			} else {
 				// 當前這行數據不包含":"，結束 Header 的讀取
-				// fmt.Printf("(a *HttpAsker) Read | Empty line\n")
 				utils.Debug("Empty line")
 
 				// Header 中包含 Content-Length，狀態值設為 2，等待讀取後續數據
-				if contentLength, ok := a.httpConn.Header["Content-Length"]; ok {
+				if contentLength, ok := a.context.Response.Header["Content-Length"]; ok {
 					length, err := strconv.Atoi(contentLength[0])
-					// fmt.Printf("(a *HttpAsker) Read | Content-Length: %d\n", length)
 					utils.Debug("Content-Length: %d", length)
 
 					if err != nil {
-						// fmt.Printf("(a *HttpAsker) Read | Content-Length err: %+v\n", err)
 						utils.Error("Content-Length err: %+v", err)
 						return
 					}
 
-					a.httpConn.ReadLength = int32(length)
-					// fmt.Printf("(a *HttpAsker) Read | a.httpConn.ReadLength: %d\n", a.httpConn.ReadLength)
-					utils.Debug("a.httpConn.ReadLength: %d", a.httpConn.ReadLength)
+					a.context.Response.ReadLength = int32(length)
+					utils.Debug("a.httpConn.ReadLength: %d", a.context.Response.ReadLength)
 
-					a.httpConn.State = 2
-					// fmt.Printf("(a *HttpAsker) Read | State: 1 -> 2\n")
-					utils.Debug("State: 1 -> 2")
+					a.context.State = ghttp.READ_BODY
+					utils.Debug("State: READ_HEADER -> READ_BODY")
 
 				} else {
 					// Header 中不包含 Content-Length，狀態值恢復為 0
-					a.httpConn.State = 0
+					a.context.State = ghttp.READ_FIRST_LINE
 
 					// 數據已讀入 currR2 當中，此處工作結構僅負責觸發 WorkHandler，進一步觸發 Callback 函式
 					a.currWork.Index = a.currConn.GetId()
 					a.currWork.RequestTime = time.Now().UTC()
-					a.currWork.State = 1
+					a.currWork.State = base.WORK_NEED_PROCESS
 				}
 				return
 			}
@@ -170,30 +154,23 @@ func (a *HttpAsker) read() {
 	}
 
 	// 讀取 Body 數據
-	if a.httpConn.State == 2 {
-		// fmt.Printf("(a *HttpAsker) Read | State 2, a.httpConn.ReadLength: %d\n", a.httpConn.ReadLength)
-		utils.Debug("State 2, a.httpConn.ReadLength: %d", a.httpConn.ReadLength)
+	if a.context.State == ghttp.READ_BODY {
+		utils.Debug("State READ_BODY, a.httpConn.ReadLength: %d", a.context.Response.ReadLength)
 
-		if a.currConn.CheckReadable(a.httpConn.HasEnoughData) {
-			// ==========
-			// 讀取 data
-			// ==========
+		if a.currConn.CheckReadable(a.context.HasEnoughData) {
 			// 將傳入的數據，加入工作緩存中
-			a.currConn.Read(&a.readBuffer, a.httpConn.ReadLength)
-			// fmt.Printf("(a *HttpAsker) Read | State 2, data: %s\n", string(a.readBuffer[:a.httpConn.ReadLength]))
-			utils.Debug("State 2, data: %s", string(a.readBuffer[:a.httpConn.ReadLength]))
+			a.currConn.Read(&a.readBuffer, a.context.Response.ReadLength)
+			utils.Debug("State READ_BODY, data: %s", string(a.readBuffer[:a.context.Response.ReadLength]))
 
-			a.httpConn.SetBody(a.readBuffer, a.httpConn.ReadLength)
-			// a.httpConn.BodyLength = a.httpConn.ReadLength
-			// copy(a.httpConn.Body[:a.httpConn.ReadLength], a.readBuffer[:a.httpConn.ReadLength])
+			a.context.Response.SetBody(a.readBuffer, a.context.Response.ReadLength)
 
 			// 重置狀態值
-			a.httpConn.State = 0
+			a.context.State = ghttp.READ_FIRST_LINE
 
 			// 數據已讀入 httpConn 當中，此處工作結構僅負責觸發 WorkHandler，進一步觸發 Callback 函式
 			a.currWork.Index = a.currConn.GetId()
 			a.currWork.RequestTime = time.Now().UTC()
-			a.currWork.State = 1
+			a.currWork.State = base.WORK_NEED_PROCESS
 
 			// 指向下一個工作結構
 			a.currWork = a.currWork.Next
@@ -232,7 +209,7 @@ func (a *HttpAsker) write(id int32, data *[]byte, length int32) error {
 	utils.Debug("WriteBuffer, length: %d, data: %+v", length, (*data)[:length])
 
 	a.currConn.SetWriteBuffer(data, length)
-	a.currWork.State = 0
+	a.currWork.State = base.WORK_DONE
 	return nil
 }
 
@@ -243,38 +220,31 @@ func (a *HttpAsker) Write(data *[]byte, length int32) error {
 	// 標註此工作未指定寫出的連線物件，由空閒的連線物件來寫出
 	w.Index = -1
 	w.Body.AddRawData((*data)[:length])
-
 	a.Handlers[w.GetId()] = func(c *ghttp.Context) {
 		utils.Info("Response: %+v", c)
 	}
-
 	w.Send()
 	return nil
 }
 
 // [Work State: 1] 由外部定義 workHandler，定義如何處理工作
 func (a *HttpAsker) SetWorkHandler() {
-	// fmt.Printf("(a *HttpAsker) SetWorkHandler\n")
-
 	a.Asker.workHandler = func(w *base.Work) {
-		if w.Index == -1 {
+		if w.Index == -2 {
 			return
 		}
-
-		// fmt.Printf("(a *HttpAsker) SetWorkHandler | work: %+v\n", w)
 		utils.Debug("work: %+v", w)
 
 		// 取得連線物件
 		a.currConn = a.getConn(w.Index)
 
 		// 根據 Conn 的 Id，存取對應的 httpConn
-		a.httpConn = a.httpConns[a.currConn.GetId()]
+		a.context = a.contexts[a.currConn.GetId()]
 
 		if handler, ok := a.Handlers[w.GetId()]; ok {
 			// 將取得的 Response，透過註冊的 Callback 函釋回傳回去
-			handler(a.httpConn)
+			handler(a.context)
 		}
-
 		w.Finish()
 	}
 }
@@ -287,7 +257,6 @@ func (a *HttpAsker) NewRequest(method string, uri string, params map[string]stri
 
 // 供外部傳送 Http 請求
 func (a *HttpAsker) Send(req *ghttp.Request, callback func(*ghttp.Context)) error {
-	// fmt.Printf("(a *HttpAsker) Send | req: %+v\n", req)
 	utils.Debug("req: %+v", req)
 
 	if callback == nil {
@@ -296,12 +265,11 @@ func (a *HttpAsker) Send(req *ghttp.Request, callback func(*ghttp.Context)) erro
 
 	// 取得空的工作結構
 	w := a.getEmptyWork()
-	// 標註此工作未指定寫出的連線物件，由空閒的連線物件來寫出
+	// 標註此工作未指定寫出的連線物件，由空閒的連線物件(Context id = -1)來寫出
 	w.Index = -1
 	w.Body.AddRawData(req.ToRequestData())
 	a.Handlers[w.GetId()] = callback
 	w.Send()
-	// fmt.Printf("(a *HttpAsker) Send | work: %+v\n", w)
 	utils.Debug("work: %+v", w)
 	// 釋放 req *ghttp.Request
 	req.Release()

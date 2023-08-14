@@ -35,7 +35,6 @@ func newGoserver() *goserver {
 func CheckWorks(msg string, root *base.Work) {
 	work := root
 	for work != nil {
-		// fmt.Printf("CheckWorks | %s %s\n", msg, work)
 		utils.Debug("CheckWorks | %s %s", msg, work)
 		work = work.Next
 	}
