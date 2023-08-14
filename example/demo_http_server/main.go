@@ -167,6 +167,8 @@ func main() {
 }
 
 func RunAns(port int) {
+	// utils.GosConfig.AnswerConnectNumbers[define.Http] = 10000
+	// utils.GosConfig.AnswerWorkNumbers[define.Http] = 10000
 	anser, err := gos.Listen(define.Http, int32(port))
 	logger.Debug("Listen to port %d", port)
 
@@ -182,7 +184,7 @@ func RunAns(port int) {
 
 	gos.StartListen()
 	logger.Debug("開始監聽")
-
+	gos.SetFrameTime(10 * time.Millisecond)
 	gos.Run(nil)
 }
 

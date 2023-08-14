@@ -23,7 +23,7 @@ func init() {
 		HttpAnserReadTimeout: 5000 * time.Millisecond,
 		AnswerReadBuffer:     64 * 1024,
 		ConnBufferSize:       10,
-		DisconnectTime:       3 * time.Second,
+		DisconnectTime:       time.Duration(3),
 		AnswerConnectNumbers: map[define.SocketType]int32{
 			define.Tcp0: 10,
 			define.Http: 10,
