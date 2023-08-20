@@ -83,15 +83,18 @@ func (c *Context) Json(code int32, obj any) {
 	c.Response.Json(code, obj)
 }
 
-func (c Context) ReadJson(obj any) error {
+func (c Context) ReadJson(obj any) (string, error) {
+	var data string = ""
+	var err error = nil
 	if c.Request.BodyLength > 0 {
-		data := c.Request.Body[:c.Request.BodyLength]
-		err := json.Unmarshal(data, obj)
+		body := c.Request.Body[:c.Request.BodyLength]
+		data = string(body)
+		err = json.Unmarshal(body, obj)
 		if err != nil {
-			return errors.Wrap(err, "Failed to unmarshal body to json.")
+			err = errors.Wrap(err, "Failed to unmarshal body to json.")
 		}
 	}
-	return nil
+	return data, err
 }
 
 func (c Context) ReadBytes() []byte {

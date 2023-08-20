@@ -75,7 +75,16 @@ func (m *Mgr) Handler(router *ans.Router) {
 			}
 		}()
 		p := &Protocol{}
-		c.ReadJson(p)
+		data, err := c.ReadJson(p)
+
+		if err != nil {
+			fmt.Printf("ReadJson err: %v\n", err)
+			c.Json(ghttp.StatusBadRequest, ghttp.H{
+				"err": "ReadJson",
+				"msg": data,
+			})
+			return
+		}
 		c.Json(ghttp.StatusOK, ghttp.H{
 			"index": 1,
 			"msg":   fmt.Sprintf("Protocol: %+v", p),

@@ -53,11 +53,19 @@ func (m *Mgr) AbcHander(router *ans.Router) {
 			Height float32
 		}
 		protocol := &Protocol{}
-		c.ReadJson(protocol)
-		c.Json(200, ghttp.H{
-			"index": 4,
-			"msg":   fmt.Sprintf("POST | /abc/post | protocol: %v", protocol),
-		})
+		data, err := c.ReadJson(protocol)
+		if err != nil {
+			fmt.Printf("ReadJson err: %v\n", err)
+			c.Json(ghttp.StatusBadRequest, ghttp.H{
+				"err": "ReadJson",
+				"msg": data,
+			})
+		} else {
+			c.Json(ghttp.StatusOK, ghttp.H{
+				"index": 4,
+				"msg":   fmt.Sprintf("POST | /abc/post | protocol: %v", protocol),
+			})
+		}
 	})
 
 	rName := router.NewRouter("<name>")
@@ -67,7 +75,17 @@ func (m *Mgr) AbcHander(router *ans.Router) {
 func (m *Mgr) AbcNameHander(router *ans.Router) {
 	router.POST("/<tag>", func(c *ghttp.Context) {
 		protocol := &Protocol{}
-		c.ReadJson(protocol)
+		data, err := c.ReadJson(protocol)
+
+		if err != nil {
+			fmt.Printf("ReadJson err: %v\n", err)
+			c.Json(ghttp.StatusBadRequest, ghttp.H{
+				"err": "ReadJson",
+				"msg": data,
+			})
+			return
+		}
+
 		ok, name := c.GetParam("name")
 		if ok {
 			protocol.Name = name
@@ -84,7 +102,16 @@ func (m *Mgr) AbcNameHander(router *ans.Router) {
 	})
 	router.POST("/def", func(c *ghttp.Context) {
 		protocol := &Protocol{}
-		c.ReadJson(protocol)
+		data, err := c.ReadJson(protocol)
+
+		if err != nil {
+			fmt.Printf("ReadJson err: %v\n", err)
+			c.Json(ghttp.StatusBadRequest, ghttp.H{
+				"err": "ReadJson",
+				"msg": data,
+			})
+			return
+		}
 		ok, name := c.GetParam("name")
 		if ok {
 			protocol.Name = name
@@ -96,7 +123,16 @@ func (m *Mgr) AbcNameHander(router *ans.Router) {
 	})
 	router.POST("/<id int>", func(c *ghttp.Context) {
 		protocol := &Protocol{}
-		c.ReadJson(protocol)
+		data, err := c.ReadJson(protocol)
+
+		if err != nil {
+			fmt.Printf("ReadJson err: %v\n", err)
+			c.Json(ghttp.StatusBadRequest, ghttp.H{
+				"err": "ReadJson",
+				"msg": data,
+			})
+			return
+		}
 		ok, name := c.GetParam("name")
 		if ok {
 			protocol.Name = name
@@ -113,7 +149,16 @@ func (m *Mgr) AbcNameHander(router *ans.Router) {
 	})
 	router.POST("/<pi float>", func(c *ghttp.Context) {
 		protocol := &Protocol{}
-		c.ReadJson(protocol)
+		data, err := c.ReadJson(protocol)
+
+		if err != nil {
+			fmt.Printf("ReadJson err: %v\n", err)
+			c.Json(ghttp.StatusBadRequest, ghttp.H{
+				"err": "ReadJson",
+				"msg": data,
+			})
+			return
+		}
 		ok, name := c.GetParam("name")
 		if ok {
 			protocol.Name = name
@@ -187,21 +232,48 @@ func (m *Mgr) MethodHander(router *ans.Router) {
 	})
 	router.POST("/", func(c *ghttp.Context) {
 		p := &Protocol{}
-		c.ReadJson(p)
+		data, err := c.ReadJson(p)
+
+		if err != nil {
+			fmt.Printf("ReadJson err: %v\n", err)
+			c.Json(ghttp.StatusBadRequest, ghttp.H{
+				"err": "ReadJson",
+				"msg": data,
+			})
+			return
+		}
 		c.Json(200, ghttp.H{
 			"msg": fmt.Sprintf("POST | /, %+v", p),
 		})
 	})
 	router.PUT("/", func(c *ghttp.Context) {
 		p := &Protocol{}
-		c.ReadJson(p)
+		data, err := c.ReadJson(p)
+
+		if err != nil {
+			fmt.Printf("ReadJson err: %v\n", err)
+			c.Json(ghttp.StatusBadRequest, ghttp.H{
+				"err": "ReadJson",
+				"msg": data,
+			})
+			return
+		}
 		c.Json(200, ghttp.H{
 			"msg": fmt.Sprintf("PUT | /, %+v", p),
 		})
 	})
 	router.PATCH("/", func(c *ghttp.Context) {
 		p := &Protocol{}
-		c.ReadJson(p)
+		data, err := c.ReadJson(p)
+
+		if err != nil {
+			fmt.Printf("ReadJson err: %v\n", err)
+			c.Json(ghttp.StatusBadRequest, ghttp.H{
+				"err": "ReadJson",
+				"msg": data,
+			})
+			return
+		}
 		c.Json(200, ghttp.H{
 			"msg": fmt.Sprintf("PATCH | /, %+v", p),
 		})
