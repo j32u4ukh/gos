@@ -447,6 +447,11 @@ func (r *Response) SetHeader(key string, value string) {
 	}
 }
 
+func (r *Response) GetHeader(key string) ([]string, bool) {
+	value, ok := r.Header[key]
+	return value, ok
+}
+
 // Status sets the HTTP response code.
 func (r *Response) Status(code int32) {
 	r.Code = code
@@ -456,9 +461,9 @@ func (r *Response) Status(code int32) {
 func (r *Response) Json(code int32, obj any) {
 	r.Status(code)
 
-	for k := range r.Header {
-		delete(r.Header, k)
-	}
+	// for k := range r.Header {
+	// 	delete(r.Header, k)
+	// }
 
 	r.Header["Content-Type"] = jsonContentType
 	data, _ := json.Marshal(obj)

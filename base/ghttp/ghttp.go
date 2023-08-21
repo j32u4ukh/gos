@@ -49,6 +49,15 @@ const (
 	// 返回伺服器支援的方法。
 	MethodOptions = "OPTIONS"
 	COLON         = ":"
+	// ==================================================
+	// CORS
+	// ==================================================
+	HeaderCorsOrigins       = "Access-Control-Allow-Origin"
+	HeaderCorsMaxAge        = "Access-Control-Max-Age"
+	HeaderCorsMethods       = "Access-Control-Allow-Methods"
+	HeaderCorsCredentials   = "Access-Control-Allow-Credentials"
+	HeaderCorsAllowHeaders  = "Access-Control-Allow-Headers"
+	HeaderCorsExposeHeaders = "Access-Control-Expose-Headers"
 )
 
 // Header of MethodOptions' response

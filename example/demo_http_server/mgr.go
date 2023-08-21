@@ -26,6 +26,7 @@ func (m *Mgr) Handler(router *ans.Router) {
 		})
 	})
 	router.POST("/", func(c *ghttp.Context) {
+		c.Response.SetHeader("Access-Control-Allow-Methods", "POST")
 		c.Json(200, ghttp.H{
 			"index": 2,
 			"msg":   "POST | /",

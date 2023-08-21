@@ -178,6 +178,7 @@ func RunAns(port int) {
 	}
 
 	httpAnswer := anser.(*ans.HttpAnser)
+	httpAnswer.Cors("http://localhost:3000")
 	mgr := &Mgr{}
 	mgr.Handler(httpAnswer.Router)
 	logger.Debug("伺服器初始化完成")

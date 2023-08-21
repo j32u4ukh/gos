@@ -40,17 +40,43 @@ type HttpAnser struct {
 	contexts    []*ghttp.Context
 	context     *ghttp.Context
 
+	// ==================================================
+	// CORS
+	// ==================================================
+	UseCors bool
+	// 允許的來源
+	CorsOrigins []string
+	// ex: 'GET, POST'
+	CorsMethods []string
+	// ex: 'true'
+	CorsCredentials bool
+	// ex: 'Authorization'
+	CorsAllowHeaders []string
+	// ex: 'Authorization'
+	CorsExposeHeaders []string
+	// ex: '3600'
+	CorsMaxAge int32
+
+	// ==================================================
 	// Temp variables
+	// ==================================================
 	lineString string
 }
 
 func NewHttpAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, error) {
 	var err error
 	a := &HttpAnser{
-		EndPointHandlers: []*EndPoint{},
-		contexts:         make([]*ghttp.Context, nConnect),
-		context:          nil,
-		contextPool:      sync.Pool{New: func() any { return ghttp.NewContext(-1) }},
+		EndPointHandlers:  []*EndPoint{},
+		contexts:          make([]*ghttp.Context, nConnect),
+		context:           nil,
+		contextPool:       sync.Pool{New: func() any { return ghttp.NewContext(-1) }},
+		UseCors:           false,
+		CorsOrigins:       []string{"*"},
+		CorsMethods:       []string{ghttp.MethodHead, ghttp.MethodGet, ghttp.MethodPost, ghttp.MethodPut, ghttp.MethodPatch, ghttp.MethodDelete, ghttp.MethodOptions},
+		CorsCredentials:   true,
+		CorsAllowHeaders:  []string{},
+		CorsExposeHeaders: []string{},
+		CorsMaxAge:        3600,
 	}
 
 	// ===== Anser =====
@@ -289,17 +315,29 @@ func (a *HttpAnser) SetWorkHandler() {
 	}
 }
 
+// TODO: 若是 CORS 預先檢查請求，通常會包含 Access-Control-Request-Method 和/或 Access-Control-Request-Headers 標頭。
 func (a *HttpAnser) optionsRequestHandler(w *base.Work, c *ghttp.Context, options []string) {
-	a.context.Response.SetHeader("Allow", strings.Join(options, ", "))
-	a.context.Response.SetHeader("Connection", "close")
+	var key string
+	if a.UseCors {
+		key = ghttp.HeaderCorsMethods
+		a.setCors(c, ghttp.HeaderCorsMaxAge, strconv.Itoa(int(a.CorsMaxAge)))
+		a.setCors(c, ghttp.HeaderCorsAllowHeaders, a.CorsAllowHeaders...)
+		a.setCors(c, ghttp.HeaderCorsExposeHeaders, a.CorsExposeHeaders...)
+	} else {
+		key = "Allow"
+	}
+	a.context.Response.SetHeader(key, strings.Join(options, ", "))
+	// w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 	a.context.Status(ghttp.StatusOK)
 	a.context.Response.BodyLength = 0
 	a.context.Response.SetContentLength()
-	// 將 Response 回傳數據轉換成 Work 傳遞的格式
-	bs := a.context.ToResponseData()
-	w.Body.Clear()
-	w.Body.AddRawData(bs)
-	w.Send()
+	a.Send(c)
+	// a.context.Response.SetHeader("Connection", "close")
+	// // 將 Response 回傳數據轉換成 Work 傳遞的格式
+	// bs := a.context.ToResponseData()
+	// w.Body.Clear()
+	// w.Body.AddRawData(bs)
+	// w.Send()
 }
 
 func (a *HttpAnser) errorRequestHandler(c *ghttp.Context, msg string) {
@@ -344,6 +382,9 @@ func (a *HttpAnser) GetContext(cid int32) *ghttp.Context {
 
 func (a *HttpAnser) Send(c *ghttp.Context) {
 	c.Response.SetHeader("Connection", "close")
+	if a.UseCors {
+		a.setCors(c, ghttp.HeaderCorsOrigins, a.CorsOrigins...)
+	}
 
 	// 將 Response 回傳數據轉換成 Work 傳遞的格式
 	bs := c.ToResponseData()
@@ -362,6 +403,20 @@ func (a *HttpAnser) Send(c *ghttp.Context) {
 	// 若 Context 是從 contextPool 中取得，id 會是 -1，因此需要回收
 	if c.GetId() == -1 {
 		a.contextPool.Put(c)
+	}
+}
+
+func (a *HttpAnser) Cors(origins ...string) {
+	a.UseCors = true
+	a.CorsOrigins = origins
+}
+
+func (a *HttpAnser) setCors(c *ghttp.Context, key string, values ...string) {
+	_, existed := c.Response.GetHeader(key)
+	if !existed {
+		for _, value := range values {
+			c.Response.SetHeader(key, value)
+		}
 	}
 }
 
