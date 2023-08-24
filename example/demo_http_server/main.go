@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/j32u4ukh/glog/v2"
@@ -73,6 +74,7 @@ func shouldClose(major, minor int, header Header, removeCloseHeader bool) bool {
 */
 
 var logger *glog.Logger
+var useCors bool = false
 
 func init() {
 	gosLgger := glog.SetLogger(0, "gos", glog.DebugLevel)
@@ -148,6 +150,14 @@ func main() {
 	service_type := os.Args[1]
 	var port int = 1023
 
+	if len(os.Args) >= 3 {
+		port, _ = strconv.Atoi(os.Args[2])
+
+		if len(os.Args) >= 4 {
+			useCors = os.Args[3] == "cors"
+		}
+	}
+
 	if service_type == "ans" {
 		RunAns(port)
 	} else if service_type == "ask" {
@@ -178,7 +188,9 @@ func RunAns(port int) {
 	}
 
 	httpAnswer := anser.(*ans.HttpAnser)
-	httpAnswer.Cors("http://localhost:3000")
+	if useCors {
+		httpAnswer.Cors("http://localhost:3001")
+	}
 	mgr := &Mgr{}
 	mgr.Handler(httpAnswer.Router)
 	logger.Debug("伺服器初始化完成")
