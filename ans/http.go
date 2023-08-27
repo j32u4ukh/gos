@@ -93,8 +93,15 @@ func NewHttpAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, err
 			ghttp.HeaderViewportWidth,
 			ghttp.HeaderWidth,
 		},
-		CorsExposeHeaders: []string{},
-		CorsMaxAge:        3600,
+		CorsExposeHeaders: []string{
+			ghttp.HeaderCacheControl,
+			ghttp.HeaderContentLanguage,
+			ghttp.HeaderContentType,
+			ghttp.HeaderExpires,
+			ghttp.HeaderLastModified,
+			ghttp.HeaderPragma,
+		},
+		CorsMaxAge: 3600,
 	}
 
 	// ===== Anser =====

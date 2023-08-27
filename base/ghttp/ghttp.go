@@ -63,18 +63,16 @@ const (
 	HeaderAcceptLanguage  = "Accept-Language"
 	HeaderContentLanguage = "Content-Language"
 	HeaderContentType     = "Content-Type"
+	HeaderCacheControl    = "Cache-Control"
 	HeaderDPR             = "DPR"
 	HeaderDownlink        = "Downlink"
+	HeaderExpires         = "Expires"
+	HeaderLastModified    = "Last-Modified"
+	HeaderPragma          = "Pragma"
 	HeaderSaveData        = "Save-Data"
 	HeaderViewportWidth   = "Viewport-Width"
 	HeaderWidth           = "Width"
 )
-
-// Header of MethodOptions' response
-// HTTP/1.1 200 OK
-// Allow: GET, POST, HEAD, OPTIONS
-
-// const errorHeaders = "\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n"
 
 var (
 	jsonContentType = []string{"application/json"}
