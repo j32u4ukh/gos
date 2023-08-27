@@ -194,14 +194,14 @@ func SendRequest(req *ghttp.Request, callback func(*ghttp.Context)) (int32, erro
 		ip, port := asker.GetAddress()
 		host := fmt.Sprintf("%s/%d", ip, port)
 
-		if host == req.Header["Host"][0] {
+		if host == req.Header[ghttp.HeaderHost][0] {
 			httpAsker := asker.(*ask.HttpAsker)
 			httpAsker.Send(req, callback)
 			return serverId, nil
 		}
 	}
 
-	if host, ok := req.Header["Host"]; ok {
+	if host, ok := req.Header[ghttp.HeaderHost]; ok {
 		ip, p, _ := strings.Cut(host[0], ":")
 		var asker ask.IAsker
 		var err error

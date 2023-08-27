@@ -1,5 +1,10 @@
 package ghttp
 
+import (
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
+)
+
 // A Header represents the key-value pairs in an HTTP header.
 //
 // The keys should be in canonical form, as returned by
@@ -52,7 +57,8 @@ const (
 	// ==================================================
 	// CORS
 	// ==================================================
-	HeaderCorsOrigins       = "Access-Control-Allow-Origin"
+	HeaderOrigin            = "Origin"
+	HeaderCorsOrigin        = "Access-Control-Allow-Origin"
 	HeaderCorsMaxAge        = "Access-Control-Max-Age"
 	HeaderCorsMethods       = "Access-Control-Allow-Methods"
 	HeaderCorsCredentials   = "Access-Control-Allow-Credentials"
@@ -61,6 +67,7 @@ const (
 	// Header Name
 	HeaderAccept          = "Accept"
 	HeaderAcceptLanguage  = "Accept-Language"
+	HeaderAcceptEncoding  = "Accept-Encoding"
 	HeaderContentLanguage = "Content-Language"
 	HeaderContentType     = "Content-Type"
 	HeaderCacheControl    = "Cache-Control"
@@ -72,8 +79,20 @@ const (
 	HeaderSaveData        = "Save-Data"
 	HeaderViewportWidth   = "Viewport-Width"
 	HeaderWidth           = "Width"
+	HeaderHost            = "Host"
+	HeaderContentLength   = "Content-Length"
+	HeaderUserAgent       = "User-Agent"
 )
 
 var (
 	jsonContentType = []string{"application/json"}
+	titleCase       cases.Caser
 )
+
+func init() {
+	titleCase = cases.Title(language.English)
+}
+
+func CapitalString(input string) string {
+	return titleCase.String(input)
+}

@@ -169,7 +169,7 @@ func (r *Request) FormRequest(method string, uri string, params map[string]strin
 		r.Query = fmt.Sprintf("/%s", query)
 		utils.Debug("Query: %s", r.Query)
 	}
-	r.Header["Host"] = []string{host}
+	r.Header[HeaderHost] = []string{host}
 }
 
 // 檢查是否有一行數據(以換行符 '\n' 來區分)
@@ -318,7 +318,7 @@ func (r *Request) SetBody(data []byte, length int32) {
 
 // 協助設置標頭檔的 Content-Length
 func (r *Request) SetContentLength() {
-	r.Header["Content-Length"] = []string{strconv.Itoa(int(r.BodyLength))}
+	r.Header[HeaderContentLength] = []string{strconv.Itoa(int(r.BodyLength))}
 }
 
 func (r Request) ToRequestData() []byte {
@@ -342,8 +342,8 @@ func (r Request) ToRequestData() []byte {
 		}
 	*/
 
-	r.Header["User-Agent"] = []string{"Go-http-client/1.1"}
-	r.Header["Accept-Encoding"] = []string{"gzip"}
+	r.Header[HeaderUserAgent] = []string{"Go-http-client/1.1"}
+	r.Header[HeaderAcceptEncoding] = []string{"gzip"}
 
 	for k, v := range r.Header {
 		buffer.WriteString(fmt.Sprintf("%s: %s\r\n", k, strings.Join(v, ", ")))
@@ -351,7 +351,7 @@ func (r Request) ToRequestData() []byte {
 
 	buffer.WriteString("\r\n")
 
-	if _, ok := r.Header["Content-Length"]; ok {
+	if _, ok := r.Header[HeaderContentLength]; ok {
 		buffer.WriteString("\r\n")
 		buffer.Write(r.Body[:r.BodyLength])
 	}
@@ -473,7 +473,7 @@ func (r *Response) SetBody(data []byte, length int32) {
 }
 
 func (r *Response) SetContentLength() {
-	r.Header["Content-Length"] = []string{strconv.Itoa(int(r.BodyLength))}
+	r.Header[HeaderContentLength] = []string{strconv.Itoa(int(r.BodyLength))}
 }
 
 // 生成 Response message
@@ -488,7 +488,7 @@ func (r Response) ToResponseData() []byte {
 	}
 
 	// Body
-	if _, ok := r.Header["Content-Length"]; ok {
+	if _, ok := r.Header[HeaderContentLength]; ok {
 		buffer.WriteString("\r\n")
 		buffer.Write(r.Body[:r.BodyLength])
 	}

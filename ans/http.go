@@ -183,6 +183,7 @@ func (a *HttpAnser) read() bool {
 
 			if ok {
 				// 持續讀取 Header
+				key = ghttp.CapitalString(key)
 				if _, ok := a.context.Request.Header[key]; !ok {
 					a.context.Request.Header[key] = []string{}
 				}
@@ -197,7 +198,7 @@ func (a *HttpAnser) read() bool {
 				// 當前這行數據不包含":"，結束 Header 的讀取
 
 				// Header 中包含 Content-Length，狀態值設為 2，等待讀取後續數據
-				if contentLength, ok := a.context.Request.Header["Content-Length"]; ok {
+				if contentLength, ok := a.context.Request.Header[ghttp.HeaderContentLength]; ok {
 					length, err := strconv.Atoi(contentLength[0])
 					// fmt.Printf("(a *HttpAnser) Read | Content-Length: %d\n", length)
 					utils.Debug("Content-Length: %d", length)
@@ -401,7 +402,7 @@ func (a *HttpAnser) GetContext(cid int32) *ghttp.Context {
 func (a *HttpAnser) Send(c *ghttp.Context) {
 	c.Response.SetHeader("Connection", "close")
 	if a.UseCors {
-		a.setCors(c, ghttp.HeaderCorsOrigins, a.CorsOrigins...)
+		a.setCors(c, ghttp.HeaderCorsOrigin, a.CorsOrigins...)
 	}
 
 	// 將 Response 回傳數據轉換成 Work 傳遞的格式
@@ -432,8 +433,18 @@ func (a *HttpAnser) Cors(origins ...string) {
 func (a *HttpAnser) setCors(c *ghttp.Context, key string, values ...string) {
 	_, existed := c.Response.GetHeader(key)
 	if !existed {
-		for _, value := range values {
-			c.Response.SetHeader(key, value)
+		var reqKey string
+		switch key {
+		case ghttp.HeaderCorsOrigin:
+			reqKey = ghttp.HeaderOrigin
+		default:
+			reqKey = key
+		}
+		// 若請求中有對應的 CORS 標頭，回應中才需添加
+		if _, ok := c.Request.Header[reqKey]; ok {
+			for _, value := range values {
+				c.Response.SetHeader(key, value)
+			}
 		}
 	}
 }
