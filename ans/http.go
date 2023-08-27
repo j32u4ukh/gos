@@ -66,15 +66,33 @@ type HttpAnser struct {
 func NewHttpAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, error) {
 	var err error
 	a := &HttpAnser{
-		EndPointHandlers:  []*EndPoint{},
-		contexts:          make([]*ghttp.Context, nConnect),
-		context:           nil,
-		contextPool:       sync.Pool{New: func() any { return ghttp.NewContext(-1) }},
-		UseCors:           false,
-		CorsOrigins:       []string{"*"},
-		CorsMethods:       []string{ghttp.MethodHead, ghttp.MethodGet, ghttp.MethodPost, ghttp.MethodPut, ghttp.MethodPatch, ghttp.MethodDelete, ghttp.MethodOptions},
-		CorsCredentials:   true,
-		CorsAllowHeaders:  []string{},
+		EndPointHandlers: []*EndPoint{},
+		contexts:         make([]*ghttp.Context, nConnect),
+		context:          nil,
+		contextPool:      sync.Pool{New: func() any { return ghttp.NewContext(-1) }},
+		UseCors:          false,
+		CorsOrigins:      []string{"*"},
+		CorsMethods: []string{
+			ghttp.MethodHead,
+			ghttp.MethodGet,
+			ghttp.MethodPost,
+			ghttp.MethodPut,
+			ghttp.MethodPatch,
+			ghttp.MethodDelete,
+			ghttp.MethodOptions,
+		},
+		CorsCredentials: true,
+		CorsAllowHeaders: []string{
+			ghttp.HeaderAccept,
+			ghttp.HeaderAcceptLanguage,
+			ghttp.HeaderContentLanguage,
+			ghttp.HeaderContentType,
+			ghttp.HeaderDPR,
+			ghttp.HeaderDownlink,
+			ghttp.HeaderSaveData,
+			ghttp.HeaderViewportWidth,
+			ghttp.HeaderWidth,
+		},
 		CorsExposeHeaders: []string{},
 		CorsMaxAge:        3600,
 	}
@@ -327,17 +345,10 @@ func (a *HttpAnser) optionsRequestHandler(w *base.Work, c *ghttp.Context, option
 		key = "Allow"
 	}
 	a.context.Response.SetHeader(key, strings.Join(options, ", "))
-	// w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 	a.context.Status(ghttp.StatusOK)
 	a.context.Response.BodyLength = 0
 	a.context.Response.SetContentLength()
 	a.Send(c)
-	// a.context.Response.SetHeader("Connection", "close")
-	// // 將 Response 回傳數據轉換成 Work 傳遞的格式
-	// bs := a.context.ToResponseData()
-	// w.Body.Clear()
-	// w.Body.AddRawData(bs)
-	// w.Send()
 }
 
 func (a *HttpAnser) errorRequestHandler(c *ghttp.Context, msg string) {

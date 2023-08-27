@@ -13,6 +13,7 @@ import (
 	"github.com/j32u4ukh/gos/ans"
 	"github.com/j32u4ukh/gos/ask"
 	"github.com/j32u4ukh/gos/base"
+	"github.com/j32u4ukh/gos/base/ghttp"
 	"github.com/j32u4ukh/gos/define"
 	"github.com/j32u4ukh/gos/utils"
 )
@@ -114,7 +115,7 @@ func RunAsk(port int) {
 		return
 	}
 
-	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add(ghttp.HeaderContentType, "application/json")
 	res, err := client.Do(req)
 
 	if err != nil {

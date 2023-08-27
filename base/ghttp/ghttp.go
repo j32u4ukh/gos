@@ -58,6 +58,16 @@ const (
 	HeaderCorsCredentials   = "Access-Control-Allow-Credentials"
 	HeaderCorsAllowHeaders  = "Access-Control-Allow-Headers"
 	HeaderCorsExposeHeaders = "Access-Control-Expose-Headers"
+	// Header Name
+	HeaderAccept          = "Accept"
+	HeaderAcceptLanguage  = "Accept-Language"
+	HeaderContentLanguage = "Content-Language"
+	HeaderContentType     = "Content-Type"
+	HeaderDPR             = "DPR"
+	HeaderDownlink        = "Downlink"
+	HeaderSaveData        = "Save-Data"
+	HeaderViewportWidth   = "Viewport-Width"
+	HeaderWidth           = "Width"
 )
 
 // Header of MethodOptions' response

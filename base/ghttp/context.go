@@ -304,7 +304,7 @@ func (r Request) GetValue(key string) any {
 }
 
 func (r *Request) Json(obj any) {
-	r.Header["Content-Type"] = jsonContentType
+	r.Header[HeaderContentType] = jsonContentType
 	data, _ := json.Marshal(obj)
 	r.SetBody(data, int32(len(data)))
 	r.SetContentLength()
@@ -460,12 +460,7 @@ func (r *Response) Status(code int32) {
 
 func (r *Response) Json(code int32, obj any) {
 	r.Status(code)
-
-	// for k := range r.Header {
-	// 	delete(r.Header, k)
-	// }
-
-	r.Header["Content-Type"] = jsonContentType
+	r.Header[HeaderContentType] = jsonContentType
 	data, _ := json.Marshal(obj)
 	r.SetBody(data, int32(len(data)))
 	r.SetContentLength()
