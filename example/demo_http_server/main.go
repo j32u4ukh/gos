@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/j32u4ukh/glog/v2"
@@ -73,6 +74,7 @@ func shouldClose(major, minor int, header Header, removeCloseHeader bool) bool {
 */
 
 var logger *glog.Logger
+var useCors bool = false
 
 func init() {
 	gosLgger := glog.SetLogger(0, "gos", glog.DebugLevel)
@@ -148,6 +150,14 @@ func main() {
 	service_type := os.Args[1]
 	var port int = 1023
 
+	if len(os.Args) >= 3 {
+		port, _ = strconv.Atoi(os.Args[2])
+
+		if len(os.Args) >= 4 {
+			useCors = os.Args[3] == "cors"
+		}
+	}
+
 	if service_type == "ans" {
 		RunAns(port)
 	} else if service_type == "ask" {
@@ -178,6 +188,9 @@ func RunAns(port int) {
 	}
 
 	httpAnswer := anser.(*ans.HttpAnser)
+	if useCors {
+		httpAnswer.Cors("*")
+	}
 	mgr := &Mgr{}
 	mgr.Handler(httpAnswer.Router)
 	logger.Debug("伺服器初始化完成")
@@ -219,19 +232,8 @@ func RunAsk(ip string, port int) {
 		return
 	}
 
-	var start time.Time
-	var during, frameTime time.Duration = 0, 200 * time.Millisecond
-
-	for {
-		start = time.Now()
-
-		gos.RunAsk()
-
-		during = time.Since(start)
-		if during < frameTime {
-			time.Sleep(frameTime - during)
-		}
-	}
+	gos.SetFrameTime(200 * time.Millisecond)
+	gos.Run(nil)
 }
 
 func DemoNativeHttpRequest(port int) {
@@ -384,7 +386,8 @@ func handleRequest(conn net.Conn) {
 		}
 	*/
 	// Send a response back to person contacting us.
-	r := []byte("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/html\r\nContent-Length: 19\r\n\r\n<h1>Hola Mundo</h1>")
+	r := []byte(fmt.Sprintf("HTTP/1.1 200 OK\r\nConnection: close\r\n%s: text/html\r\nContent-Length: 19\r\n\r\n<h1>Hola Mundo</h1>",
+		ghttp.HeaderContentType))
 	conn.Write(r)
 	// Close the connection when you're done with it.
 	conn.Close()
@@ -409,7 +412,7 @@ func handleOptions(w http.ResponseWriter, r *http.Request) {
 	// 设置 CORS 相关的响应头，允许所有来源进行访问
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "OPTIONS, HEAD, GET, POST, PUT, PATCH")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+	w.Header().Set("Access-Control-Allow-Headers", fmt.Sprintf("%s, Authorization", ghttp.HeaderContentType))
 
 	// OPTIONS 请求不需要返回具体内容，只需要返回响应头
 	w.WriteHeader(http.StatusOK)

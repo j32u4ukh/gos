@@ -1,5 +1,10 @@
 package ghttp
 
+import (
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
+)
+
 // A Header represents the key-value pairs in an HTTP header.
 //
 // The keys should be in canonical form, as returned by
@@ -49,14 +54,63 @@ const (
 	// 返回伺服器支援的方法。
 	MethodOptions = "OPTIONS"
 	COLON         = ":"
+	// ==================================================
+	// CORS
+	// ==================================================
+	HeaderOrigin     = "Origin"
+	HeaderCorsOrigin = "Access-Control-Allow-Origin"
+
+	HeaderCorsRequestMethod  = "Access-Control-Request-Method"
+	HeaderCorsResponseMethod = "Access-Control-Allow-Methods"
+
+	HeaderCorsRequestHeaders = "Access-Control-Request-Headers"
+	HeaderCorsAllowHeaders   = "Access-Control-Allow-Headers"
+
+	HeaderCorsMaxAge        = "Access-Control-Max-Age"
+	HeaderCorsCredentials   = "Access-Control-Allow-Credentials"
+	HeaderCorsExposeHeaders = "Access-Control-Expose-Headers"
+	
+	// Header Name
+	HeaderAccept          = "Accept"
+	HeaderAuthorization   = "Authorization"
+	HeaderAllow           = "Allow"
+	HeaderAcceptLanguage  = "Accept-Language"
+	HeaderAcceptEncoding  = "Accept-Encoding"
+	HeaderContentLanguage = "Content-Language"
+	HeaderCookie          = "Cookie"
+	HeaderContentType     = "Content-Type"
+	HeaderCacheControl    = "Cache-Control"
+	HeaderDPR             = "DPR"
+	HeaderDownlink        = "Downlink"
+	HeaderExpires         = "Expires"
+	HeaderLastModified    = "Last-Modified"
+	HeaderPragma          = "Pragma"
+	HeaderSaveData        = "Save-Data"
+	HeaderSetCookie       = "Set-Cookie"
+	HeaderViewportWidth   = "Viewport-Width"
+	HeaderWidth           = "Width"
+	HeaderWWWAuthenticate = "WWW-Authenticate"
+	HeaderHost            = "Host"
+	HeaderContentLength   = "Content-Length"
+	HeaderUserAgent       = "User-Agent"
+
+	/*
+		Authorization：用於傳輸認證資訊。
+		Cookie：用於傳輸 Cookie。
+		WWW-Authenticate：用於要求客戶端提供認證資訊。
+		Set-Cookie：用於設定 Cookie。
+	*/
 )
-
-// Header of MethodOptions' response
-// HTTP/1.1 200 OK
-// Allow: GET, POST, HEAD, OPTIONS
-
-// const errorHeaders = "\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n"
 
 var (
 	jsonContentType = []string{"application/json"}
+	titleCase       cases.Caser
 )
+
+func init() {
+	titleCase = cases.Title(language.English)
+}
+
+func CapitalString(input string) string {
+	return titleCase.String(input)
+}

@@ -40,7 +40,26 @@ type HttpAnser struct {
 	contexts    []*ghttp.Context
 	context     *ghttp.Context
 
+	// ==================================================
+	// CORS
+	// ==================================================
+	UseCors bool
+	// 允許的來源
+	CorsOrigins []string
+	// ex: 'GET, POST'
+	CorsMethods []string
+	// ex: 'true'
+	CorsCredentials bool
+	// ex: 'Authorization'
+	CorsAllowHeaders []string
+	// ex: 'Authorization'
+	CorsExposeHeaders []string
+	// ex: '3600'
+	CorsMaxAge int32
+
+	// ==================================================
 	// Temp variables
+	// ==================================================
 	lineString string
 }
 
@@ -51,6 +70,38 @@ func NewHttpAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, err
 		contexts:         make([]*ghttp.Context, nConnect),
 		context:          nil,
 		contextPool:      sync.Pool{New: func() any { return ghttp.NewContext(-1) }},
+		UseCors:          false,
+		CorsOrigins:      []string{"*"},
+		CorsMethods: []string{
+			ghttp.MethodHead,
+			ghttp.MethodGet,
+			ghttp.MethodPost,
+			ghttp.MethodPut,
+			ghttp.MethodPatch,
+			ghttp.MethodDelete,
+			ghttp.MethodOptions,
+		},
+		CorsCredentials: true,
+		CorsAllowHeaders: []string{
+			ghttp.HeaderAccept,
+			ghttp.HeaderAcceptLanguage,
+			ghttp.HeaderContentLanguage,
+			ghttp.HeaderContentType,
+			ghttp.HeaderDPR,
+			ghttp.HeaderDownlink,
+			ghttp.HeaderSaveData,
+			ghttp.HeaderViewportWidth,
+			ghttp.HeaderWidth,
+		},
+		CorsExposeHeaders: []string{
+			ghttp.HeaderCacheControl,
+			ghttp.HeaderContentLanguage,
+			ghttp.HeaderContentType,
+			ghttp.HeaderExpires,
+			ghttp.HeaderLastModified,
+			ghttp.HeaderPragma,
+		},
+		CorsMaxAge: 3600,
 	}
 
 	// ===== Anser =====
@@ -132,6 +183,7 @@ func (a *HttpAnser) read() bool {
 
 			if ok {
 				// 持續讀取 Header
+				key = ghttp.CapitalString(key)
 				if _, ok := a.context.Request.Header[key]; !ok {
 					a.context.Request.Header[key] = []string{}
 				}
@@ -146,7 +198,7 @@ func (a *HttpAnser) read() bool {
 				// 當前這行數據不包含":"，結束 Header 的讀取
 
 				// Header 中包含 Content-Length，狀態值設為 2，等待讀取後續數據
-				if contentLength, ok := a.context.Request.Header["Content-Length"]; ok {
+				if contentLength, ok := a.context.Request.Header[ghttp.HeaderContentLength]; ok {
 					length, err := strconv.Atoi(contentLength[0])
 					// fmt.Printf("(a *HttpAnser) Read | Content-Length: %d\n", length)
 					utils.Debug("Content-Length: %d", length)
@@ -289,17 +341,20 @@ func (a *HttpAnser) SetWorkHandler() {
 	}
 }
 
+// TODO: 若是 CORS 預先檢查請求，通常會包含 Access-Control-Request-Method 和/或 Access-Control-Request-Headers 標頭。
 func (a *HttpAnser) optionsRequestHandler(w *base.Work, c *ghttp.Context, options []string) {
-	a.context.Response.SetHeader("Allow", strings.Join(options, ", "))
-	a.context.Response.SetHeader("Connection", "close")
+	if a.UseCors {
+		a.setCors(c, ghttp.HeaderCorsMaxAge, strconv.Itoa(int(a.CorsMaxAge)))
+		a.setCors(c, ghttp.HeaderCorsRequestHeaders, a.CorsAllowHeaders...)
+		a.setCors(c, ghttp.HeaderCorsExposeHeaders, a.CorsExposeHeaders...)
+		a.setCors(c, ghttp.HeaderCorsRequestMethod, options...)
+	} else {
+		a.context.Response.SetHeader(ghttp.HeaderAllow, strings.Join(options, ", "))
+	}
 	a.context.Status(ghttp.StatusOK)
 	a.context.Response.BodyLength = 0
 	a.context.Response.SetContentLength()
-	// 將 Response 回傳數據轉換成 Work 傳遞的格式
-	bs := a.context.ToResponseData()
-	w.Body.Clear()
-	w.Body.AddRawData(bs)
-	w.Send()
+	a.Send(c)
 }
 
 func (a *HttpAnser) errorRequestHandler(c *ghttp.Context, msg string) {
@@ -345,6 +400,11 @@ func (a *HttpAnser) GetContext(cid int32) *ghttp.Context {
 func (a *HttpAnser) Send(c *ghttp.Context) {
 	c.Response.SetHeader("Connection", "close")
 
+	if a.UseCors {
+		// 根據請求的 Header，判斷要添加到回應標頭的欄位
+		a.setCorsHeaders(c)
+	}
+
 	// 將 Response 回傳數據轉換成 Work 傳遞的格式
 	bs := c.ToResponseData()
 	utils.Debug("Response: %s", string(bs))
@@ -362,6 +422,49 @@ func (a *HttpAnser) Send(c *ghttp.Context) {
 	// 若 Context 是從 contextPool 中取得，id 會是 -1，因此需要回收
 	if c.GetId() == -1 {
 		a.contextPool.Put(c)
+	}
+}
+
+func (a *HttpAnser) Cors(origins ...string) {
+	a.UseCors = true
+	a.CorsOrigins = origins
+}
+
+func (a *HttpAnser) setCorsHeaders(c *ghttp.Context){	
+	// 若請求中有對應的 CORS 標頭，回應中才需添加
+	for key := range c.Request.Header {
+		switch key {
+		case ghttp.HeaderOrigin:
+			c.Response.SetHeader(ghttp.HeaderCorsOrigin, strings.Join(a.CorsOrigins, ", "))	
+		case ghttp.HeaderCorsRequestMethod:
+			c.Response.SetHeader(ghttp.HeaderCorsResponseMethod, "*")	
+		case ghttp.HeaderCorsRequestHeaders:
+			c.Response.SetHeader(ghttp.HeaderCorsAllowHeaders, "*")	
+		default:
+			continue
+		}		
+	}
+}
+
+// TODO: 若請求中包含 Authorization / Cookie / WWW-Authenticate / Set-Cookie 則需添加標頭 Access-Control-Allow-Credentials
+func (a *HttpAnser) setCors(c *ghttp.Context, key string, values ...string) {
+	var resKey string
+	switch key {
+	case ghttp.HeaderOrigin:
+		resKey = ghttp.HeaderCorsOrigin
+	case ghttp.HeaderCorsRequestMethod:
+		resKey = ghttp.HeaderCorsResponseMethod
+	case ghttp.HeaderCorsRequestHeaders:
+		resKey = ghttp.HeaderCorsAllowHeaders
+	default:
+		resKey = key
+	}
+	_, existed := c.Response.GetHeader(resKey)
+	if !existed {
+		// 若請求中有對應的 CORS 標頭，回應中才需添加
+		if _, ok := c.Request.Header[key]; ok {
+			c.Response.SetHeader(resKey, strings.Join(values, ", "))			
+		}
 	}
 }
 

@@ -43,7 +43,16 @@ func (m *Mgr) Handler(router *ans.Router) {
 	})
 	r1.POST("/post", func(c *ghttp.Context) {
 		protocol := &Protocol{}
-		c.ReadJson(protocol)
+		data, err := c.ReadJson(protocol)
+
+		if err != nil {
+			fmt.Printf("ReadJson err: %v\n", err)
+			c.Json(ghttp.StatusBadRequest, ghttp.H{
+				"err": "ReadJson",
+				"msg": data,
+			})
+			return
+		}
 		c.Response.Json(200, ghttp.H{
 			"index": 4,
 			"msg":   fmt.Sprintf("POST | /abc/post | protocol: %v", protocol),
@@ -53,7 +62,16 @@ func (m *Mgr) Handler(router *ans.Router) {
 	rName := r1.NewRouter("<name>")
 	rName.POST("/<tag>", func(c *ghttp.Context) {
 		protocol := &Protocol{}
-		c.ReadJson(protocol)
+		data, err := c.ReadJson(protocol)
+
+		if err != nil {
+			fmt.Printf("ReadJson err: %v\n", err)
+			c.Json(ghttp.StatusBadRequest, ghttp.H{
+				"err": "ReadJson",
+				"msg": data,
+			})
+			return
+		}
 		ok, name := c.GetParam("name")
 		if ok {
 			protocol.Name = name
@@ -70,7 +88,16 @@ func (m *Mgr) Handler(router *ans.Router) {
 	})
 	rName.POST("/def", func(c *ghttp.Context) {
 		protocol := &Protocol{}
-		c.ReadJson(protocol)
+		data, err := c.ReadJson(protocol)
+
+		if err != nil {
+			fmt.Printf("ReadJson err: %v\n", err)
+			c.Json(ghttp.StatusBadRequest, ghttp.H{
+				"err": "ReadJson",
+				"msg": data,
+			})
+			return
+		}
 		ok, name := c.GetParam("name")
 		if ok {
 			protocol.Name = name
@@ -82,7 +109,16 @@ func (m *Mgr) Handler(router *ans.Router) {
 	})
 	rName.POST("/<id int>", func(c *ghttp.Context) {
 		protocol := &Protocol{}
-		c.ReadJson(protocol)
+		data, err := c.ReadJson(protocol)
+
+		if err != nil {
+			fmt.Printf("ReadJson err: %v\n", err)
+			c.Json(ghttp.StatusBadRequest, ghttp.H{
+				"err": "ReadJson",
+				"msg": data,
+			})
+			return
+		}
 		ok, name := c.GetParam("name")
 		if ok {
 			protocol.Name = name
@@ -99,7 +135,16 @@ func (m *Mgr) Handler(router *ans.Router) {
 	})
 	rName.POST("/<pi float>", func(c *ghttp.Context) {
 		protocol := &Protocol{}
-		c.ReadJson(protocol)
+		data, err := c.ReadJson(protocol)
+
+		if err != nil {
+			fmt.Printf("ReadJson err: %v\n", err)
+			c.Json(ghttp.StatusBadRequest, ghttp.H{
+				"err": "ReadJson",
+				"msg": data,
+			})
+			return
+		}
 		ok, name := c.GetParam("name")
 		if ok {
 			protocol.Name = name

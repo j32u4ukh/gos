@@ -83,15 +83,18 @@ func (c *Context) Json(code int32, obj any) {
 	c.Response.Json(code, obj)
 }
 
-func (c Context) ReadJson(obj any) error {
+func (c Context) ReadJson(obj any) (string, error) {
+	var data string = ""
+	var err error = nil
 	if c.Request.BodyLength > 0 {
-		data := c.Request.Body[:c.Request.BodyLength]
-		err := json.Unmarshal(data, obj)
+		body := c.Request.Body[:c.Request.BodyLength]
+		data = string(body)
+		err = json.Unmarshal(body, obj)
 		if err != nil {
-			return errors.Wrap(err, "Failed to unmarshal body to json.")
+			err = errors.Wrap(err, "Failed to unmarshal body to json.")
 		}
 	}
-	return nil
+	return data, err
 }
 
 func (c Context) ReadBytes() []byte {
@@ -166,7 +169,7 @@ func (r *Request) FormRequest(method string, uri string, params map[string]strin
 		r.Query = fmt.Sprintf("/%s", query)
 		utils.Debug("Query: %s", r.Query)
 	}
-	r.Header["Host"] = []string{host}
+	r.Header[HeaderHost] = []string{host}
 }
 
 // 檢查是否有一行數據(以換行符 '\n' 來區分)
@@ -301,7 +304,7 @@ func (r Request) GetValue(key string) any {
 }
 
 func (r *Request) Json(obj any) {
-	r.Header["Content-Type"] = jsonContentType
+	r.Header[HeaderContentType] = jsonContentType
 	data, _ := json.Marshal(obj)
 	r.SetBody(data, int32(len(data)))
 	r.SetContentLength()
@@ -315,7 +318,7 @@ func (r *Request) SetBody(data []byte, length int32) {
 
 // 協助設置標頭檔的 Content-Length
 func (r *Request) SetContentLength() {
-	r.Header["Content-Length"] = []string{strconv.Itoa(int(r.BodyLength))}
+	r.Header[HeaderContentLength] = []string{strconv.Itoa(int(r.BodyLength))}
 }
 
 func (r Request) ToRequestData() []byte {
@@ -339,8 +342,8 @@ func (r Request) ToRequestData() []byte {
 		}
 	*/
 
-	r.Header["User-Agent"] = []string{"Go-http-client/1.1"}
-	r.Header["Accept-Encoding"] = []string{"gzip"}
+	r.Header[HeaderUserAgent] = []string{"Go-http-client/1.1"}
+	r.Header[HeaderAcceptEncoding] = []string{"gzip"}
 
 	for k, v := range r.Header {
 		buffer.WriteString(fmt.Sprintf("%s: %s\r\n", k, strings.Join(v, ", ")))
@@ -348,7 +351,7 @@ func (r Request) ToRequestData() []byte {
 
 	buffer.WriteString("\r\n")
 
-	if _, ok := r.Header["Content-Length"]; ok {
+	if _, ok := r.Header[HeaderContentLength]; ok {
 		buffer.WriteString("\r\n")
 		buffer.Write(r.Body[:r.BodyLength])
 	}
@@ -444,6 +447,11 @@ func (r *Response) SetHeader(key string, value string) {
 	}
 }
 
+func (r *Response) GetHeader(key string) ([]string, bool) {
+	value, ok := r.Header[key]
+	return value, ok
+}
+
 // Status sets the HTTP response code.
 func (r *Response) Status(code int32) {
 	r.Code = code
@@ -452,12 +460,7 @@ func (r *Response) Status(code int32) {
 
 func (r *Response) Json(code int32, obj any) {
 	r.Status(code)
-
-	for k := range r.Header {
-		delete(r.Header, k)
-	}
-
-	r.Header["Content-Type"] = jsonContentType
+	r.Header[HeaderContentType] = jsonContentType
 	data, _ := json.Marshal(obj)
 	r.SetBody(data, int32(len(data)))
 	r.SetContentLength()
@@ -470,7 +473,7 @@ func (r *Response) SetBody(data []byte, length int32) {
 }
 
 func (r *Response) SetContentLength() {
-	r.Header["Content-Length"] = []string{strconv.Itoa(int(r.BodyLength))}
+	r.Header[HeaderContentLength] = []string{strconv.Itoa(int(r.BodyLength))}
 }
 
 // 生成 Response message
@@ -485,7 +488,7 @@ func (r Response) ToResponseData() []byte {
 	}
 
 	// Body
-	if _, ok := r.Header["Content-Length"]; ok {
+	if _, ok := r.Header[HeaderContentLength]; ok {
 		buffer.WriteString("\r\n")
 		buffer.Write(r.Body[:r.BodyLength])
 	}
