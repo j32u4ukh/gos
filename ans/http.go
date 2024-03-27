@@ -343,16 +343,14 @@ func (a *HttpAnser) SetWorkHandler() {
 
 // TODO: 若是 CORS 預先檢查請求，通常會包含 Access-Control-Request-Method 和/或 Access-Control-Request-Headers 標頭。
 func (a *HttpAnser) optionsRequestHandler(w *base.Work, c *ghttp.Context, options []string) {
-	var key string
 	if a.UseCors {
-		key = ghttp.HeaderCorsMethods
 		a.setCors(c, ghttp.HeaderCorsMaxAge, strconv.Itoa(int(a.CorsMaxAge)))
-		a.setCors(c, ghttp.HeaderCorsAllowHeaders, a.CorsAllowHeaders...)
+		a.setCors(c, ghttp.HeaderCorsRequestHeaders, a.CorsAllowHeaders...)
 		a.setCors(c, ghttp.HeaderCorsExposeHeaders, a.CorsExposeHeaders...)
+		a.setCors(c, ghttp.HeaderCorsRequestMethod, options...)
 	} else {
-		key = "Allow"
+		a.context.Response.SetHeader(ghttp.HeaderAllow, strings.Join(options, ", "))
 	}
-	a.context.Response.SetHeader(key, strings.Join(options, ", "))
 	a.context.Status(ghttp.StatusOK)
 	a.context.Response.BodyLength = 0
 	a.context.Response.SetContentLength()
@@ -401,8 +399,10 @@ func (a *HttpAnser) GetContext(cid int32) *ghttp.Context {
 
 func (a *HttpAnser) Send(c *ghttp.Context) {
 	c.Response.SetHeader("Connection", "close")
+
 	if a.UseCors {
-		a.setCors(c, ghttp.HeaderCorsOrigin, a.CorsOrigins...)
+		// 根據請求的 Header，判斷要添加到回應標頭的欄位
+		a.setCorsHeaders(c)
 	}
 
 	// 將 Response 回傳數據轉換成 Work 傳遞的格式
@@ -430,21 +430,40 @@ func (a *HttpAnser) Cors(origins ...string) {
 	a.CorsOrigins = origins
 }
 
-func (a *HttpAnser) setCors(c *ghttp.Context, key string, values ...string) {
-	_, existed := c.Response.GetHeader(key)
-	if !existed {
-		var reqKey string
+func (a *HttpAnser) setCorsHeaders(c *ghttp.Context){	
+	// 若請求中有對應的 CORS 標頭，回應中才需添加
+	for key := range c.Request.Header {
 		switch key {
-		case ghttp.HeaderCorsOrigin:
-			reqKey = ghttp.HeaderOrigin
+		case ghttp.HeaderOrigin:
+			c.Response.SetHeader(ghttp.HeaderCorsOrigin, strings.Join(a.CorsOrigins, ", "))	
+		case ghttp.HeaderCorsRequestMethod:
+			c.Response.SetHeader(ghttp.HeaderCorsResponseMethod, "*")	
+		case ghttp.HeaderCorsRequestHeaders:
+			c.Response.SetHeader(ghttp.HeaderCorsAllowHeaders, "*")	
 		default:
-			reqKey = key
-		}
+			continue
+		}		
+	}
+}
+
+// TODO: 若請求中包含 Authorization / Cookie / WWW-Authenticate / Set-Cookie 則需添加標頭 Access-Control-Allow-Credentials
+func (a *HttpAnser) setCors(c *ghttp.Context, key string, values ...string) {
+	var resKey string
+	switch key {
+	case ghttp.HeaderOrigin:
+		resKey = ghttp.HeaderCorsOrigin
+	case ghttp.HeaderCorsRequestMethod:
+		resKey = ghttp.HeaderCorsResponseMethod
+	case ghttp.HeaderCorsRequestHeaders:
+		resKey = ghttp.HeaderCorsAllowHeaders
+	default:
+		resKey = key
+	}
+	_, existed := c.Response.GetHeader(resKey)
+	if !existed {
 		// 若請求中有對應的 CORS 標頭，回應中才需添加
-		if _, ok := c.Request.Header[reqKey]; ok {
-			for _, value := range values {
-				c.Response.SetHeader(key, value)
-			}
+		if _, ok := c.Request.Header[key]; ok {
+			c.Response.SetHeader(resKey, strings.Join(values, ", "))			
 		}
 	}
 }

@@ -57,18 +57,27 @@ const (
 	// ==================================================
 	// CORS
 	// ==================================================
-	HeaderOrigin            = "Origin"
-	HeaderCorsOrigin        = "Access-Control-Allow-Origin"
+	HeaderOrigin     = "Origin"
+	HeaderCorsOrigin = "Access-Control-Allow-Origin"
+
+	HeaderCorsRequestMethod  = "Access-Control-Request-Method"
+	HeaderCorsResponseMethod = "Access-Control-Allow-Methods"
+
+	HeaderCorsRequestHeaders = "Access-Control-Request-Headers"
+	HeaderCorsAllowHeaders   = "Access-Control-Allow-Headers"
+
 	HeaderCorsMaxAge        = "Access-Control-Max-Age"
-	HeaderCorsMethods       = "Access-Control-Allow-Methods"
 	HeaderCorsCredentials   = "Access-Control-Allow-Credentials"
-	HeaderCorsAllowHeaders  = "Access-Control-Allow-Headers"
 	HeaderCorsExposeHeaders = "Access-Control-Expose-Headers"
+	
 	// Header Name
 	HeaderAccept          = "Accept"
+	HeaderAuthorization   = "Authorization"
+	HeaderAllow           = "Allow"
 	HeaderAcceptLanguage  = "Accept-Language"
 	HeaderAcceptEncoding  = "Accept-Encoding"
 	HeaderContentLanguage = "Content-Language"
+	HeaderCookie          = "Cookie"
 	HeaderContentType     = "Content-Type"
 	HeaderCacheControl    = "Cache-Control"
 	HeaderDPR             = "DPR"
@@ -77,11 +86,20 @@ const (
 	HeaderLastModified    = "Last-Modified"
 	HeaderPragma          = "Pragma"
 	HeaderSaveData        = "Save-Data"
+	HeaderSetCookie       = "Set-Cookie"
 	HeaderViewportWidth   = "Viewport-Width"
 	HeaderWidth           = "Width"
+	HeaderWWWAuthenticate = "WWW-Authenticate"
 	HeaderHost            = "Host"
 	HeaderContentLength   = "Content-Length"
 	HeaderUserAgent       = "User-Agent"
+
+	/*
+		Authorization：用於傳輸認證資訊。
+		Cookie：用於傳輸 Cookie。
+		WWW-Authenticate：用於要求客戶端提供認證資訊。
+		Set-Cookie：用於設定 Cookie。
+	*/
 )
 
 var (

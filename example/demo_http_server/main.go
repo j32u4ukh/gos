@@ -189,7 +189,7 @@ func RunAns(port int) {
 
 	httpAnswer := anser.(*ans.HttpAnser)
 	if useCors {
-		httpAnswer.Cors("http://localhost:8080")
+		httpAnswer.Cors("*")
 	}
 	mgr := &Mgr{}
 	mgr.Handler(httpAnswer.Router)
