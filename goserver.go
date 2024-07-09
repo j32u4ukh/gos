@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/j32u4ukh/gos/ans"
-	"github.com/j32u4ukh/gos/ask"
 	"github.com/j32u4ukh/gos/base"
+	"github.com/j32u4ukh/gos/sync/ans"
+	"github.com/j32u4ukh/gos/sync/ask"
 	"github.com/j32u4ukh/gos/utils"
 )
 

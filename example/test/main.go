@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"github.com/j32u4ukh/gos"
-	"github.com/j32u4ukh/gos/ans"
 	"github.com/j32u4ukh/gos/base/ghttp"
 	"github.com/j32u4ukh/gos/define"
+	"github.com/j32u4ukh/gos/sync/ans"
 )
 
 func main() {

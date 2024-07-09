@@ -5,8 +5,8 @@ import (
 
 	"github.com/j32u4ukh/glog/v2"
 	"github.com/j32u4ukh/gos"
-	"github.com/j32u4ukh/gos/ans"
 	"github.com/j32u4ukh/gos/define"
+	"github.com/j32u4ukh/gos/sync/ans"
 	"github.com/j32u4ukh/gos/utils"
 )
 
