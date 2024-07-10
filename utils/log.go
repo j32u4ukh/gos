@@ -17,33 +17,35 @@ func SetLogger(lg *glog.Logger) {
 }
 
 func Debug(message string, a ...any) {
-	if logger != nil {
-		logger.Debug(message, a...)
-	} else {
-		fmt.Printf("[Debug] %s\n", fmt.Sprintf(message, a...))
-	}
+	fmt.Printf("[Debug] %s\n", fmt.Sprintf(message, a...))
+	// if logger != nil {
+	// 	logger.Debug(message, a...)
+	// } else {
+	// }
 }
 
 func Info(message string, a ...any) {
-	if logger != nil {
-		logger.Info(message, a...)
-	} else {
-		fmt.Printf("[Info] %s\n", fmt.Sprintf(message, a...))
-	}
+	fmt.Printf("[Info] %s\n", fmt.Sprintf(message, a...))
+	// if logger != nil {
+	// 	logger.Info(message, a...)
+	// } else {
+	// }
 }
 
 func Warn(message string, a ...any) {
-	if logger != nil {
-		logger.Warn(message, a...)
-	} else {
-		fmt.Printf("[Warn] %s\n", fmt.Sprintf(message, a...))
-	}
+	fmt.Printf("[Warn] %s\n", fmt.Sprintf(message, a...))
+	// if logger != nil {
+	// 	logger.Warn(message, a...)
+	// } else {
+	// 	fmt.Printf("[Warn] %s\n", fmt.Sprintf(message, a...))
+	// }
 }
 
 func Error(message string, a ...any) {
-	if logger != nil {
-		logger.Debug(message, a...)
-	} else {
-		fmt.Printf("[Error] %s\n", fmt.Sprintf(message, a...))
-	}
+	fmt.Printf("[Error] %s\n", fmt.Sprintf(message, a...))
+	// if logger != nil {
+	// 	logger.Debug(message, a...)
+	// } else {
+	// 	fmt.Printf("[Error] %s\n", fmt.Sprintf(message, a...))
+	// }
 }

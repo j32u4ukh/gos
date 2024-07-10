@@ -242,15 +242,12 @@ func (c *Conn) CheckReadable(checker func(buffer *[]byte, i int32, o int32, leng
 // TODO: 檢查 c.writeInput 是否反超 c.writeOutput，若反超，表示緩衝大小不足
 func (c *Conn) SetWriteBuffer(data *[]byte, length int32) {
 	c.WritableLength += length
-
 	if c.writeInput+length < c.BufferLength {
 		copy(c.writeBuffer[c.writeInput:c.writeInput+length], (*data)[:length])
 		c.writeInput += length
-
 	} else {
 		c.writeIdx = c.BufferLength - c.writeInput
 		copy(c.writeBuffer[c.writeInput:], (*data)[:c.writeIdx])
-
 		c.writeInput = length - c.writeIdx
 		copy(c.writeBuffer[:c.writeInput], (*data)[c.writeIdx:length])
 	}
