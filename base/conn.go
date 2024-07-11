@@ -107,7 +107,7 @@ func NewConn(id int32, size int32) *Conn {
 		readInput:      0,
 		readOutput:     0,
 		ReadableLength: 0,
-		ReadLength:     define.DATALENGTH,
+		ReadLength:     define.DATA_LENGTH,
 		readPackets:    []*Packet{},
 		ReadCh:         make(chan *Packet, size),
 		readIdx:        0,
@@ -144,7 +144,7 @@ func (c *Conn) Add(conn *Conn) {
 }
 
 func (c *Conn) Handler() {
-	utils.Debug("Start, c.readErr: %+v", c.readErr)
+	utils.Debug("Start, c.readErr: %+v, netConn: %v", c.readErr, c.NetConn != nil)
 	// 確保 stopCh 為空
 	select {
 	case <-c.stopCh:
@@ -154,10 +154,11 @@ func (c *Conn) Handler() {
 		select {
 		case <-c.stopCh:
 			utils.Info("<-c.stopCh")
+			c.release()
 			return
 
 		default:
-			// utils.Debug("readIdx: %d, netConn: %v", c.readIdx, c.NetConn != nil)
+			utils.Debug("readIdx: %d, netConn: %v", c.readIdx, c.NetConn != nil)
 			// c.readPackets[c.readIdx].Release()
 
 			// 每次讀取至多長度為 MTU 的數據(Read 為阻塞型函式)
@@ -309,6 +310,15 @@ func (c *Conn) SetDisconnectTime(second time.Duration) {
 }
 
 func (c *Conn) Release() {
+	fmt.Println("Conn Release")
+	// 停止原本的 goroutine
+	c.stopCh <- true
+}
+
+
+
+func (c *Conn) release() {
+	fmt.Println("Conn release")
 	// 停止原本的 goroutine
 	c.stopCh <- true
 

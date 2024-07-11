@@ -3,6 +3,7 @@ package ans
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
 	"net"
 	"time"
 
@@ -17,17 +18,17 @@ type IAnswer interface {
 	// 開始監聽
 	Listen()
 	// 執行一次主迴圈
-	Handler()
+	Handler(conn net.Conn)
 	// 數據寫出(寫到寫出緩存中)
 	Write(int32, *[]byte, int32) error
 	//
 	Disconnect(cid int32) error
 }
 
-func NewAnser(socketType define.SocketType, laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, error) {
+func NewAnser(socketType define.SocketType, laddr *net.TCPAddr, nConnect int32) (IAnswer, error) {
 	switch socketType {
-	// case define.Tcp0:
-	// 	return NewTcp0Anser(laddr, nConnect, nWork)
+	case define.Tcp0:
+		return newAnser(laddr, nConnect)
 	// case define.Http:
 	// 	return NewHttpAnser(laddr, nConnect, nWork)
 	default:
@@ -91,6 +92,8 @@ func newAnser(laddr *net.TCPAddr, nConnect int32) (*Anser, error) {
 		maxConn:    nConnect,
 		readBuffer: make([]byte, utils.GosConfig.AnswerReadBuffer),
 		order:      binary.LittleEndian,
+		//
+		ReadTimeout: 10 * time.Second,
 	}
 	return a, nil
 }
@@ -107,112 +110,119 @@ func (a *Anser) Listen() {
 		}
 		utils.Info("客戶端連接來自: %s", conn.RemoteAddr())
 
-		// if a.nConn < a.maxConn{
-		// 	a.nConn++
-		// 	go a.Handler(conn)
-		// }
+		if a.nConn < a.maxConn {
+			a.nConn++
+			go a.Handler(conn)
+		}
 	}
 }
 
-// // 持續檢查是否有未完成的工作，若有，則呼叫外部定義的 workHandler 函式
-// func (a *Anser) Handler(conn *net.TCPConn) {
-// 	var packet *base.Packet
-// 	var err error
-// 	work := base.NewWork(0)
+// 持續檢查是否有未完成的工作，若有，則呼叫外部定義的 workHandler 函式
+func (a *Anser) Handler(conn net.Conn) {
+	var packet *base.Packet
+	var err error
+	// work := base.NewWork(0)
+	a.currConn = base.NewConn(0, 10)
+	a.currConn.NetConn = conn
+	fmt.Printf("a.currConn.NetConn: %v\n", a.currConn.NetConn != nil)
+	go a.currConn.Handler()
 
-// 	// TODO: 處理主動斷線
-// 	select {
-// 	// 封包事件
-// 	case packet = <-a.currConn.ReadCh:
+	for {
+		// TODO: 處理主動斷線
+		select {
+		// 封包事件
+		case packet = <-a.currConn.ReadCh:
 
-// 		// 封包讀取發生異常
-// 		if packet.Error != nil {
-// 			switch eType := packet.Error.(type) {
-// 			case net.Error:
-// 				if eType.Timeout() {
-// 					utils.Error("Conn %d 發生 timeout error.", a.currConn.GetId())
-// 				} else {
-// 					utils.Error("Conn %d 發生 net.Error.", a.currConn.GetId())
-// 				}
-// 			default:
-// 				switch packet.Error {
-// 				// 沒有數據可讀取，對方已關閉連線
-// 				case io.EOF:
-// 					utils.Warn("Conn %d 沒有數據可讀取，對方已關閉連線\nError(%v): %+v", a.currConn.GetId(), eType, packet.Error)
-// 				default:
-// 					utils.Error("Conn %d 讀取 socket 時發生錯誤, Error(%v): %+v", a.currConn.GetId(), eType, packet.Error)
-// 				}
-// 			}
+			// 封包讀取發生異常
+			if packet.Error != nil {
+				switch eType := packet.Error.(type) {
+				case net.Error:
+					if eType.Timeout() {
+						utils.Error("Conn %d 發生 timeout error.", a.currConn.GetId())
+					} else {
+						utils.Error("Conn %d 發生 net.Error.", a.currConn.GetId())
+					}
+				default:
+					switch packet.Error {
+					// 沒有數據可讀取，對方已關閉連線
+					case io.EOF:
+						utils.Warn("Conn %d 沒有數據可讀取，對方已關閉連線\nError(%v): %+v", a.currConn.GetId(), eType, packet.Error)
+					default:
+						utils.Error("Conn %d 讀取 socket 時發生錯誤, Error(%v): %+v", a.currConn.GetId(), eType, packet.Error)
+					}
+				}
 
-// 			// 連線狀態設為結束
-// 			a.currConn.State = define.Disconnect
+				// 連線狀態設為結束
+				a.currConn.State = define.Disconnect
 
-// 			// 設定 N 秒後斷線
-// 			a.currConn.SetDisconnectTime(utils.GosConfig.DisconnectTime)
+				// 設定 N 秒後斷線
+				a.currConn.SetDisconnectTime(utils.GosConfig.DisconnectTime)
 
-// 			a.currConn = a.currConn.Next
-// 			return
-// 		}
+				a.currConn = a.currConn.Next
+				return
+			}
 
-// 		// 將封包數據寫入 readBuffer
-// 		a.currConn.SetReadBuffer(packet)
+			// 將封包數據寫入 readBuffer
+			a.currConn.SetReadBuffer(packet)
 
-// 		// 更新斷線時間(NOTE: 若斷線時間與客戶端睡眠時間相同，會變成讀取錯誤，而非 timeout 錯誤，造成誤判)
-// 		err = a.currConn.NetConn.SetReadDeadline(time.Now().Add(a.ReadTimeout))
+			// 更新斷線時間(NOTE: 若斷線時間與客戶端睡眠時間相同，會變成讀取錯誤，而非 timeout 錯誤，造成誤判)
+			err = a.currConn.NetConn.SetReadDeadline(time.Now().Add(a.ReadTimeout))
 
-// 		if err != nil {
-// 			utils.Error("DeadlineError: %+v", err)
+			if err != nil {
+				utils.Error("DeadlineError: %+v", err)
 
-// 			// 連線狀態設為結束
-// 			a.currConn.State = define.Disconnect
+				// 連線狀態設為結束
+				a.currConn.State = define.Disconnect
 
-// 			// 設定 3 秒後斷線
-// 			a.currConn.SetDisconnectTime(utils.GosConfig.DisconnectTime)
-// 			return
-// 		}
+				// 設定 3 秒後斷線
+				a.currConn.SetDisconnectTime(utils.GosConfig.DisconnectTime)
+				return
+			}
 
-// 	default:
-// 		// 從緩存中讀取數據
-// 		// a.read 根據不同 SocketType，有不同的讀取數據函式實作
-// 		a.readFunc()
+		default:
+			// 從緩存中讀取數據
+			// a.read 根據不同 SocketType，有不同的讀取數據函式實作
+			// a.readFunc()
+			a.read()
 
-// 		// 實際數據寫出，未因 SocketType 不同而有不同
-// 		err = a.currConn.Write()
+			// 實際數據寫出，未因 SocketType 不同而有不同
+			err = a.currConn.Write()
+			if err != nil{
+				fmt.Printf("Write error: %v\n", err)
+				return
+			}
+			a.currConn.Release()
+			return
 
-// 		if a.shouldCloseFunc(err) {
-// 			// 連線狀態設為結束
-// 			a.currConn.State = define.Disconnect
+			// if a.shouldCloseFunc(err) {
+			// 	// 連線狀態設為結束
+			// 	a.currConn.State = define.Disconnect
 
-// 			// 設定 3 秒後斷線
-// 			a.currConn.SetDisconnectTime(utils.GosConfig.DisconnectTime)
-// 		}
-// 	}
+			// 	// 設定 3 秒後斷線
+			// 	a.currConn.SetDisconnectTime(utils.GosConfig.DisconnectTime)
+			// }
+		}
+	}
 
-	
+}
 
-// 	// 根據 work.state 分別做不同處理，並重新整理工作結構的鏈結關係
-// 	a.dealWork()
+func (a *Anser) read() {
+	a.currConn.Read(&a.readBuffer, 100)
+	fmt.Printf("request: %s\n", string(a.readBuffer))
 
-// 	// 斷線處理: 釋放標註為 define.Disconnect 的連線物件，並確保有被使用的連線物件排在前面，而非有無使用的連線物件交錯排列
-// 	a.disconnectHandler()
-// }
+	response := []byte(fmt.Sprintf("HTTP/1.1 200 OK\r\nConnection: close\r\n%s: text/html\r\nContent-Length: 19\r\n\r\n<h1>Hola Mundo</h1>",
+		"Content-Type"))
+	a.currConn.SetWriteBuffer(&response, int32(len(response)))
+}
 
-// // 連線處理
-// func (a *Anser) connectedHandler() {
-	
-// }
-
-// // 斷線處理
-// func (a *Anser) disconnectHandler() {}
-
-// func (a *Anser) Disconnect(cid int32) error {
-// 	c := a.getConn(cid)
-// 	if c == nil {
-// 		return errors.Errorf("Not found cid %d", cid)
-// 	}
-// 	c.Release()
-// 	return nil
-// }
+func (a *Anser) Disconnect(cid int32) error {
+	// c := a.getConn(cid)
+	// if c == nil {
+	// 	return errors.Errorf("Not found cid %d", cid)
+	// }
+	// c.Release()
+	return nil
+}
 
 // // 尋找工作結構(若 widx 為 -1，返回空閒的工作結構)
 // func (a *Anser) getWork(wid int32) *base.Work {
@@ -277,14 +287,14 @@ func (a *Anser) Listen() {
 // 	}
 // }
 
-// func (a *Anser) Write(cid int32, data *[]byte, length int32) error {
-// 	c := a.getConn(cid)
-// 	if c == nil {
-// 		return errors.New(fmt.Sprintf("There is no cid equals to %d.", cid))
-// 	}
-// 	c.SetWriteBuffer(data, length)
-// 	return nil
-// }
+func (a *Anser) Write(cid int32, data *[]byte, length int32) error {
+	// c := a.getConn(cid)
+	// if c == nil {
+	// 	return errors.New(fmt.Sprintf("There is no cid equals to %d.", cid))
+	// }
+	// c.SetWriteBuffer(data, length)
+	return nil
+}
 
 // func (a *Anser) getConn(cid int32) *base.Conn {
 // 	c := a.conns

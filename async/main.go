@@ -4,51 +4,39 @@ import (
 	"bytes"
 	"fmt"
 	"net"
-	"os"
-	"os/signal"
-	"syscall"
+	"time"
+
+	"github.com/j32u4ukh/gos/async/ans"
+	"github.com/j32u4ukh/gos/define"
 )
 
 func main() {
-	stopCh := make(chan os.Signal, 1)
-	// 設置需要監聽的信號
-    signal.Notify(stopCh, syscall.SIGINT, syscall.SIGTERM)
-	
-	port := 8080
-	laddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf(":%d", port))
-	if err != nil{
-		PrintError("Failed to build tcp struct, err: %+v", err)
-		return
-	}
-	listener, err := net.ListenTCP("tcp", laddr)
-	if err != nil{
-		PrintError("Failed to listen to %+v, err: %+v", laddr, err)
-		return
-	}
-
-	var conn *net.TCPConn
-	keepRunning := true
-
-	for keepRunning{
-		select{
-		// case s := <-stopCh:
-		// 	fmt.Printf(">>> s: %+v\n", s)
-		// 	keepRunning = false
-		default:
-			conn, err = listener.AcceptTCP()
-			if err != nil {
-				PrintError("接受客戶端連接異常: %+v", err.Error())
-				continue
-			}
-			fmt.Printf("客戶端連接來自: %s", conn.RemoteAddr())
-			go handleRequest(conn)
-		}
-	}
-
-	fmt.Println("Finish server")
+	ServerDemo()
 }
 
-func PrintError(format string, v ...any){
+func ServerDemo() {
+	port := 5000
+	laddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		PrintError("Error resolving tcp address, err: %+v", err)
+		return
+	}
+	anser, err := ans.NewAnser(define.Tcp0, laddr, 10)
+	if err != nil {
+		PrintError("Error creating anser, err: %+v", err)
+		return
+	}
+	go anser.Listen()
+	for {
+		select {
+		default:
+			fmt.Println("ServerDemo is running...")
+			time.Sleep(1 * time.Second)
+		}
+	}
+}
+
+func PrintError(format string, v ...any) {
 	format = fmt.Sprintf("[Error] %s\n", format)
 	fmt.Printf(format, v...)
 }
