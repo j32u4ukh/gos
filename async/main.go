@@ -6,7 +6,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/j32u4ukh/gos/async/ans"
+	"github.com/j32u4ukh/gos/async/gos/ans"
 	"github.com/j32u4ukh/gos/define"
 )
 
