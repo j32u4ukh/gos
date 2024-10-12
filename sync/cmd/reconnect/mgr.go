@@ -1,8 +1,8 @@
-package main
+package reconnect
 
 import (
-	"github.com/j32u4ukh/gos"
 	"github.com/j32u4ukh/gos/base"
+	"github.com/j32u4ukh/gos/sync/gos"
 )
 
 const (

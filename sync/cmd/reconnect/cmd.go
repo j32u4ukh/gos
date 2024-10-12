@@ -1,22 +1,38 @@
-package main
+package reconnect
 
 import (
-	"os"
 	"strconv"
 	"time"
 
 	"github.com/j32u4ukh/glog/v2"
-	"github.com/j32u4ukh/gos"
 	"github.com/j32u4ukh/gos/base"
 	"github.com/j32u4ukh/gos/define"
-	"github.com/j32u4ukh/gos/sync/ans"
-	"github.com/j32u4ukh/gos/sync/ask"
+	"github.com/j32u4ukh/gos/sync/gos"
+	"github.com/j32u4ukh/gos/sync/gos/ans"
+	"github.com/j32u4ukh/gos/sync/gos/ask"
 	"github.com/j32u4ukh/gos/utils"
+	"github.com/spf13/cobra"
 )
 
 var logger *glog.Logger
 
-func init() {
+
+// go run . pipeline -p 5000
+func RegisterCommand(rootCmd *cobra.Command) {
+	taskCmd := &cobra.Command{
+		Use: "pipeline",
+		Run: func(cmd *cobra.Command, args []string) {
+			initLogger()
+			defer glog.Flush()			
+			service := Service{StopCh: make(chan bool)}
+			service.Run(args)
+		},
+	}
+	taskCmd.Flags().Int32P("cors", "c", 1, "Use cors")
+	rootCmd.AddCommand(taskCmd)
+}
+
+func initLogger() {
 	gosLogger := glog.SetLogger(0, "gos", glog.DebugLevel)
 	gosLogger.SetFolder("log")
 	gosLogger.SetOptions(glog.DefaultOption(true, true), glog.UtcOption(8))
@@ -30,11 +46,6 @@ func init() {
 type Service struct {
 	// 總管整個服務的關閉流程(可能有不同原因會觸發關閉流程)
 	StopCh chan bool
-}
-
-func main() {
-	service := Service{StopCh: make(chan bool)}
-	service.Run(os.Args)
 }
 
 func (s *Service) Run(args []string) {

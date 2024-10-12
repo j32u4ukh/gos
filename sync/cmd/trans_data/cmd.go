@@ -1,16 +1,32 @@
-package main
+package trans_data
 
 import (
 	"fmt"
 
 	"github.com/j32u4ukh/gos/base"
+	"github.com/spf13/cobra"
 )
 
-func main() {
-	// demo1()
-	// demo2()
-	demo3()
-	// demo4()
+// go run . pipeline -p 5000
+func RegisterCommand(rootCmd *cobra.Command) {
+	taskCmd := &cobra.Command{
+		Use: "pipeline",
+		Run: func(cmd *cobra.Command, args []string) {
+			port, err := cmd.Flags().GetInt32("port")
+			if err != nil {
+				fmt.Printf("Failed to get string kind, err: %+v", err)
+				return
+			}
+			kind, err := cmd.Flags().GetString("kind")
+			if err != nil {
+				fmt.Printf("Failed to get string kind, err: %+v", err)
+				return
+			}
+			fmt.Printf("port: %d, kind: %s\n", port, kind)
+			
+		},
+	}
+	rootCmd.AddCommand(taskCmd)
 }
 
 func demo1() {

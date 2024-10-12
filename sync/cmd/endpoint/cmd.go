@@ -1,13 +1,15 @@
-package main
+package endpoint
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/j32u4ukh/glog/v2"
-	"github.com/j32u4ukh/gos"
 	"github.com/j32u4ukh/gos/define"
-	"github.com/j32u4ukh/gos/sync/ans"
+	"github.com/j32u4ukh/gos/sync/gos"
+	"github.com/j32u4ukh/gos/sync/gos/ans"
 	"github.com/j32u4ukh/gos/utils"
+	"github.com/spf13/cobra"
 )
 
 var logger *glog.Logger
@@ -24,14 +26,24 @@ func init() {
 	logger.SetOptions(glog.DefaultOption(true, true), glog.UtcOption(8))
 }
 
-func main() {
-	var port int = 1023
-	RunAns(port)
-	logger.Debug("End of gos example.")
+// go run . endpoint -p 5000
+func RegisterCommand(rootCmd *cobra.Command) {
+	taskCmd := &cobra.Command{
+		Use: "endpoint",
+		Run: func(cmd *cobra.Command, args []string) {
+			port, err := cmd.Flags().GetInt32("port")
+			if err != nil {
+				fmt.Printf("Failed to get string kind, err: %+v", err)
+				return
+			}
+			fmt.Printf("port: %d\n", port)
+		},
+	}
+	rootCmd.AddCommand(taskCmd)
 }
 
-func RunAns(port int) {
-	anser, err := gos.Listen(define.Http, int32(port))
+func RunAns(port int32) {
+	anser, err := gos.Listen(define.Http, port)
 	logger.Debug("Listen to port %d", port)
 
 	if err != nil {

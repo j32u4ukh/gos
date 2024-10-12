@@ -4,14 +4,26 @@ import (
 	"bytes"
 	"fmt"
 	"net"
+	"os"
 	"time"
 
-	"github.com/j32u4ukh/gos/async/gos/ans"
 	"github.com/j32u4ukh/gos/define"
+	"github.com/j32u4ukh/gos/sync/cmd/endpoint"
+	"github.com/j32u4ukh/gos/sync/cmd/pipeline"
+	"github.com/j32u4ukh/gos/sync/gos/ans"
+	"github.com/spf13/cobra"
 )
 
 func main() {
-	ServerDemo()
+	rootCmd := &cobra.Command{}
+	rootCmd.PersistentFlags().Int32P("port", "p", 5000, "Port of server.")	
+	rootCmd.PersistentFlags().StringP("kind", "k", "", "Kind of task.")
+	endpoint.RegisterCommand(rootCmd)
+	pipeline.RegisterCommand(rootCmd)
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 }
 
 func ServerDemo() {
@@ -21,7 +33,7 @@ func ServerDemo() {
 		PrintError("Error resolving tcp address, err: %+v", err)
 		return
 	}
-	anser, err := ans.NewAnser(define.Tcp0, laddr, 10)
+	anser, err := ans.NewAnser(define.Tcp0, laddr, 10, 10)
 	if err != nil {
 		PrintError("Error creating anser, err: %+v", err)
 		return
