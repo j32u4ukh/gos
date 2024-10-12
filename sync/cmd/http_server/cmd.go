@@ -10,11 +10,11 @@ import (
 	"time"
 
 	"github.com/j32u4ukh/glog/v2"
-	"github.com/j32u4ukh/gos/base/ghttp"
 	"github.com/j32u4ukh/gos/define"
 	"github.com/j32u4ukh/gos/sync/gos"
 	"github.com/j32u4ukh/gos/sync/gos/ans"
 	"github.com/j32u4ukh/gos/sync/gos/ask"
+	"github.com/j32u4ukh/gos/sync/gos/base/ghttp"
 	"github.com/j32u4ukh/gos/utils"
 	"github.com/spf13/cobra"
 )
@@ -107,7 +107,7 @@ func RegisterCommand(rootCmd *cobra.Command) {
 				RunAsk("127.0.0.1", port)
 			case "nr":
 				DemoNativeHttpRequest(port)
-			case "nr2" :
+			case "nr2":
 				DemoNativeHttpRequest2(port)
 			case "ns":
 				DemoNativeHttpServer("127.0.0.1", port)

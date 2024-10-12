@@ -16,7 +16,7 @@ import (
 
 func main() {
 	rootCmd := &cobra.Command{}
-	rootCmd.PersistentFlags().Int32P("port", "p", 5000, "Port of server.")	
+	rootCmd.PersistentFlags().Int32P("port", "p", 5000, "Port of server.")
 	rootCmd.PersistentFlags().StringP("kind", "k", "", "Kind of task.")
 	endpoint.RegisterCommand(rootCmd)
 	pipeline.RegisterCommand(rootCmd)

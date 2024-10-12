@@ -23,7 +23,7 @@ func RegisterCommand(rootCmd *cobra.Command) {
 				return
 			}
 			fmt.Printf("port: %d, kind: %s\n", port, kind)
-			
+
 		},
 	}
 	rootCmd.AddCommand(taskCmd)

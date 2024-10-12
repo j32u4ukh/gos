@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/j32u4ukh/gos/base"
-	"github.com/j32u4ukh/gos/base/ghttp"
+	"github.com/j32u4ukh/gos/sync/gos/base"
+	"github.com/j32u4ukh/gos/sync/gos/base/ghttp"
 	"github.com/j32u4ukh/gos/utils"
 
 	"github.com/pkg/errors"
@@ -430,19 +430,19 @@ func (a *HttpAnser) Cors(origins ...string) {
 	a.CorsOrigins = origins
 }
 
-func (a *HttpAnser) setCorsHeaders(c *ghttp.Context){	
+func (a *HttpAnser) setCorsHeaders(c *ghttp.Context) {
 	// 若請求中有對應的 CORS 標頭，回應中才需添加
 	for key := range c.Request.Header {
 		switch key {
 		case ghttp.HeaderOrigin:
-			c.Response.SetHeader(ghttp.HeaderCorsOrigin, strings.Join(a.CorsOrigins, ", "))	
+			c.Response.SetHeader(ghttp.HeaderCorsOrigin, strings.Join(a.CorsOrigins, ", "))
 		case ghttp.HeaderCorsRequestMethod:
-			c.Response.SetHeader(ghttp.HeaderCorsResponseMethod, "*")	
+			c.Response.SetHeader(ghttp.HeaderCorsResponseMethod, "*")
 		case ghttp.HeaderCorsRequestHeaders:
-			c.Response.SetHeader(ghttp.HeaderCorsAllowHeaders, "*")	
+			c.Response.SetHeader(ghttp.HeaderCorsAllowHeaders, "*")
 		default:
 			continue
-		}		
+		}
 	}
 }
 
@@ -463,7 +463,7 @@ func (a *HttpAnser) setCors(c *ghttp.Context, key string, values ...string) {
 	if !existed {
 		// 若請求中有對應的 CORS 標頭，回應中才需添加
 		if _, ok := c.Request.Header[key]; ok {
-			c.Response.SetHeader(resKey, strings.Join(values, ", "))			
+			c.Response.SetHeader(resKey, strings.Join(values, ", "))
 		}
 	}
 }

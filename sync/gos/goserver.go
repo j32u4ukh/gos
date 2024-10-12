@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/j32u4ukh/gos/base"
 	"github.com/j32u4ukh/gos/sync/gos/ans"
 	"github.com/j32u4ukh/gos/sync/gos/ask"
+	"github.com/j32u4ukh/gos/sync/gos/base"
 	"github.com/j32u4ukh/gos/utils"
 )
 
@@ -31,7 +31,6 @@ func newGoserver() *goserver {
 	return g
 }
 
-//
 func CheckWorks(msg string, root *base.Work) {
 	work := root
 	for work != nil {

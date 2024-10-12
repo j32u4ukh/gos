@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/j32u4ukh/gos/base/ghttp"
 	"github.com/j32u4ukh/gos/sync/gos/ans"
+	"github.com/j32u4ukh/gos/sync/gos/base/ghttp"
 	"github.com/j32u4ukh/gos/utils"
 )
 

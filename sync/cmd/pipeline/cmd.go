@@ -8,12 +8,12 @@ import (
 	"time"
 
 	"github.com/j32u4ukh/glog/v2"
-	"github.com/j32u4ukh/gos/base"
-	"github.com/j32u4ukh/gos/base/ghttp"
 	"github.com/j32u4ukh/gos/define"
 	"github.com/j32u4ukh/gos/sync/gos"
 	"github.com/j32u4ukh/gos/sync/gos/ans"
 	"github.com/j32u4ukh/gos/sync/gos/ask"
+	"github.com/j32u4ukh/gos/sync/gos/base"
+	"github.com/j32u4ukh/gos/sync/gos/base/ghttp"
 	"github.com/j32u4ukh/gos/utils"
 	"github.com/spf13/cobra"
 )

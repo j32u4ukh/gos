@@ -3,7 +3,7 @@ package pipeline
 import (
 	"time"
 
-	"github.com/j32u4ukh/gos/base"
+	"github.com/j32u4ukh/gos/sync/gos/base"
 )
 
 type RandomReturnServer struct {

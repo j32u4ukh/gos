@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/j32u4ukh/gos/base"
-	"github.com/j32u4ukh/gos/base/ghttp"
 	"github.com/j32u4ukh/gos/define"
+	"github.com/j32u4ukh/gos/sync/gos/base"
+	"github.com/j32u4ukh/gos/sync/gos/base/ghttp"
 	"github.com/j32u4ukh/gos/utils"
 
 	"github.com/pkg/errors"

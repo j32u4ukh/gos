@@ -5,17 +5,16 @@ import (
 	"time"
 
 	"github.com/j32u4ukh/glog/v2"
-	"github.com/j32u4ukh/gos/base"
 	"github.com/j32u4ukh/gos/define"
 	"github.com/j32u4ukh/gos/sync/gos"
 	"github.com/j32u4ukh/gos/sync/gos/ans"
 	"github.com/j32u4ukh/gos/sync/gos/ask"
+	"github.com/j32u4ukh/gos/sync/gos/base"
 	"github.com/j32u4ukh/gos/utils"
 	"github.com/spf13/cobra"
 )
 
 var logger *glog.Logger
-
 
 // go run . pipeline -p 5000
 func RegisterCommand(rootCmd *cobra.Command) {
@@ -23,7 +22,7 @@ func RegisterCommand(rootCmd *cobra.Command) {
 		Use: "pipeline",
 		Run: func(cmd *cobra.Command, args []string) {
 			initLogger()
-			defer glog.Flush()			
+			defer glog.Flush()
 			service := Service{StopCh: make(chan bool)}
 			service.Run(args)
 		},
