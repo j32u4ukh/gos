@@ -76,10 +76,10 @@ func shouldClose(major, minor int, header Header, removeCloseHeader bool) bool {
 var logger *glog.Logger
 var useCors bool = false
 
-// go run . pipeline -p 5000
+// go run . http -p 5000
 func RegisterCommand(rootCmd *cobra.Command) {
 	taskCmd := &cobra.Command{
-		Use: "pipeline",
+		Use: "http",
 		Run: func(cmd *cobra.Command, args []string) {
 			initLogger()
 			defer glog.Flush()
@@ -193,7 +193,7 @@ func initLogger() {
 func RunAns(port int32) {
 	// utils.GosConfig.AnswerConnectNumbers[define.Http] = 10000
 	// utils.GosConfig.AnswerWorkNumbers[define.Http] = 10000
-	anser, err := gos.Listen(define.Http, int32(port))
+	anser, err := gos.Listen(define.Http, port)
 	logger.Debug("Listen to port %d", port)
 
 	if err != nil {

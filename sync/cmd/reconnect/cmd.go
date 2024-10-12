@@ -16,10 +16,10 @@ import (
 
 var logger *glog.Logger
 
-// go run . pipeline -p 5000
+// go run . reconnect
 func RegisterCommand(rootCmd *cobra.Command) {
 	taskCmd := &cobra.Command{
-		Use: "pipeline",
+		Use: "reconnect",
 		Run: func(cmd *cobra.Command, args []string) {
 			initLogger()
 			defer glog.Flush()

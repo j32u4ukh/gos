@@ -37,39 +37,36 @@ func RegisterCommand(rootCmd *cobra.Command) {
 				return
 			}
 			fmt.Printf("port: %d\n", port)
+			anser, err := gos.Listen(define.Http, port)
+			logger.Debug("Listen to port %d", port)
+
+			if err != nil {
+				logger.Error("ListenError: %+v", err)
+				return
+			}
+
+			httpAnswer := anser.(*ans.HttpAnser)
+			mgr := &Mgr{}
+			mgr.HttpAnswer = httpAnswer
+			mgr.Handler(httpAnswer.Router)
+			logger.Debug("伺服器初始化完成")
+
+			gos.StartListen()
+			logger.Debug("開始監聽")
+
+			var start time.Time
+			var during, frameTime time.Duration = 0, 200 * time.Millisecond
+
+			for {
+				start = time.Now()
+				gos.RunAns()
+
+				during = time.Since(start)
+				if during < frameTime {
+					time.Sleep(frameTime - during)
+				}
+			}
 		},
 	}
 	rootCmd.AddCommand(taskCmd)
-}
-
-func RunAns(port int32) {
-	anser, err := gos.Listen(define.Http, port)
-	logger.Debug("Listen to port %d", port)
-
-	if err != nil {
-		logger.Error("ListenError: %+v", err)
-		return
-	}
-
-	httpAnswer := anser.(*ans.HttpAnser)
-	mgr := &Mgr{}
-	mgr.HttpAnswer = httpAnswer
-	mgr.Handler(httpAnswer.Router)
-	logger.Debug("伺服器初始化完成")
-
-	gos.StartListen()
-	logger.Debug("開始監聽")
-
-	var start time.Time
-	var during, frameTime time.Duration = 0, 200 * time.Millisecond
-
-	for {
-		start = time.Now()
-		gos.RunAns()
-
-		during = time.Since(start)
-		if during < frameTime {
-			time.Sleep(frameTime - during)
-		}
-	}
 }

@@ -7,10 +7,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// go run . pipeline -p 5000
+// go run . trans_data -p 5000
 func RegisterCommand(rootCmd *cobra.Command) {
 	taskCmd := &cobra.Command{
-		Use: "pipeline",
+		Use: "trans_data",
 		Run: func(cmd *cobra.Command, args []string) {
 			port, err := cmd.Flags().GetInt32("port")
 			if err != nil {

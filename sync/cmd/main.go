@@ -9,7 +9,10 @@ import (
 
 	"github.com/j32u4ukh/gos/define"
 	"github.com/j32u4ukh/gos/sync/cmd/endpoint"
+	"github.com/j32u4ukh/gos/sync/cmd/http_server"
 	"github.com/j32u4ukh/gos/sync/cmd/pipeline"
+	"github.com/j32u4ukh/gos/sync/cmd/reconnect"
+	"github.com/j32u4ukh/gos/sync/cmd/trans_data"
 	"github.com/j32u4ukh/gos/sync/gos/ans"
 	"github.com/spf13/cobra"
 )
@@ -19,7 +22,10 @@ func main() {
 	rootCmd.PersistentFlags().Int32P("port", "p", 5000, "Port of server.")
 	rootCmd.PersistentFlags().StringP("kind", "k", "", "Kind of task.")
 	endpoint.RegisterCommand(rootCmd)
+	http_server.RegisterCommand(rootCmd)
 	pipeline.RegisterCommand(rootCmd)
+	reconnect.RegisterCommand(rootCmd)
+	trans_data.RegisterCommand(rootCmd)
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
