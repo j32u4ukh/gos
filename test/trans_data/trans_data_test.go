@@ -3,7 +3,7 @@ package test
 import (
 	"testing"
 
-	"github.com/j32u4ukh/gos/base"
+	"github.com/j32u4ukh/gos/sync/gos/base"
 )
 
 func TestBoolean(t *testing.T) {

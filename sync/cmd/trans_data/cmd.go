@@ -3,7 +3,7 @@ package trans_data
 import (
 	"fmt"
 
-	"github.com/j32u4ukh/gos/base"
+	"github.com/j32u4ukh/gos/sync/gos/base"
 	"github.com/spf13/cobra"
 )
 
