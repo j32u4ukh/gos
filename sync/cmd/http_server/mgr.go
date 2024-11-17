@@ -6,7 +6,7 @@ import (
 
 	"github.com/j32u4ukh/gos/sync/gos/ans"
 	"github.com/j32u4ukh/gos/sync/gos/base/ghttp"
-	"github.com/j32u4ukh/gos/utils"
+	"github.com/j32u4ukh/gos/utils/log"
 )
 
 type Protocol struct {
@@ -94,7 +94,7 @@ func (m *Mgr) AbcNameHander(router *ans.Router) {
 		var tag string
 		ok, tag = c.GetParam("tag")
 		if ok {
-			utils.Debug("tag: %s", tag)
+			log.Debug("tag: %s", tag)
 		}
 		c.Json(200, ghttp.H{
 			"index": 5,

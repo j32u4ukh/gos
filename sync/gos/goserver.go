@@ -7,7 +7,7 @@ import (
 	"github.com/j32u4ukh/gos/sync/gos/ans"
 	"github.com/j32u4ukh/gos/sync/gos/ask"
 	"github.com/j32u4ukh/gos/sync/gos/base"
-	"github.com/j32u4ukh/gos/utils"
+	"github.com/j32u4ukh/gos/utils/log"
 )
 
 type goserver struct {
@@ -34,7 +34,7 @@ func newGoserver() *goserver {
 func CheckWorks(msg string, root *base.Work) {
 	work := root
 	for work != nil {
-		utils.Debug("CheckWorks | %s %s", msg, work)
+		log.Debug("CheckWorks | %s %s", msg, work)
 		work = work.Next
 	}
 	fmt.Println()

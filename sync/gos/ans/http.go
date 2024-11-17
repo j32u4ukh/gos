@@ -13,6 +13,7 @@ import (
 	"github.com/j32u4ukh/gos/sync/gos/base"
 	"github.com/j32u4ukh/gos/sync/gos/base/ghttp"
 	"github.com/j32u4ukh/gos/utils"
+	"github.com/j32u4ukh/gos/utils/log"
 
 	"github.com/pkg/errors"
 )
@@ -109,7 +110,7 @@ func NewHttpAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (IAnswer, err
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to new HttpAnser.")
 	}
-	a.Anser.ReadTimeout = utils.GosConfig.HttpAnserReadTimeout
+	a.Anser.ReadTimeout = utils.GosConfig.AnserReadTimeout
 
 	// ===== Router =====
 	a.Router = &Router{
@@ -152,7 +153,7 @@ func (a *HttpAnser) read() bool {
 
 			// 拆分第一行數據
 			a.lineString = strings.TrimRight(string(a.readBuffer[:a.context.Request.ReadLength]), "\r\n")
-			utils.Info("firstLine: %s", a.lineString)
+			log.Info("firstLine: %s", a.lineString)
 
 			if a.context.ParseFirstReqLine(a.lineString) {
 				if a.context.Method == ghttp.MethodGet {
@@ -160,7 +161,7 @@ func (a *HttpAnser) read() bool {
 					a.context.ParseQuery()
 				}
 				a.context.State = ghttp.READ_HEADER
-				utils.Debug("State: READ_FIRST_LINE -> READ_HEADER")
+				log.Debug("State: READ_FIRST_LINE -> READ_HEADER")
 			}
 		}
 	}
@@ -192,7 +193,7 @@ func (a *HttpAnser) read() bool {
 				// value = strings.TrimRight(value, "\r\n")
 				a.context.Request.Header[key] = append(a.context.Request.Header[key], value)
 				// fmt.Printf("(a *HttpAnser) Read | Header, key: %s, value: %s\n", key, value)
-				utils.Debug("Header, key: %s, value: %s", key, value)
+				log.Debug("Header, key: %s, value: %s", key, value)
 
 			} else {
 				// 當前這行數據不包含":"，結束 Header 的讀取
@@ -201,17 +202,17 @@ func (a *HttpAnser) read() bool {
 				if contentLength, ok := a.context.Request.Header[ghttp.HeaderContentLength]; ok {
 					length, err := strconv.Atoi(contentLength[0])
 					// fmt.Printf("(a *HttpAnser) Read | Content-Length: %d\n", length)
-					utils.Debug("Content-Length: %d", length)
+					log.Debug("Content-Length: %d", length)
 
 					if err != nil {
 						// fmt.Printf("(a *HttpAnser) Read | Content-Length err: %+v\n", err)
-						utils.Error("Content-Length err: %+v", err)
+						log.Error("Content-Length err: %+v", err)
 						return false
 					}
 
 					a.context.Request.ReadLength = int32(length)
 					a.context.State = ghttp.READ_BODY
-					utils.Debug("State: READ_HEADER -> READ_BODY")
+					log.Debug("State: READ_HEADER -> READ_BODY")
 
 				} else {
 					// 考慮分包問題，收到完整一包數據傳完才傳到應用層
@@ -225,7 +226,7 @@ func (a *HttpAnser) read() bool {
 
 					// 等待數據寫出
 					a.context.State = ghttp.WRITE_RESPONSE
-					utils.Debug("State: READ_HEADER -> WRITE_RESPONSE")
+					log.Debug("State: READ_HEADER -> WRITE_RESPONSE")
 					return true
 				}
 			}
@@ -237,7 +238,7 @@ func (a *HttpAnser) read() bool {
 		if a.currConn.CheckReadable(a.context.HasEnoughData) {
 			// 將傳入的數據，加入工作緩存中
 			a.currConn.Read(&a.readBuffer, a.context.Request.ReadLength)
-			utils.Debug("Body 數據: %s", string(a.readBuffer[:a.context.Request.ReadLength]))
+			log.Debug("Body 數據: %s", string(a.readBuffer[:a.context.Request.ReadLength]))
 
 			// 考慮分包問題，收到完整一包數據傳完才傳到應用層
 			a.currWork.Index = a.currConn.GetId()
@@ -250,7 +251,7 @@ func (a *HttpAnser) read() bool {
 
 			// 等待數據寫出
 			a.context.State = ghttp.WRITE_RESPONSE
-			utils.Debug("State: READ_BODY -> WRITE_RESPONSE")
+			log.Debug("State: READ_BODY -> WRITE_RESPONSE")
 			return false
 		}
 	}
@@ -279,14 +280,14 @@ func (a *HttpAnser) SetWorkHandler() {
 	a.workHandler = func(w *base.Work) {
 		defer func() {
 			if err := recover(); err != nil {
-				utils.Error("Recover err: %+v", err)
+				log.Error("Recover err: %+v", err)
 				a.serverErrorHandler(a.context, "Internal Server Error")
 			}
 		}()
 		a.context = a.contexts[w.Index]
 		a.context.Cid = w.Index
 		a.context.Wid = w.GetId()
-		utils.Debug("Cid: %d, Wid: %d", a.context.Cid, a.context.Wid)
+		log.Debug("Cid: %d, Wid: %d", a.context.Cid, a.context.Wid)
 		var key string
 		var value any
 		var unmatched bool = true
@@ -306,7 +307,7 @@ func (a *HttpAnser) SetWorkHandler() {
 			if endpoint.nNode == nSplit {
 				if handlers, ok := endpoint.Handlers[a.context.Method]; ok {
 					if endpoint.Macth(splits) {
-						utils.Debug("endpoint path: %s", endpoint.path)
+						log.Debug("endpoint path: %s", endpoint.path)
 						unmatched = false
 						if a.context.Method == ghttp.MethodOptions {
 							a.optionsRequestHandler(w, a.context, endpoint.options)
@@ -358,7 +359,7 @@ func (a *HttpAnser) optionsRequestHandler(w *base.Work, c *ghttp.Context, option
 }
 
 func (a *HttpAnser) errorRequestHandler(c *ghttp.Context, msg string) {
-	utils.Error("method: %s, query: %s", c.Method, c.Query)
+	log.Error("method: %s, query: %s", c.Method, c.Query)
 	c.Json(ghttp.StatusBadRequest, ghttp.H{
 		"error": msg,
 	})
@@ -366,7 +367,7 @@ func (a *HttpAnser) errorRequestHandler(c *ghttp.Context, msg string) {
 }
 
 func (a *HttpAnser) serverErrorHandler(c *ghttp.Context, msg string) {
-	utils.Error("method: %s, query: %s", c.Method, c.Query)
+	log.Error("method: %s, query: %s", c.Method, c.Query)
 	c.Json(ghttp.StatusInternalServerError, ghttp.H{
 		"error": msg,
 	})
@@ -381,7 +382,7 @@ func (a *HttpAnser) shouldClose(err error) bool {
 		return true
 	}
 	if a.context.State == ghttp.FINISH_RESPONSE && a.currConn.WritableLength == 0 {
-		utils.Info("Conn(%d) 完成數據寫出，準備關閉連線", a.currConn.GetId())
+		log.Info("Conn(%d) 完成數據寫出，準備關閉連線", a.currConn.GetId())
 		a.context.Release()
 		return true
 	}
@@ -407,17 +408,17 @@ func (a *HttpAnser) Send(c *ghttp.Context) {
 
 	// 將 Response 回傳數據轉換成 Work 傳遞的格式
 	bs := c.ToResponseData()
-	utils.Debug("Response: %s", string(bs))
+	log.Debug("Response: %s", string(bs))
 
 	w := a.getWork(c.Wid)
-	utils.Debug("Wid: %d, w: %+v", c.Wid, w)
+	log.Debug("Wid: %d, w: %+v", c.Wid, w)
 
 	w.Index = c.Cid
-	utils.Debug("c.Cid: %d, w.Index: %d", c.Cid, w.Index)
+	log.Debug("c.Cid: %d, w.Index: %d", c.Cid, w.Index)
 
 	w.Body.AddRawData(bs)
 	w.Send()
-	utils.Debug("Wid: %d, w: %+v", c.Wid, w)
+	log.Debug("Wid: %d, w: %+v", c.Wid, w)
 
 	// 若 Context 是從 contextPool 中取得，id 會是 -1，因此需要回收
 	if c.GetId() == -1 {
@@ -470,7 +471,7 @@ func (a *HttpAnser) setCors(c *ghttp.Context, key string, values ...string) {
 
 func (a *HttpAnser) Finish(c *ghttp.Context) {
 	// fmt.Printf("(a *HttpAnser) Finish | Context %d, c.Wid: %d\n", c.GetId(), c.Wid)
-	utils.Info("Context %d, c.Wid: %d", c.GetId(), c.Wid)
+	log.Info("Context %d, c.Wid: %d", c.GetId(), c.Wid)
 	w := a.getWork(c.Wid)
 	w.Finish()
 }

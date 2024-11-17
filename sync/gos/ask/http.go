@@ -10,7 +10,7 @@ import (
 	"github.com/j32u4ukh/gos/define"
 	"github.com/j32u4ukh/gos/sync/gos/base"
 	"github.com/j32u4ukh/gos/sync/gos/base/ghttp"
-	"github.com/j32u4ukh/gos/utils"
+	"github.com/j32u4ukh/gos/utils/log"
 
 	"github.com/pkg/errors"
 )
@@ -78,7 +78,7 @@ func (a *HttpAsker) Connect() error {
 func (a *HttpAsker) read() {
 	// 根據 Conn 的 Id，存取對應的 httpConn
 	a.context = a.contexts[a.currConn.GetId()]
-	utils.Debug("Conn(%d), State: %s", a.currConn.GetId(), a.context.State)
+	log.Debug("Conn(%d), State: %s", a.currConn.GetId(), a.context.State)
 
 	// 讀取 第一行
 	if a.context.State == ghttp.READ_FIRST_LINE {
@@ -87,11 +87,11 @@ func (a *HttpAsker) read() {
 
 			// 拆分第一行數據 HTTP/1.1 200 OK\r\n
 			firstLine := strings.TrimRight(string(a.readBuffer[:a.context.Response.ReadLength]), "\r\n")
-			utils.Debug("firstLine: %s", firstLine)
+			log.Debug("firstLine: %s", firstLine)
 
 			a.context.ParseFirstResLine(firstLine)
 			a.context.State = ghttp.READ_HEADER
-			utils.Debug("State: READ_FIRST_LINE -> READ_HEADER")
+			log.Debug("State: READ_FIRST_LINE -> READ_HEADER")
 		}
 	}
 
@@ -117,27 +117,27 @@ func (a *HttpAsker) read() {
 				}
 				value = strings.TrimLeft(value, " \t")
 				a.context.Response.Header[key] = append(a.context.Response.Header[key], value)
-				utils.Debug("Header, key: %s, value: %s", key, value)
+				log.Debug("Header, key: %s, value: %s", key, value)
 
 			} else {
 				// 當前這行數據不包含":"，結束 Header 的讀取
-				utils.Debug("Empty line")
+				log.Debug("Empty line")
 
 				// Header 中包含 Content-Length，狀態值設為 2，等待讀取後續數據
 				if contentLength, ok := a.context.Response.Header["Content-Length"]; ok {
 					length, err := strconv.Atoi(contentLength[0])
-					utils.Debug("Content-Length: %d", length)
+					log.Debug("Content-Length: %d", length)
 
 					if err != nil {
-						utils.Error("Content-Length err: %+v", err)
+						log.Error("Content-Length err: %+v", err)
 						return
 					}
 
 					a.context.Response.ReadLength = int32(length)
-					utils.Debug("a.httpConn.ReadLength: %d", a.context.Response.ReadLength)
+					log.Debug("a.httpConn.ReadLength: %d", a.context.Response.ReadLength)
 
 					a.context.State = ghttp.READ_BODY
-					utils.Debug("State: READ_HEADER -> READ_BODY")
+					log.Debug("State: READ_HEADER -> READ_BODY")
 
 				} else {
 					// Header 中不包含 Content-Length，狀態值恢復為 0
@@ -155,12 +155,12 @@ func (a *HttpAsker) read() {
 
 	// 讀取 Body 數據
 	if a.context.State == ghttp.READ_BODY {
-		utils.Debug("State READ_BODY, a.httpConn.ReadLength: %d", a.context.Response.ReadLength)
+		log.Debug("State READ_BODY, a.httpConn.ReadLength: %d", a.context.Response.ReadLength)
 
 		if a.currConn.CheckReadable(a.context.HasEnoughData) {
 			// 將傳入的數據，加入工作緩存中
 			a.currConn.Read(&a.readBuffer, a.context.Response.ReadLength)
-			utils.Debug("State READ_BODY, data: %s", string(a.readBuffer[:a.context.Response.ReadLength]))
+			log.Debug("State READ_BODY, data: %s", string(a.readBuffer[:a.context.Response.ReadLength]))
 
 			a.context.Response.SetBody(a.readBuffer, a.context.Response.ReadLength)
 
@@ -179,34 +179,34 @@ func (a *HttpAsker) read() {
 }
 
 func (a *HttpAsker) write(id int32, data *[]byte, length int32) error {
-	utils.Debug("work id: %d", id)
+	log.Debug("work id: %d", id)
 
 	// 取得連線物件(若 id 為 -1，表示尋找空閒的連線物件)
 	a.currConn = a.getConn(id)
 
 	// 目前沒有空閒的連線物件，等待下次迴圈再處理
 	if a.currConn == nil {
-		utils.Error("currConn is nil")
+		log.Error("currConn is nil")
 		return nil
 	}
 
 	if a.currConn.State == define.Unused {
-		utils.Debug("currConn.State is Unused")
+		log.Debug("currConn.State is Unused")
 		a.currConn.State = define.Connecting
 
 		// 設置當前工作結構對應的連線物件
 		a.currWork.Index = a.currConn.GetId()
-		utils.Debug("a.currWork.Index <- %d", a.currConn.GetId())
+		log.Debug("a.currWork.Index <- %d", a.currConn.GetId())
 
 		a.Asker.Connect(a.currConn.GetId())
 		return nil
 	} else if a.currConn.State == define.Connecting {
-		utils.Debug("currConn.State is Connecting")
+		log.Debug("currConn.State is Connecting")
 		return nil
 	}
 
 	// 將數據寫入連線物件的緩存
-	utils.Debug("WriteBuffer, length: %d, data: %+v", length, (*data)[:length])
+	log.Debug("WriteBuffer, length: %d, data: %+v", length, (*data)[:length])
 
 	a.currConn.SetWriteBuffer(data, length)
 	a.currWork.State = base.WORK_DONE
@@ -221,7 +221,7 @@ func (a *HttpAsker) Write(data *[]byte, length int32) error {
 	w.Index = -1
 	w.Body.AddRawData((*data)[:length])
 	a.Handlers[w.GetId()] = func(c *ghttp.Context) {
-		utils.Info("Response: %+v", c)
+		log.Info("Response: %+v", c)
 	}
 	w.Send()
 	return nil
@@ -233,7 +233,7 @@ func (a *HttpAsker) SetWorkHandler() {
 		if w.Index == -2 {
 			return
 		}
-		utils.Debug("work: %+v", w)
+		log.Debug("work: %+v", w)
 
 		// 取得連線物件
 		a.currConn = a.getConn(w.Index)
@@ -257,7 +257,7 @@ func (a *HttpAsker) NewRequest(method string, uri string, params map[string]stri
 
 // 供外部傳送 Http 請求
 func (a *HttpAsker) Send(req *ghttp.Request, callback func(*ghttp.Context)) error {
-	utils.Debug("req: %+v", req)
+	log.Debug("req: %+v", req)
 
 	if callback == nil {
 		return errors.New("callback 函式不可為 nil")
@@ -270,7 +270,7 @@ func (a *HttpAsker) Send(req *ghttp.Request, callback func(*ghttp.Context)) erro
 	w.Body.AddRawData(req.ToRequestData())
 	a.Handlers[w.GetId()] = callback
 	w.Send()
-	utils.Debug("work: %+v", w)
+	log.Debug("work: %+v", w)
 	// 釋放 req *ghttp.Request
 	req.Release()
 	// 將 Request 放回物件池

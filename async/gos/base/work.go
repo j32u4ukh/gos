@@ -48,8 +48,6 @@ type Work struct {
 	Index int32
 	// 請求發起的時間(若距離實際處理的時間過長，則不處理)
 	RequestTime time.Time
-	// 下一個工作
-	Next *Work
 	// ==================================================
 	// 工作內容
 	// ==================================================
@@ -69,7 +67,6 @@ func NewWork(id int32) *Work {
 		id:          id,
 		Index:       -2,
 		RequestTime: time.Now().UTC(),
-		Next:        nil,
 		Data:        make([]byte, utils.GosConfig.ConnBufferSize*define.MTU),
 		Body:        NewTransData(),
 		State:       WORK_FREE,
@@ -79,14 +76,6 @@ func NewWork(id int32) *Work {
 
 func (w *Work) GetId() int32 {
 	return w.id
-}
-
-func (w *Work) Add(work *Work) {
-	curr := w
-	for curr.Next != nil {
-		curr = curr.Next
-	}
-	curr.Next = work
 }
 
 func (w *Work) Read() []byte {
@@ -124,28 +113,17 @@ func (w *Work) Finish() {
 
 func (w *Work) Release() {
 	w.Index = -2
-	w.Next = nil
 	w.Length = 0
 	w.State = WORK_FREE
 	w.Body.Clear()
 }
 
-func CheckWorks(works *Work) {
-	work := works
-	for work != nil {
-		fmt.Printf("CheckWorks | %s\n", work)
-		work = work.Next
-	}
-	fmt.Println()
-}
-
 func (w *Work) String() string {
-	descript := fmt.Sprintf("Work(id: %d, Index: %d, State: %s, requestTime: %+v, next: %+v)",
+	descript := fmt.Sprintf("Work(id: %d, Index: %d, State: %s, requestTime: %+v)",
 		w.id,
 		w.Index,
 		w.State,
 		w.RequestTime,
-		w.Next != nil,
 	)
 	return descript
 }

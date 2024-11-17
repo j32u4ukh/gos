@@ -10,7 +10,7 @@ import (
 	"github.com/j32u4ukh/gos/sync/gos/ans"
 	"github.com/j32u4ukh/gos/sync/gos/ask"
 	"github.com/j32u4ukh/gos/sync/gos/base"
-	"github.com/j32u4ukh/gos/utils"
+	"github.com/j32u4ukh/gos/utils/log"
 	"github.com/spf13/cobra"
 )
 
@@ -36,7 +36,7 @@ func initLogger() {
 	gosLogger.SetFolder("log")
 	gosLogger.SetOptions(glog.DefaultOption(true, true), glog.UtcOption(8))
 	gosLogger.SetSkip(3)
-	utils.SetLogger(gosLogger)
+	log.SetLogger(gosLogger)
 	logger = glog.SetLogger(1, "DemoReconnect", glog.DebugLevel)
 	logger.SetFolder("log")
 	logger.SetOptions(glog.DefaultOption(true, true), glog.UtcOption(8))

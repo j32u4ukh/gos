@@ -2,6 +2,8 @@ github.com/cpuguy83/go-md2man/v2 v2.0.4/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46t
 github.com/google/go-cmp v0.5.5 h1:Khx7svrCpmxxtHBq5j2mp/xVjsi8hQMfNLvJFAlrGgU=
 github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2s0bqwp9tc8=
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
+github.com/j32u4ukh/cntr v1.2.4 h1:raxqAxqzsRvQ2xhiHVXYhZ9MIsHEMTA826WUcf1IEww=
+github.com/j32u4ukh/cntr v1.2.4/go.mod h1:qRLDvji9eAH4pPKZeYu8A0HgWrRqGpCWmzi29rSEIFQ=
 github.com/j32u4ukh/glog/v2 v2.0.5 h1:fQm01IKpJnDvu1CTGwq3werx35GE1m7qvrjK+jzvqvc=
 github.com/j32u4ukh/glog/v2 v2.0.5/go.mod h1:bTSp2wHDJWYRbf8b8oX/OmDjZ/Po0vQJdvZvH8/KsBA=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=

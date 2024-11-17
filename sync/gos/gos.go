@@ -15,6 +15,7 @@ import (
 	"github.com/j32u4ukh/gos/sync/gos/base"
 	"github.com/j32u4ukh/gos/sync/gos/base/ghttp"
 	"github.com/j32u4ukh/gos/utils"
+	"github.com/j32u4ukh/gos/utils/log"
 	"github.com/pkg/errors"
 )
 
@@ -29,6 +30,7 @@ func init() {
 	}
 }
 
+// TODO: 直接建立 Tcp0Anser 等物件，再在 goserver 中註冊
 // 指定要監聽的 port，並生成 Anser 物件
 func Listen(socketType define.SocketType, port int32) (ans.IAnswer, error) {
 	if _, ok := server.anserMap[port]; !ok {
@@ -185,7 +187,7 @@ func SendToServer(serverId int32, data *[]byte, length int32) error {
 
 // 傳送 http 訊息
 func SendRequest(req *ghttp.Request, callback func(*ghttp.Context)) (int32, error) {
-	utils.Info("Request: %+v", req)
+	log.Info("Request: %+v", req)
 	var asker ask.IAsker
 	var serverId int32
 
@@ -244,5 +246,5 @@ func GetFrameTime() time.Duration {
 }
 
 func SetLogger(lg *glog.Logger) {
-	utils.SetLogger(lg)
+	log.SetLogger(lg)
 }

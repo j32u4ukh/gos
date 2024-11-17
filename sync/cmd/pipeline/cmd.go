@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/j32u4ukh/gos/utils/log"
+
 	"github.com/j32u4ukh/glog/v2"
 	"github.com/j32u4ukh/gos/define"
 	"github.com/j32u4ukh/gos/sync/gos"
@@ -14,7 +16,6 @@ import (
 	"github.com/j32u4ukh/gos/sync/gos/ask"
 	"github.com/j32u4ukh/gos/sync/gos/base"
 	"github.com/j32u4ukh/gos/sync/gos/base/ghttp"
-	"github.com/j32u4ukh/gos/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -55,7 +56,7 @@ func RegisterCommand(rootCmd *cobra.Command) {
 }
 
 func initLogger() {
-	utils.SetLogger(glog.SetLogger(0, "gos", glog.DebugLevel))
+	log.SetLogger(glog.SetLogger(0, "gos", glog.DebugLevel))
 	glog.GetLogger(0).SetFolder("log")
 	logger = glog.SetLogger(1, "DemoPipeline", glog.DebugLevel)
 	logger.SetFolder("log")

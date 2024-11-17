@@ -48,6 +48,7 @@ func NewPacket() *Packet {
 }
 
 func (p *Packet) Release() {
+	p.Index = 0
 	p.Length = 0
 	p.Error = nil
 }

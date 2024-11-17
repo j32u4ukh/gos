@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/j32u4ukh/gos/define"
-	"github.com/j32u4ukh/gos/utils"
+	"github.com/j32u4ukh/gos/utils/log"
 
 	"github.com/pkg/errors"
 )
@@ -144,7 +144,7 @@ func (c *Conn) Add(conn *Conn) {
 }
 
 func (c *Conn) Handler() {
-	utils.Debug("Start, c.readErr: %+v, netConn: %v", c.readErr, c.NetConn != nil)
+	log.Debug("Start, c.readErr: %+v, netConn: %v", c.readErr, c.NetConn != nil)
 	// 確保 stopCh 為空
 	select {
 	case <-c.stopCh:
@@ -153,12 +153,12 @@ func (c *Conn) Handler() {
 	for c.readErr == nil {
 		select {
 		case <-c.stopCh:
-			utils.Info("<-c.stopCh")
+			log.Info("<-c.stopCh")
 			c.release()
 			return
 
 		default:
-			utils.Debug("readIdx: %d, netConn: %v", c.readIdx, c.NetConn != nil)
+			log.Debug("readIdx: %d, netConn: %v", c.readIdx, c.NetConn != nil)
 			// c.readPackets[c.readIdx].Release()
 
 			// 每次讀取至多長度為 MTU 的數據(Read 為阻塞型函式)
@@ -168,7 +168,7 @@ func (c *Conn) Handler() {
 			if c.readErr != nil {
 				c.readPackets[c.readIdx].Error = c.readErr
 				c.readPackets[c.readIdx].Length = 0
-				utils.Error("Read Error: %+v", c.readErr)
+				log.Error("Read Error: %+v", c.readErr)
 
 			} else {
 				c.readPackets[c.readIdx].Error = nil
@@ -184,7 +184,7 @@ func (c *Conn) Handler() {
 			}
 		}
 	}
-	utils.Info("Stop, c.readErr: %+v", c.readErr)
+	log.Info("Stop, c.readErr: %+v", c.readErr)
 }
 
 // 讀取封包數據，並寫入 readBuffer
@@ -262,7 +262,7 @@ func (c *Conn) Write() error {
 			c.nWrite, c.writeErr = c.NetConn.Write(c.writeBuffer[c.writeOutput:c.writeInput])
 
 			if c.writeErr != nil {
-				utils.Error("Failed to write data to conn(%d), writeErr: %+v", c.id, c.writeErr)
+				log.Error("Failed to write data to conn(%d), writeErr: %+v", c.id, c.writeErr)
 				return errors.Wrapf(c.writeErr, "Failed to write data to conn(%d)", c.id)
 			}
 
@@ -271,7 +271,7 @@ func (c *Conn) Write() error {
 			c.nWrite, c.writeErr = c.NetConn.Write(c.writeBuffer[c.writeOutput:])
 
 			if c.writeErr != nil {
-				utils.Error("Failed to write data to conn(%d), writeErr: %+v", c.id, c.writeErr)
+				log.Error("Failed to write data to conn(%d), writeErr: %+v", c.id, c.writeErr)
 				return errors.Wrapf(c.writeErr, "Failed to write data to conn(%d)", c.id)
 			}
 
@@ -290,7 +290,7 @@ func (c *Conn) Write() error {
 
 // 當有需要重新連線的情況下，首先就會發生 Socket 讀取異常，並導致 Handler 的 goroutine 結束，因此無須再利用 c.stopCh 將 Handler 結束
 func (c *Conn) Reconnect() {
-	utils.Info("cid: %d", c.id)
+	log.Info("cid: %d", c.id)
 
 	if c.NetConn != nil {
 		// 關閉當前連線
@@ -382,8 +382,8 @@ func (c *Conn) String() string {
 func CheckConns(root *Conn) {
 	c := root
 	for c != nil {
-		utils.Info("Conn: %s", c)
+		log.Info("Conn: %s", c)
 		c = c.Next
 	}
-	utils.Info("")
+	log.Info("")
 }

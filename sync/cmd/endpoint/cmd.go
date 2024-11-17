@@ -8,7 +8,7 @@ import (
 	"github.com/j32u4ukh/gos/define"
 	"github.com/j32u4ukh/gos/sync/gos"
 	"github.com/j32u4ukh/gos/sync/gos/ans"
-	"github.com/j32u4ukh/gos/utils"
+	"github.com/j32u4ukh/gos/utils/log"
 	"github.com/spf13/cobra"
 )
 
@@ -19,7 +19,7 @@ func init() {
 	gosLgger.SetOptions(glog.DefaultOption(true, true), glog.UtcOption(8))
 	gosLgger.SetFolder("log")
 	gosLgger.SetSkip(3)
-	utils.SetLogger(gosLgger)
+	log.SetLogger(gosLgger)
 
 	logger = glog.SetLogger(1, "DemoEndpoint", glog.DebugLevel)
 	logger.SetFolder("log")

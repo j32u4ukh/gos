@@ -2,14 +2,10 @@ package gos
 
 import (
 	"fmt"
-	"net"
 	"sync"
 	"time"
 
-	"github.com/j32u4ukh/glog/v2"
 	"github.com/j32u4ukh/gos/async/gos/ans"
-	"github.com/j32u4ukh/gos/define"
-	"github.com/j32u4ukh/gos/utils"
 	"github.com/pkg/errors"
 )
 
@@ -24,29 +20,21 @@ func init() {
 	}
 }
 
-// 指定要監聽的 port，並生成 Anser 物件
-func Listen(socketType define.SocketType, port int32) (ans.IAnswer, error) {
-	if _, ok := server.anserMap[port]; !ok {
-		laddr, _ := net.ResolveTCPAddr("tcp", fmt.Sprintf(":%d", port))
-		anser, err := ans.NewAnser(
-			socketType,
-			laddr,
-			utils.GosConfig.AnswerConnectNumbers[socketType])
-		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to listen on port %d.", port)
-		}
-		server.anserMap[port] = anser
-	}
-	return server.anserMap[port], nil
-}
-
-// 開始所有已註冊的監聽
-func StartListen() {
-	var anser ans.IAnswer
-	for _, anser = range server.anserMap {
-		go anser.Listen()
-	}
-}
+// // 指定要監聽的 port，並生成 Anser 物件
+// func Listen(socketType define.SocketType, port int32) (ans.IAnser, error) {
+// 	if _, ok := server.anserMap[port]; !ok {
+// 		laddr, _ := net.ResolveTCPAddr("tcp", fmt.Sprintf(":%d", port))
+// 		anser, err := ans.NewAnser(
+// 			socketType,
+// 			laddr,
+// 			utils.GosConfig.AnswerConnectNumbers[socketType])
+// 		if err != nil {
+// 			return nil, errors.Wrapf(err, "Failed to listen on port %d.", port)
+// 		}
+// 		server.anserMap[port] = anser
+// 	}
+// 	return server.anserMap[port], nil
+// }
 
 // 向位置 ip:port 送出連線請求，利用 serverId 來識別多個連線
 // serverId: server id
@@ -78,49 +66,44 @@ func StartListen() {
 // 	var asker ask.IAsker
 // 	var serverId int32
 // 	var err error
-
 // 	for serverId, asker = range server.askerMap {
 // 		err = asker.Connect()
-
 // 		if err != nil {
 // 			ip, port := asker.GetAddress()
 // 			return errors.Wrapf(err, "Failed to connect to %s:%d.", ip, port)
 // 		}
-
 // 		if server.nextServerId < serverId {
 // 			server.nextServerId = serverId
 // 		}
 // 	}
-
 // 	// 啟動後，最大的 site 值 + 1，作為動態建立 Asker 時的 site 值
 // 	server.nextServerId++
 // 	return nil
 // }
 
 func Run(run func()) {
-	// var anser ans.IAnswer
 	// var asker ask.IAsker
 	var start time.Time
 	var during time.Duration
-
+	var anser ans.IAnser
+	// 開始所有已註冊的監聽
+	for _, anser = range server.anserMap {
+		go anser.Listen()
+	}
 	for {
 		start = time.Now()
-
 		// // 處理各個 anser 讀取到的數據
 		// for _, anser = range server.anserMap {
 		// 	anser.Handler()
 		// }
-
 		// // 處理各個 asker 讀取到的數據
 		// for _, asker = range server.askerMap {
 		// 	asker.Handler()
 		// }
-
 		// 外部定義的處理函式
 		if run != nil {
 			run()
 		}
-
 		during = time.Since(start)
 		if during < server.frameTime {
 			time.Sleep(server.frameTime - during)
@@ -137,7 +120,7 @@ func RunAns() {
 	// }
 }
 
-func SendToClient(port int32, cid int32, data *[]byte, length int32) error {
+func SendToClient(port int32, cid int32, data []byte, length int32) error {
 	if anser, ok := server.anserMap[port]; ok {
 		err := anser.Write(cid, data, length)
 		if err != nil {
@@ -182,44 +165,37 @@ func RunAsk() {
 // 	utils.Info("Request: %+v", req)
 // 	var asker ask.IAsker
 // 	var serverId int32
-
 // 	// 檢查是否有相同 Address、已建立的 Asker
 // 	for serverId, asker = range server.askerMap {
 // 		ip, port := asker.GetAddress()
 // 		host := fmt.Sprintf("%s/%d", ip, port)
-
 // 		if host == req.Header[ghttp.HeaderHost][0] {
 // 			httpAsker := asker.(*ask.HttpAsker)
 // 			httpAsker.Send(req, callback)
 // 			return serverId, nil
 // 		}
 // 	}
-
 // 	if host, ok := req.Header[ghttp.HeaderHost]; ok {
 // 		ip, p, _ := strings.Cut(host[0], ":")
 // 		var asker ask.IAsker
 // 		var err error
-
 // 		port, _ := strconv.Atoi(p)
 // 		asker, err = Bind(server.nextServerId, ip, port, define.Http, nil, nil, nil)
 // 		defer func() { server.nextServerId++ }()
-
 // 		if err != nil {
 // 			return -1, errors.Wrapf(err, "Failed to bind to host: %s", host[0])
 // 		}
-
 // 		httpAsker := asker.(*ask.HttpAsker)
 // 		httpAsker.Send(req, callback)
 // 		return server.nextServerId, nil
 // 	}
-
 // 	return -1, errors.New("Request 中未定義 uri")
 // }
 
 func Disconnect(port int32, cid int32) error {
 	var err error = nil
 	if anser, ok := server.anserMap[port]; ok {
-		err = anser.Disconnect(cid)
+		err = anser.Disconnect(cid, 3*time.Second)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to disconnect connection: %d-%d", port, cid)
 		}
@@ -235,8 +211,4 @@ func SetFrameTime(frameTime time.Duration) {
 
 func GetFrameTime() time.Duration {
 	return server.frameTime
-}
-
-func SetLogger(lg *glog.Logger) {
-	utils.SetLogger(lg)
 }

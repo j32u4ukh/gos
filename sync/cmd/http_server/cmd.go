@@ -16,6 +16,7 @@ import (
 	"github.com/j32u4ukh/gos/sync/gos/ask"
 	"github.com/j32u4ukh/gos/sync/gos/base/ghttp"
 	"github.com/j32u4ukh/gos/utils"
+	"github.com/j32u4ukh/gos/utils/log"
 	"github.com/spf13/cobra"
 )
 
@@ -153,7 +154,7 @@ func initLogger() {
 		LineInfo:  true,
 	}))
 	gosLgger.SetSkip(3)
-	utils.SetLogger(gosLgger)
+	log.SetLogger(gosLgger)
 
 	logger = glog.SetLogger(1, "DemoHttpServer", glog.DebugLevel)
 	logger.SetFolder("log")

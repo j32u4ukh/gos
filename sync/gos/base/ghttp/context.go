@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/j32u4ukh/gos/utils"
+	"github.com/j32u4ukh/gos/utils/log"
 	"github.com/pkg/errors"
 )
 
@@ -167,7 +167,7 @@ func (r *Request) FormRequest(method string, uri string, params map[string]strin
 	host, query, ok := strings.Cut(uri, "/")
 	if ok {
 		r.Query = fmt.Sprintf("/%s", query)
-		utils.Debug("Query: %s", r.Query)
+		log.Debug("Query: %s", r.Query)
 	}
 	r.Header[HeaderHost] = []string{host}
 }
@@ -216,7 +216,7 @@ func (r *Request) HasLineData(buffer *[]byte, i int32, o int32, length int32) bo
 }
 
 func (r *Request) HasEnoughData(buffer *[]byte, i int32, o int32, length int32) bool {
-	utils.Debug("length: %d, ReadLength: %d", length, r.ReadLength)
+	log.Debug("length: %d, ReadLength: %d", length, r.ReadLength)
 	return length >= r.ReadLength
 }
 
@@ -233,7 +233,7 @@ func (r *Request) ParseFirstReqLine(line string) bool {
 		return false
 	}
 	r.Query = strings.TrimPrefix(r.Query, "?")
-	utils.Debug("Method: %s, Query: %s, Proto: %s", r.Method, r.Query, r.Proto)
+	log.Debug("Method: %s, Query: %s, Proto: %s", r.Method, r.Query, r.Proto)
 	return true
 }
 
@@ -245,15 +245,15 @@ func (r *Request) ParseQuery() (bool, error) {
 	if !ok {
 		return false, nil
 	}
-	utils.Debug("Query: %s, params: %s", r.Query, params)
+	log.Debug("Query: %s, params: %s", r.Query, params)
 	err := r.ParseParams(params)
 
 	if err != nil {
 		return true, errors.Wrapf(err, "Failed to parse params: %s", params)
 	}
 
-	utils.Debug("params: %+v", r.Params)
-	utils.Debug("values: %+v", r.Values)
+	log.Debug("params: %+v", r.Params)
+	log.Debug("values: %+v", r.Values)
 	return true, nil
 }
 
@@ -267,12 +267,12 @@ func (r *Request) ParseParams(params string) error {
 		key, params, _ = strings.Cut(params, "&")
 
 		if strings.Contains(key, ";") {
-			utils.Warn("invalid semicolon separator in query(%s)", key)
+			log.Warn("invalid semicolon separator in query(%s)", key)
 			continue
 		}
 
 		if key == "" {
-			utils.Warn("Empty query is found.")
+			log.Warn("Empty query is found.")
 			continue
 		}
 
@@ -356,7 +356,7 @@ func (r Request) ToRequestData() []byte {
 		buffer.Write(r.Body[:r.BodyLength])
 	}
 	result := buffer.Bytes()
-	utils.Debug("result: %s", string(result))
+	log.Debug("result: %s", string(result))
 	return result
 }
 
@@ -435,7 +435,7 @@ func (r *Response) ParseFirstResLine(line string) bool {
 	}
 
 	r.Code = int32(code)
-	utils.Debug("Proto: %s, Code: %d, Message: %s", r.Proto, r.Code, r.Message)
+	log.Debug("Proto: %s, Code: %d, Message: %s", r.Proto, r.Code, r.Message)
 	return true
 }
 

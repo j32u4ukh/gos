@@ -9,6 +9,7 @@ import (
 	"github.com/j32u4ukh/gos/define"
 	"github.com/j32u4ukh/gos/sync/gos/base"
 	"github.com/j32u4ukh/gos/utils"
+	"github.com/j32u4ukh/gos/utils/log"
 
 	"github.com/pkg/errors"
 )
@@ -116,14 +117,14 @@ func newAsker(site int32, laddr *net.TCPAddr, nConnect int32, nWork int32, intro
 		a.heartbeatLength = int32(len((*heartbeat)))
 		a.heartbeatData = make([]byte, a.heartbeatLength)
 		copy(a.heartbeatData, *heartbeat)
-		utils.Debug("a.heartbeatData: %+v\n", a.heartbeatData)
+		log.Debug("a.heartbeatData: %+v\n", a.heartbeatData)
 	}
 
 	if introduction != nil {
 		length := len((*introduction))
 		a.introductionData = make([]byte, length)
 		copy(a.introductionData, *introduction)
-		utils.Debug("a.introductionData: %+v\n", a.introductionData)
+		log.Debug("a.introductionData: %+v\n", a.introductionData)
 	}
 
 	var i int32
@@ -157,10 +158,10 @@ func (a *Asker) Connect(index int32) error {
 	// 註冊連線通道
 	netConn, err := net.DialTCP("tcp", nil, a.addr)
 	if err != nil {
-		utils.Error("Failed to connect, err: %+v", err)
+		log.Error("Failed to connect, err: %+v", err)
 		return errors.Wrapf(err, "Failed to connect to %s:%d.", a.addr.IP, a.addr.Port)
 	}
-	utils.Info("Conn(%d) connect to %+v", index, a.addr)
+	log.Info("Conn(%d) connect to %+v", index, a.addr)
 
 	// 註冊連線通道
 	a.connBuffer <- base.ConnBuffer{Conn: netConn, Index: index}
@@ -216,10 +217,10 @@ func (a *Asker) checkConnection() {
 			// 檢查是否有空閒的連線物件可以使用
 			a.emptyConn = a.getConn(connBuffer.Index)
 			if a.emptyConn == nil {
-				utils.Error("Conn is nil")
+				log.Error("Conn is nil")
 				return
 			}
-			utils.Info("Conn(%d)", a.emptyConn.GetId())
+			log.Info("Conn(%d)", a.emptyConn.GetId())
 			a.heartbeatTime = time.Now().Add(a.heartbeatLifetime)
 			a.emptyConn.NetConn = connBuffer.Conn
 			a.emptyConn.State = define.Connected
@@ -231,7 +232,7 @@ func (a *Asker) checkConnection() {
 				a.currConn.SetWriteBuffer(&a.introductionData, int32(len(a.introductionData)))
 				err := a.currConn.Write()
 				if err != nil {
-					utils.Error("Failed to introduce, err: %+v", err)
+					log.Error("Failed to introduce, err: %+v", err)
 					return
 				}
 			}
@@ -259,19 +260,19 @@ func (a *Asker) connectedHandler() {
 			switch eType := packet.Error.(type) {
 			case net.Error:
 				if eType.Timeout() {
-					utils.Error("Conn %d 發生 timeout error.", a.currConn.GetId())
+					log.Error("Conn %d 發生 timeout error.", a.currConn.GetId())
 				} else {
-					utils.Error("Conn %d 發生 net.Error.", a.currConn.GetId())
+					log.Error("Conn %d 發生 net.Error.", a.currConn.GetId())
 				}
 			default:
-				utils.Error("Conn %d 讀取 socket 時發生錯誤, Error(%v): %+v", a.currConn.GetId(), eType, packet.Error)
+				log.Error("Conn %d 讀取 socket 時發生錯誤, Error(%v): %+v", a.currConn.GetId(), eType, packet.Error)
 			}
 
 			// 若需要維持連線
 			if a.currConn.Mode == base.KEEPALIVE {
 				// 重新連線
 				a.currConn.State = define.Reconnect
-				utils.Info("Mode: %d, State: %s", a.currConn.Mode, a.currConn.State)
+				log.Info("Mode: %d, State: %s", a.currConn.Mode, a.currConn.State)
 			} else {
 				// 連線狀態設為結束
 				a.currConn.State = define.Disconnect
@@ -334,7 +335,7 @@ func (a *Asker) connectedHandler() {
 			a.currConn.SetWriteBuffer(&a.heartbeatData, a.heartbeatLength)
 			err := a.currConn.Write()
 			if err != nil {
-				utils.Error("Failed to send heartbeat, err: %+v", err)
+				log.Error("Failed to send heartbeat, err: %+v", err)
 				return
 			}
 
@@ -342,7 +343,7 @@ func (a *Asker) connectedHandler() {
 			a.heartbeatTime = time.Now().Add(a.heartbeatLifetime)
 			err = a.currConn.NetConn.SetReadDeadline(a.heartbeatTime.Add(a.readLifetime))
 			if err != nil {
-				utils.Error("Failed to set read deadline, err: %v", err)
+				log.Error("Failed to set read deadline, err: %v", err)
 			}
 		}
 
@@ -354,7 +355,7 @@ func (a *Asker) connectedHandler() {
 
 // 超時連線處理
 func (a *Asker) timeoutHandler() {
-	utils.Info("Conn %d", a.currConn.GetId())
+	log.Info("Conn %d", a.currConn.GetId())
 	if a.currConn.Mode == base.KEEPALIVE {
 		a.currConn.State = define.Reconnect
 	} else {
@@ -368,7 +369,7 @@ func (a *Asker) timeoutHandler() {
 
 // 重新連線處理
 func (a *Asker) reconnectHandler() {
-	utils.Info("Conn %d", a.currConn.GetId())
+	log.Info("Conn %d", a.currConn.GetId())
 
 	// 重新連線準備
 	a.currConn.Reconnect()
@@ -436,7 +437,7 @@ func (a *Asker) dealWork() {
 				yet = a.relinkWork(yet, false)
 			}
 		default:
-			utils.Error("連線 %d 發生異常工作 state(%s)，直接將工作結束", a.currWork.Index, a.currWork.State)
+			log.Error("連線 %d 發生異常工作 state(%s)，直接將工作結束", a.currWork.Index, a.currWork.State)
 			// 將完成的工作加入 finished，並更新 work 所指向的工作結構
 			finished = a.relinkWork(finished, true)
 		}
@@ -511,7 +512,7 @@ func (a *Asker) disconnectHandler() {
 
 	for a.currConn != nil {
 		if a.currConn.State == define.Disconnect {
-			utils.Info("cid: %d", a.currConn.GetId())
+			log.Info("cid: %d", a.currConn.GetId())
 
 			if a.preConn == nil {
 				// 更新連線物件起始位置
