@@ -28,8 +28,21 @@ func RegisterCommand(rootCmd *cobra.Command) {
 	taskCmd := &cobra.Command{
 		Use: "pipeline",
 		Run: func(cmd *cobra.Command, args []string) {
-			initLogger()
-			defer glog.Flush()
+			err := log.SetLogger("pipeline", "log", log.DEBUG)
+			if err != nil {
+				fmt.Printf("取得 Logger 時發生錯誤, err: %+v\n", err)
+				return
+			}
+			defer func() {
+				if r := recover(); r != nil {
+					log.Error("發生非預期錯誤, err: %+v\n", r)
+				}
+				err = log.Close()
+				if err != nil {
+					fmt.Printf("關閉 Logger 時發生錯誤, err: %+v\n", err)
+				}
+			}()
+			log.SetSkip(3)
 			port, err := cmd.Flags().GetInt32("port")
 			if err != nil {
 				fmt.Printf("Failed to get string kind, err: %+v", err)
@@ -53,16 +66,6 @@ func RegisterCommand(rootCmd *cobra.Command) {
 		},
 	}
 	rootCmd.AddCommand(taskCmd)
-}
-
-func initLogger() {
-	log.SetLogger(glog.SetLogger(0, "gos", glog.DebugLevel))
-	glog.GetLogger(0).SetFolder("log")
-	logger = glog.SetLogger(1, "DemoPipeline", glog.DebugLevel)
-	logger.SetFolder("log")
-	logger.SetOptions(glog.DefaultOption(true, true), glog.UtcOption(8))
-	logger.Warn("Test")
-	logger.Error("Test")
 }
 
 // MainServer 接受客戶端 http 請求，再將請求發送到 RandomReturnServer 做處理，RandomReturnServer 將結果返還 MainServer，再由 MainServer 回覆客戶端

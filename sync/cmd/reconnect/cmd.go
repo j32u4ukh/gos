@@ -1,6 +1,7 @@
 package reconnect
 
 import (
+	"fmt"
 	"strconv"
 	"time"
 
@@ -21,25 +22,27 @@ func RegisterCommand(rootCmd *cobra.Command) {
 	taskCmd := &cobra.Command{
 		Use: "reconnect",
 		Run: func(cmd *cobra.Command, args []string) {
-			initLogger()
-			defer glog.Flush()
+			err := log.SetLogger("reconnect", "log", log.DEBUG)
+			if err != nil {
+				fmt.Printf("取得 Logger 時發生錯誤, err: %+v\n", err)
+				return
+			}
+			defer func() {
+				if r := recover(); r != nil {
+					log.Error("發生非預期錯誤, err: %+v\n", r)
+				}
+				err = log.Close()
+				if err != nil {
+					fmt.Printf("關閉 Logger 時發生錯誤, err: %+v\n", err)
+				}
+			}()
+			log.SetSkip(3)
 			service := Service{StopCh: make(chan bool)}
 			service.Run(args)
 		},
 	}
 	taskCmd.Flags().Int32P("cors", "c", 1, "Use cors")
 	rootCmd.AddCommand(taskCmd)
-}
-
-func initLogger() {
-	gosLogger := glog.SetLogger(0, "gos", glog.DebugLevel)
-	gosLogger.SetFolder("log")
-	gosLogger.SetOptions(glog.DefaultOption(true, true), glog.UtcOption(8))
-	gosLogger.SetSkip(3)
-	log.SetLogger(gosLogger)
-	logger = glog.SetLogger(1, "DemoReconnect", glog.DebugLevel)
-	logger.SetFolder("log")
-	logger.SetOptions(glog.DefaultOption(true, true), glog.UtcOption(8))
 }
 
 type Service struct {

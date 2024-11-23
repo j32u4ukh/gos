@@ -11,7 +11,7 @@ var GosConfig *Config
 
 type Config struct {
 	AnserReadTimeout     time.Duration
-	AnswerReadBuffer     int32
+	ReadBuffer           int32
 	ConnBufferSize       int32
 	DisconnectTime       time.Duration
 	AnswerConnectNumbers map[define.SocketType]int32
@@ -22,7 +22,7 @@ type Config struct {
 func init() {
 	GosConfig = &Config{
 		AnserReadTimeout: 5000 * time.Millisecond,
-		AnswerReadBuffer: 64 * 1024,
+		ReadBuffer:       64 * 1024,
 		ConnBufferSize:   10,
 		DisconnectTime:   time.Duration(3),
 		AnswerConnectNumbers: map[define.SocketType]int32{

@@ -111,7 +111,6 @@ func newAsker(site int32, laddr *net.TCPAddr, nConnect int32, nWork int32, intro
 		works:             base.NewWork(0),
 		onEvents:          nil,
 	}
-
 	if heartbeat != nil {
 		a.heartbeatLifetime = 1000 * time.Millisecond
 		a.heartbeatLength = int32(len((*heartbeat)))
@@ -119,34 +118,28 @@ func newAsker(site int32, laddr *net.TCPAddr, nConnect int32, nWork int32, intro
 		copy(a.heartbeatData, *heartbeat)
 		log.Debug("a.heartbeatData: %+v\n", a.heartbeatData)
 	}
-
 	if introduction != nil {
 		length := len((*introduction))
 		a.introductionData = make([]byte, length)
 		copy(a.introductionData, *introduction)
 		log.Debug("a.introductionData: %+v\n", a.introductionData)
 	}
-
 	var i int32
 	var nextConn *base.Conn
 	var nextWork *base.Work
 	a.emptyConn = a.conns
 	a.lastConn = a.conns
-
 	for i = 1; i < nConnect; i++ {
 		nextConn = base.NewConn(i, utils.GosConfig.ConnBufferSize)
 		a.lastConn.Next = nextConn
 		a.lastConn = nextConn
 	}
-
 	a.lastWork = a.works
-
 	for i = 1; i < nWork; i++ {
 		nextWork = base.NewWork(i)
 		a.lastWork.Next = nextWork
 		a.lastWork = nextWork
 	}
-
 	return a, nil
 }
 

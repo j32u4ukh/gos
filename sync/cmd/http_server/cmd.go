@@ -82,8 +82,21 @@ func RegisterCommand(rootCmd *cobra.Command) {
 	taskCmd := &cobra.Command{
 		Use: "http",
 		Run: func(cmd *cobra.Command, args []string) {
-			initLogger()
-			defer glog.Flush()
+			err := log.SetLogger("http", "log", log.DEBUG)
+			if err != nil {
+				fmt.Printf("取得 Logger 時發生錯誤, err: %+v\n", err)
+				return
+			}
+			defer func() {
+				if r := recover(); r != nil {
+					log.Error("發生非預期錯誤, err: %+v\n", r)
+				}
+				err = log.Close()
+				if err != nil {
+					fmt.Printf("關閉 Logger 時發生錯誤, err: %+v\n", err)
+				}
+			}()
+			log.SetSkip(3)
 			port, err := cmd.Flags().GetInt32("port")
 			if err != nil {
 				fmt.Printf("Failed to get string kind, err: %+v", err)
@@ -119,76 +132,6 @@ func RegisterCommand(rootCmd *cobra.Command) {
 	}
 	taskCmd.Flags().Int32P("cors", "c", 1, "Use cors")
 	rootCmd.AddCommand(taskCmd)
-}
-
-func initLogger() {
-	gosLgger := glog.SetLogger(0, "gos", glog.DebugLevel)
-	gosLgger.SetOptions(glog.UtcOption(8))
-	gosLgger.SetOptions(glog.FolderOption("log", glog.ShiftDayAndSize, 1, 5*glog.MB))
-	gosLgger.SetOptions(glog.BasicOption(&glog.Option{
-		Level:     glog.DebugLevel,
-		ToConsole: true,
-		ToFile:    false,
-		FileInfo:  true,
-		LineInfo:  true,
-	}))
-	gosLgger.SetOptions(glog.BasicOption(&glog.Option{
-		Level:     glog.InfoLevel,
-		ToConsole: true,
-		ToFile:    false,
-		FileInfo:  true,
-		LineInfo:  true,
-	}))
-	gosLgger.SetOptions(glog.BasicOption(&glog.Option{
-		Level:     glog.WarnLevel,
-		ToConsole: true,
-		ToFile:    true,
-		FileInfo:  true,
-		LineInfo:  true,
-	}))
-	gosLgger.SetOptions(glog.BasicOption(&glog.Option{
-		Level:     glog.ErrorLevel,
-		ToConsole: true,
-		ToFile:    true,
-		FileInfo:  true,
-		LineInfo:  true,
-	}))
-	gosLgger.SetSkip(3)
-	log.SetLogger(gosLgger)
-
-	logger = glog.SetLogger(1, "DemoHttpServer", glog.DebugLevel)
-	logger.SetFolder("log")
-	logger.SetOptions(glog.DefaultOption(true, true), glog.UtcOption(8))
-	logger.SetOptions(glog.UtcOption(8))
-	logger.SetOptions(glog.FolderOption("log", glog.ShiftDayAndSize, 1, 5*glog.MB))
-	logger.SetOptions(glog.BasicOption(&glog.Option{
-		Level:     glog.DebugLevel,
-		ToConsole: true,
-		ToFile:    false,
-		FileInfo:  true,
-		LineInfo:  true,
-	}))
-	logger.SetOptions(glog.BasicOption(&glog.Option{
-		Level:     glog.InfoLevel,
-		ToConsole: true,
-		ToFile:    false,
-		FileInfo:  true,
-		LineInfo:  true,
-	}))
-	logger.SetOptions(glog.BasicOption(&glog.Option{
-		Level:     glog.WarnLevel,
-		ToConsole: true,
-		ToFile:    true,
-		FileInfo:  true,
-		LineInfo:  true,
-	}))
-	logger.SetOptions(glog.BasicOption(&glog.Option{
-		Level:     glog.ErrorLevel,
-		ToConsole: true,
-		ToFile:    true,
-		FileInfo:  true,
-		LineInfo:  true,
-	}))
 }
 
 func RunAns(port int32) {

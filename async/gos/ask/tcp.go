@@ -1,4 +1,4 @@
-package ans
+package ask
 
 import (
 	"context"
@@ -10,32 +10,24 @@ import (
 	"github.com/j32u4ukh/gos/async/gos/base"
 	"github.com/j32u4ukh/gos/async/gos/gtcp"
 	"github.com/j32u4ukh/gos/utils/log"
-
 	"github.com/pkg/errors"
 )
 
-// ====================================================================================================
-// TcpAnser
-// ====================================================================================================
-
-type TcpAnser struct {
-	*Anser
-	//
-	order           binary.ByteOrder
-	tcpPool         *sync.Pool
+type TcpAsker struct {
+	*Asker
+	order   binary.ByteOrder
+	tcpPool *sync.Pool
 	workHandlerFunc func(tcp *gtcp.TcpContext) error
 }
 
-func NewTcpAnser(port int32, nConnect int32) (*TcpAnser, error) {
-	// ===== Anser =====
-	anser, err := NewAnser(port, nConnect)
+func NewTcpAsker(ip string, port int32, nConnect int32) (*TcpAsker, error) {
+	asker, err := NewAsker(ip, int(port), nConnect)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to new TcpAnser.")
+		return nil, errors.Wrapf(err, "Failed to new TcpAsker.")
 	}
-	anser.ReadTimeout = 5000 * time.Millisecond
-	// ===== TcpAnser =====
-	a := &TcpAnser{
-		Anser: anser,
+	asker.ReadTimeout = 5000 * time.Millisecond
+	a := &TcpAsker{
+		Asker: asker,
 		order: binary.LittleEndian,
 		tcpPool: &sync.Pool{
 			New: func() any {
@@ -48,12 +40,13 @@ func NewTcpAnser(port int32, nConnect int32) (*TcpAnser, error) {
 	return a, nil
 }
 
-func (a *TcpAnser) SetWorkHandler(workHandlerFunc func(tcp *gtcp.TcpContext) error) {
+
+func (a *TcpAsker) SetWorkHandler(workHandlerFunc func(tcp *gtcp.TcpContext) error) {
 	a.workHandlerFunc = workHandlerFunc
 }
 
 // TODO: 檢查前導碼
-func (a *TcpAnser) Handler(baseConn *base.Conn) {
+func (a *TcpAsker) Handler(baseConn *base.Conn) {
 	// 初始化 Tcp 和連線對象
 	tcp := a.getTcp(baseConn)
 	defer a.PutTcp(tcp)
@@ -61,8 +54,7 @@ func (a *TcpAnser) Handler(baseConn *base.Conn) {
 	// 建立上下文，用於控制協程結束
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	// 設置連線及上下文
-	tcp.SetConn(baseConn)
+	// 設置上下文
 	tcp.SetCtx(ctx)
 	// 啟動連線的處理協程
 	go baseConn.Handler(ctx)
@@ -97,7 +89,7 @@ func (a *TcpAnser) Handler(baseConn *base.Conn) {
 	}
 }
 
-func (a *TcpAnser) process(tcp *gtcp.TcpContext) error {
+func (a *TcpAsker) process(tcp *gtcp.TcpContext) error {
 	baseConn := tcp.GetConn()
 	for baseConn.CheckReadable(tcp.ReadableChecker) {
 		switch tcp.State {
@@ -125,7 +117,7 @@ func (a *TcpAnser) process(tcp *gtcp.TcpContext) error {
 }
 
 // 處理業務邏輯
-func (a *TcpAnser) WorkHandler(tcp *gtcp.TcpContext) error {
+func (a *TcpAsker) WorkHandler(tcp *gtcp.TcpContext) error {
 	err := a.workHandlerFunc(tcp)
 	if err != nil {
 		return errors.Wrap(err, "Error occurred while work hanlding")
@@ -135,28 +127,27 @@ func (a *TcpAnser) WorkHandler(tcp *gtcp.TcpContext) error {
 	return nil
 }
 
-func (a *TcpAnser) Write(tcp *gtcp.TcpContext) {
+func (a *TcpAsker) Write(tcp *gtcp.TcpContext) {
 	// TODO: tcp to raw data
 	data := []byte{}
 	tcp.GetConn().Write(data, int32(len(data)))
 }
 
-
-
-func (a *TcpAnser) getTcp(baseConn *base.Conn)*gtcp.TcpContext{
+func (a *TcpAsker) getTcp(baseConn *base.Conn)*gtcp.TcpContext{
 	tcp := a.tcpPool.Get().(*gtcp.TcpContext)
 	tcp.SetConn(baseConn)
 	a.contextMap[tcp.GetId()] = tcp
 	return tcp
 }
 
-func (a *TcpAnser) GetTcp() *gtcp.TcpContext {
-	tcp := a.tcpPool.Get().(*gtcp.TcpContext)
-	a.contextMap[tcp.GetId()] = tcp
-	return tcp
+func (a *TcpAsker) GetTcp(id int32)( *gtcp.TcpContext, bool) {
+	if ic, ok := a.contextMap[id]; ok{
+		return ic.(*gtcp.TcpContext), true
+	}
+	return nil, false
 }
 
-func (a *TcpAnser) PutTcp(tcp *gtcp.TcpContext) {
+func (a *TcpAsker) PutTcp(tcp *gtcp.TcpContext) {
 	if tcp == nil {
 		return
 	}

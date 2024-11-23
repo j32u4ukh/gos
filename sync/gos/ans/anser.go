@@ -110,7 +110,7 @@ func newAnser(laddr *net.TCPAddr, nConnect int32, nWork int32) (*Anser, error) {
 		nConn:      0,
 		maxConn:    nConnect,
 		conns:      base.NewConn(0, utils.GosConfig.ConnBufferSize),
-		readBuffer: make([]byte, utils.GosConfig.AnswerReadBuffer),
+		readBuffer: make([]byte, utils.GosConfig.ReadBuffer),
 		order:      binary.LittleEndian,
 		connBuffer: make(chan net.Conn, nWork),
 		works:      base.NewWork(0),

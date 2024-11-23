@@ -22,6 +22,11 @@ const (
 	KEEPALIVE ConnMode = 1
 )
 
+type ConnBuffer struct {
+	net.Conn
+	Index int32
+}
+
 type ConnResult struct {
 	N   int32
 	Err error

@@ -1,14 +1,15 @@
 package tcp_server
 
 import (
+	"github.com/j32u4ukh/gos/async/gos"
 	"github.com/j32u4ukh/gos/async/gos/ans"
-	"github.com/j32u4ukh/gos/async/gos/gtcp"
-	"github.com/j32u4ukh/gos/utils/log"
+	"github.com/j32u4ukh/gos/async/gos/ask"
 	"github.com/pkg/errors"
 )
 
 type Manager struct {
 	anser *ans.TcpAnser
+	asker *ask.TcpAsker
 }
 
 func NewManager() *Manager {
@@ -25,28 +26,16 @@ func (m *Manager) InitAnser(port int32, nConnect int32) error {
 	return nil
 }
 
-func (m *Manager) AnserHandler(tcp *gtcp.TcpContext) error {
-	cmd, err := tcp.Data.PopInt32()
+func (m *Manager) InitAsker(port int32, nConnect int32) error {
+	var err error
+	m.asker, err = ask.NewTcpAsker("127.0.0.1", port, nConnect)
 	if err != nil {
-		return errors.Wrap(err, "Failed to get cmd code from tcp")
+		return errors.Wrap(err, "建立 TcpAnser 伺服器時發生錯誤")
 	}
-	log.Info("Cmd code: %d", cmd)
-	switch cmd {
-	case 0:
-		err = m.handleSystemCommand(tcp)
-		if err != nil {
-			return errors.Wrap(err, "Failed to handle system command")
-		}
-	default:
-	}
+	m.asker.SetWorkHandler(m.AnserHandler)
 	return nil
 }
 
-func (m *Manager) handleSystemCommand(tcp *gtcp.TcpContext) error {
-	service, err := tcp.Data.PopInt32()
-	if err != nil {
-		return errors.Wrap(err, "Failed to get service code from tcp")
-	}
-	log.Info("Service code: %d", service)
-	return nil
+func (m *Manager) Run() {
+	gos.Run(nil)
 }

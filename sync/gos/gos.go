@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/j32u4ukh/glog/v2"
 	"github.com/j32u4ukh/gos/define"
 	"github.com/j32u4ukh/gos/sync/gos/ans"
 	"github.com/j32u4ukh/gos/sync/gos/ask"
@@ -243,8 +242,4 @@ func SetFrameTime(frameTime time.Duration) {
 
 func GetFrameTime() time.Duration {
 	return server.frameTime
-}
-
-func SetLogger(lg *glog.Logger) {
-	log.SetLogger(lg)
 }

@@ -28,11 +28,14 @@ func RegisterCommand(rootCmd *cobra.Command) {
 }
 
 func AnserDemo(args []string) {
+	var mgr *Manager = NewManager()
+	var port int32 = 5000
+	err := mgr.InitAnser(port, 10)
+	if err != nil {
+		fmt.Printf("監聽 port %d 失敗\n", port)
+		return
+	}
 	// var port int32 = 1024
 	// server, err := ans.NewTcpAnser(port, 10)
-	// if err != nil {
-	// 	fmt.Printf("監聽 port %d 失敗\n", port)
-	// 	return
-	// }
-	// gos.Run(nil)
+	//
 }

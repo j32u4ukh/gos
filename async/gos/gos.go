@@ -1,7 +1,6 @@
 package gos
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
@@ -20,21 +19,52 @@ func init() {
 	}
 }
 
-// // 指定要監聽的 port，並生成 Anser 物件
-// func Listen(socketType define.SocketType, port int32) (ans.IAnser, error) {
-// 	if _, ok := server.anserMap[port]; !ok {
-// 		laddr, _ := net.ResolveTCPAddr("tcp", fmt.Sprintf(":%d", port))
-// 		anser, err := ans.NewAnser(
-// 			socketType,
-// 			laddr,
-// 			utils.GosConfig.AnswerConnectNumbers[socketType])
-// 		if err != nil {
-// 			return nil, errors.Wrapf(err, "Failed to listen on port %d.", port)
-// 		}
-// 		server.anserMap[port] = anser
-// 	}
-// 	return server.anserMap[port], nil
-// }
+func RegisterAnser(port int32, anser ans.IAnser) {
+	server.anserMap[port] = anser
+}
+
+func Run(run func()) {
+	var start time.Time
+	var during time.Duration
+	var anser ans.IAnser
+	// var asker ask.IAsker
+	// 開始所有已註冊的監聽
+	for _, anser = range server.anserMap {
+		go anser.Listen()
+	}
+	for {
+		start = time.Now()
+		// 外部定義的處理函式
+		if run != nil {
+			run()
+		}
+		during = time.Since(start)
+		if during < server.frameTime {
+			time.Sleep(server.frameTime - during)
+		}
+	}
+}
+
+func Disconnect(port int32, cid int32) error {
+	var err error = nil
+	if anser, ok := server.anserMap[port]; ok {
+		err = anser.Disconnect(cid, 3*time.Second)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to disconnect connection: %d-%d", port, cid)
+		}
+	} else {
+		err = errors.Errorf("Not found anser for %d", port)
+	}
+	return err
+}
+
+func SetFrameTime(frameTime time.Duration) {
+	server.frameTime = frameTime
+}
+
+func GetFrameTime() time.Duration {
+	return server.frameTime
+}
 
 // 向位置 ip:port 送出連線請求，利用 serverId 來識別多個連線
 // serverId: server id
@@ -80,64 +110,6 @@ func init() {
 // 	server.nextServerId++
 // 	return nil
 // }
-
-func Run(run func()) {
-	// var asker ask.IAsker
-	var start time.Time
-	var during time.Duration
-	var anser ans.IAnser
-	// 開始所有已註冊的監聽
-	for _, anser = range server.anserMap {
-		go anser.Listen()
-	}
-	for {
-		start = time.Now()
-		// // 處理各個 anser 讀取到的數據
-		// for _, anser = range server.anserMap {
-		// 	anser.Handler()
-		// }
-		// // 處理各個 asker 讀取到的數據
-		// for _, asker = range server.askerMap {
-		// 	asker.Handler()
-		// }
-		// 外部定義的處理函式
-		if run != nil {
-			run()
-		}
-		during = time.Since(start)
-		if during < server.frameTime {
-			time.Sleep(server.frameTime - during)
-		}
-	}
-}
-
-// 開始讀取數據與處理
-func RunAns() {
-	// var anser ans.IAnswer
-	// // 處理各個 anser 讀取到的數據
-	// for _, anser = range server.anserMap {
-	// 	anser.Handler()
-	// }
-}
-
-func SendToClient(port int32, cid int32, data []byte, length int32) error {
-	if anser, ok := server.anserMap[port]; ok {
-		err := anser.Write(cid, data, length)
-		if err != nil {
-			return errors.Wrap(err, "Failed to send to client.")
-		}
-		return nil
-	}
-	return errors.New(fmt.Sprintf("Hasn't listen to port %d", port))
-}
-
-func RunAsk() {
-	// var asker ask.IAsker
-	// // 處理各個 asker 讀取到的數據
-	// for _, asker = range server.askerMap {
-	// 	asker.Handler()
-	// }
-}
 
 // func SendTransDataToServer(serverId int32, td *base.TransData) error {
 // 	data := td.FormData()
@@ -191,24 +163,3 @@ func RunAsk() {
 // 	}
 // 	return -1, errors.New("Request 中未定義 uri")
 // }
-
-func Disconnect(port int32, cid int32) error {
-	var err error = nil
-	if anser, ok := server.anserMap[port]; ok {
-		err = anser.Disconnect(cid, 3*time.Second)
-		if err != nil {
-			return errors.Wrapf(err, "Failed to disconnect connection: %d-%d", port, cid)
-		}
-	} else {
-		err = errors.Errorf("Not found anser for %d", port)
-	}
-	return err
-}
-
-func SetFrameTime(frameTime time.Duration) {
-	server.frameTime = frameTime
-}
-
-func GetFrameTime() time.Duration {
-	return server.frameTime
-}

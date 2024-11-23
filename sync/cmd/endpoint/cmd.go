@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/j32u4ukh/glog/v2"
 	"github.com/j32u4ukh/gos/define"
 	"github.com/j32u4ukh/gos/sync/gos"
 	"github.com/j32u4ukh/gos/sync/gos/ans"
@@ -12,25 +11,27 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var logger *glog.Logger
-
-func init() {
-	gosLgger := glog.SetLogger(0, "gos", glog.DebugLevel)
-	gosLgger.SetOptions(glog.DefaultOption(true, true), glog.UtcOption(8))
-	gosLgger.SetFolder("log")
-	gosLgger.SetSkip(3)
-	log.SetLogger(gosLgger)
-
-	logger = glog.SetLogger(1, "DemoEndpoint", glog.DebugLevel)
-	logger.SetFolder("log")
-	logger.SetOptions(glog.DefaultOption(true, true), glog.UtcOption(8))
-}
-
 // go run . endpoint -p 5000
 func RegisterCommand(rootCmd *cobra.Command) {
 	taskCmd := &cobra.Command{
 		Use: "endpoint",
 		Run: func(cmd *cobra.Command, args []string) {
+			err := log.SetLogger("endpoint", "log", log.DEBUG)
+			if err != nil {
+				fmt.Printf("取得 Logger 時發生錯誤, err: %+v\n", err)
+				return
+			}
+			defer func() {
+				if r := recover(); r != nil {
+					log.Error("發生非預期錯誤, err: %+v\n", r)
+				}
+				err = log.Close()
+				if err != nil {
+					fmt.Printf("關閉 Logger 時發生錯誤, err: %+v\n", err)
+				}
+			}()
+			log.SetSkip(3)
+
 			port, err := cmd.Flags().GetInt32("port")
 			if err != nil {
 				fmt.Printf("Failed to get string kind, err: %+v", err)
@@ -38,10 +39,10 @@ func RegisterCommand(rootCmd *cobra.Command) {
 			}
 			fmt.Printf("port: %d\n", port)
 			anser, err := gos.Listen(define.Http, port)
-			logger.Debug("Listen to port %d", port)
+			log.Debug("Listen to port %d", port)
 
 			if err != nil {
-				logger.Error("ListenError: %+v", err)
+				log.Error("ListenError: %+v", err)
 				return
 			}
 
@@ -49,10 +50,10 @@ func RegisterCommand(rootCmd *cobra.Command) {
 			mgr := &Mgr{}
 			mgr.HttpAnswer = httpAnswer
 			mgr.Handler(httpAnswer.Router)
-			logger.Debug("伺服器初始化完成")
+			log.Debug("伺服器初始化完成")
 
 			gos.StartListen()
-			logger.Debug("開始監聽")
+			log.Debug("開始監聽")
 
 			var start time.Time
 			var during, frameTime time.Duration = 0, 200 * time.Millisecond
