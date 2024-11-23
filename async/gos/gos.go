@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/j32u4ukh/gos/async/gos/ans"
+	"github.com/j32u4ukh/gos/async/gos/ask"
 	"github.com/pkg/errors"
 )
 
@@ -23,14 +24,21 @@ func RegisterAnser(port int32, anser ans.IAnser) {
 	server.anserMap[port] = anser
 }
 
+func RegisterAsker(serverId int32, asker ask.IAsker) {
+	server.askerMap[serverId] = asker
+}
+
 func Run(run func()) {
 	var start time.Time
 	var during time.Duration
 	var anser ans.IAnser
-	// var asker ask.IAsker
+	var asker ask.IAsker
 	// 開始所有已註冊的監聽
 	for _, anser = range server.anserMap {
 		go anser.Listen()
+	}
+	for _, asker = range server.askerMap {
+		go asker.Bind()
 	}
 	for {
 		start = time.Now()

@@ -1,6 +1,8 @@
 package gtcp
 
 import (
+	"encoding/binary"
+
 	"github.com/j32u4ukh/gos/async/gos/base"
 )
 
@@ -12,10 +14,10 @@ type TcpContext struct {
 	ReadLength int32
 }
 
-func NewTcp0() *TcpContext {
+func NewTcpContext(bufferSize uint32, order binary.ByteOrder) *TcpContext {
 	t := &TcpContext{
 		State:      0,
-		Context:    base.NewContext(64 * 1024),
+		Context:    base.NewContext(bufferSize, order),
 		HeaderSize: 4,
 	}
 	t.ReadLength = t.HeaderSize

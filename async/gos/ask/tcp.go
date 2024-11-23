@@ -15,34 +15,38 @@ import (
 
 type TcpAsker struct {
 	*Asker
-	order   binary.ByteOrder
-	tcpPool *sync.Pool
+	order           binary.ByteOrder
+	tcpPool         *sync.Pool
 	workHandlerFunc func(tcp *gtcp.TcpContext) error
 }
 
-func NewTcpAsker(ip string, port int32, nConnect int32) (*TcpAsker, error) {
-	asker, err := NewAsker(ip, int(port), nConnect)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to new TcpAsker.")
-	}
-	asker.ReadTimeout = 5000 * time.Millisecond
+func NewTcpAsker(ip string, port int32, nConnect int32) *TcpAsker {
+	asker := NewAsker(ip, int(port), nConnect)
+	asker.readTimeout = 5000 * time.Millisecond
 	a := &TcpAsker{
 		Asker: asker,
 		order: binary.LittleEndian,
-		tcpPool: &sync.Pool{
-			New: func() any {
-				return gtcp.NewTcp0()
-			},
-		},
 	}
 	// ===== 自定義函式 =====
 	a.handlerFunc = a.Handler
-	return a, nil
+	return a
 }
 
+func (a *TcpAsker) SetOrder(order binary.ByteOrder) {
+	a.order = order
+}
 
-func (a *TcpAsker) SetWorkHandler(workHandlerFunc func(tcp *gtcp.TcpContext) error) {
-	a.workHandlerFunc = workHandlerFunc
+func (a *TcpAsker) Init() error {
+	err := a.Asker.Init()
+	if err != nil {
+		return errors.Wrap(err, "Failed to initialize anser core server.")
+	}
+	a.tcpPool = &sync.Pool{
+		New: func() any {
+			return gtcp.NewTcpContext(a.contextBufferSize, a.order)
+		},
+	}
+	return nil
 }
 
 // TODO: 檢查前導碼
@@ -105,7 +109,7 @@ func (a *TcpAsker) process(tcp *gtcp.TcpContext) error {
 			baseConn.Read(tcp.Buffer, tcp.ReadLength)
 			tcp.Data.AddRawData(tcp.Buffer[:tcp.ReadLength])
 			// 處理業務邏輯
-			err := a.WorkHandler(tcp)
+			err := a.workHandler(tcp)
 			if err != nil {
 				return errors.Wrap(err, "Error occured while context processing")
 			}
@@ -116,9 +120,23 @@ func (a *TcpAsker) process(tcp *gtcp.TcpContext) error {
 	return nil
 }
 
+func (a *TcpAsker) Write(tcp *gtcp.TcpContext) error {
+	data := tcp.Data.GetData()
+	tcp.GetConn().Write(data, int32(len(data)))
+	return nil
+}
+
+func (a *TcpAsker) SetWorkHandler(workHandlerFunc func(tcp *gtcp.TcpContext) error) {
+	a.workHandlerFunc = workHandlerFunc
+}
+
 // 處理業務邏輯
-func (a *TcpAsker) WorkHandler(tcp *gtcp.TcpContext) error {
-	err := a.workHandlerFunc(tcp)
+func (a *TcpAsker) workHandler(tcp *gtcp.TcpContext) error {
+	err := tcp.FormatData()
+	if err != nil {
+		return errors.Wrap(err, "Error occurred while data formating")
+	}
+	err = a.workHandlerFunc(tcp)
 	if err != nil {
 		return errors.Wrap(err, "Error occurred while work hanlding")
 	}
@@ -127,21 +145,15 @@ func (a *TcpAsker) WorkHandler(tcp *gtcp.TcpContext) error {
 	return nil
 }
 
-func (a *TcpAsker) Write(tcp *gtcp.TcpContext) {
-	// TODO: tcp to raw data
-	data := []byte{}
-	tcp.GetConn().Write(data, int32(len(data)))
-}
-
-func (a *TcpAsker) getTcp(baseConn *base.Conn)*gtcp.TcpContext{
+func (a *TcpAsker) getTcp(baseConn *base.Conn) *gtcp.TcpContext {
 	tcp := a.tcpPool.Get().(*gtcp.TcpContext)
 	tcp.SetConn(baseConn)
 	a.contextMap[tcp.GetId()] = tcp
 	return tcp
 }
 
-func (a *TcpAsker) GetTcp(id int32)( *gtcp.TcpContext, bool) {
-	if ic, ok := a.contextMap[id]; ok{
+func (a *TcpAsker) GetTcp(id int32) (*gtcp.TcpContext, bool) {
+	if ic, ok := a.contextMap[id]; ok {
 		return ic.(*gtcp.TcpContext), true
 	}
 	return nil, false

@@ -3,7 +3,6 @@ package base
 import (
 	"bytes"
 	"context"
-	"encoding/binary"
 	"fmt"
 	"io"
 	"net"
@@ -13,6 +12,7 @@ import (
 	"github.com/j32u4ukh/cntr"
 	"github.com/j32u4ukh/gos/define"
 	"github.com/j32u4ukh/gos/utils/log"
+	"github.com/pkg/errors"
 )
 
 type ConnMode byte
@@ -50,8 +50,6 @@ type Conn struct {
 	// ==================================================
 	// 緩衝長度
 	BufferLength int32
-	// 位元組順序 (Byte Order)，即 位元組 的排列順序
-	order binary.ByteOrder
 	// ========== 讀取 ==========
 	// 讀取緩衝
 	readBuffer []byte
@@ -81,7 +79,6 @@ func NewConn(id int32, size int32) *Conn {
 		NetConn:        nil,
 		State:          define.Unused,
 		BufferLength:   size * define.MTU,
-		order:          binary.LittleEndian,
 		readInput:      0,
 		readOutput:     0,
 		ReadableLength: 0,
@@ -232,28 +229,33 @@ func (c *Conn) writeHandler(ctx context.Context) {
 		}
 	}()
 	var packet *Packet
-	var nWrite int
-	var nWrite32 int32
-	var err error
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case packet = <-c.WriteCh:
-			for packet.Length > 0 {
-				// 將數據寫出(Write 為阻塞型函式)
-				nWrite, err = c.NetConn.Write(packet.Data[packet.Index : packet.Index+packet.Length])
-				if err != nil {
-					log.Error("Error writing, err: %+v\n", err)
-					return
-				}
-				nWrite32 = int32(nWrite)
-				packet.Index += nWrite32
-				packet.Length -= nWrite32
-			}
-			PutPacket(packet)
+			c.write(packet)
 		}
 	}
+}
+
+func (c *Conn) write(packet *Packet) error {
+	defer PutPacket(packet)
+	var nWrite int
+	var nWrite32 int32
+	var err error
+	for packet.Length > 0 {
+		// 將數據寫出(Write 為阻塞型函式)
+		nWrite, err = c.NetConn.Write(packet.Data[packet.Index : packet.Index+packet.Length])
+		if err != nil {
+			log.Error("Error writing, err: %+v\n", err)
+			return errors.Wrapf(err, "Failed to write packet for conn-%d", c.GetId())
+		}
+		nWrite32 = int32(nWrite)
+		packet.Index += nWrite32
+		packet.Length -= nWrite32
+	}
+	return nil
 }
 
 // 當有需要重新連線的情況下，首先就會發生 Socket 讀取異常，並導致 Handler 的 goroutine 結束，因此無須再利用 c.stopCh 將 Handler 結束

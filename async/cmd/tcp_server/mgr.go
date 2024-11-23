@@ -17,22 +17,23 @@ func NewManager() *Manager {
 }
 
 func (m *Manager) InitAnser(port int32, nConnect int32) error {
-	var err error
-	m.anser, err = ans.NewTcpAnser(port, nConnect)
+	m.anser = ans.NewTcpAnser(port, nConnect)
+	err := m.anser.Init()
 	if err != nil {
-		return errors.Wrap(err, "建立 TcpAnser 伺服器時發生錯誤")
+		return errors.Wrap(err, "初始化 TcpAnser 伺服器時發生錯誤")
 	}
 	m.anser.SetWorkHandler(m.AnserHandler)
+	gos.RegisterAnser(port, m.anser)
 	return nil
 }
 
 func (m *Manager) InitAsker(port int32, nConnect int32) error {
-	var err error
-	m.asker, err = ask.NewTcpAsker("127.0.0.1", port, nConnect)
+	m.asker = ask.NewTcpAsker("127.0.0.1", port, nConnect)
+	err := m.asker.Init()
 	if err != nil {
-		return errors.Wrap(err, "建立 TcpAnser 伺服器時發生錯誤")
+		return errors.Wrap(err, "初始化 TcpAsker 伺服器時發生錯誤")
 	}
-	m.asker.SetWorkHandler(m.AnserHandler)
+	m.asker.SetWorkHandler(m.AskerHandler)
 	return nil
 }
 

@@ -2,8 +2,10 @@ package base
 
 import (
 	"context"
+	"encoding/binary"
 
 	"github.com/j32u4ukh/cntr"
+	"github.com/pkg/errors"
 )
 
 type IContext interface {
@@ -21,9 +23,12 @@ type Context struct {
 	bufferSize uint32
 }
 
-func NewContext(bufferSize uint32) *Context {
+func NewContext(bufferSize uint32, order binary.ByteOrder) *Context {
+	bd := cntr.NewBinaryData()
+	bd.SetOrder(order)
 	return &Context{
 		Buffer:     make([]byte, bufferSize),
+		Data:       bd,
 		bufferSize: bufferSize,
 	}
 }
@@ -56,6 +61,15 @@ func (c *Context) WithCancel() (IContext, context.CancelFunc) {
 	newCtx := c.Clone()
 	newCtx.ctx = ctx
 	return newCtx, cancel
+}
+
+func (c *Context) FormatData() error {
+	length := int32(c.Data.GetLength())
+	err := c.Data.InsertInt32(length)
+	if err != nil {
+		return errors.Wrap(err, "Failed to insert tcp length data")
+	}
+	return nil
 }
 
 func (c *Context) Clone() *Context {

@@ -26,26 +26,31 @@ type TcpAnser struct {
 	workHandlerFunc func(tcp *gtcp.TcpContext) error
 }
 
-func NewTcpAnser(port int32, nConnect int32) (*TcpAnser, error) {
+func NewTcpAnser(port int32, nConnect int32) *TcpAnser {
 	// ===== Anser =====
-	anser, err := NewAnser(port, nConnect)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to new TcpAnser.")
-	}
-	anser.ReadTimeout = 5000 * time.Millisecond
+	anser := NewAnser(port, nConnect)
+	anser.SetReadTimeout(5 * time.Second)
 	// ===== TcpAnser =====
 	a := &TcpAnser{
 		Anser: anser,
 		order: binary.LittleEndian,
-		tcpPool: &sync.Pool{
-			New: func() any {
-				return gtcp.NewTcp0()
-			},
-		},
 	}
 	// ===== 自定義函式 =====
 	a.handlerFunc = a.Handler
-	return a, nil
+	return a
+}
+
+func (a *TcpAnser) Init() error {
+	err := a.Anser.Init()
+	if err != nil {
+		return errors.Wrap(err, "Failed to initialize anser")
+	}
+	a.tcpPool = &sync.Pool{
+		New: func() any {
+			return gtcp.NewTcpContext(a.contextBufferSize, a.order)
+		},
+	}
+	return nil
 }
 
 func (a *TcpAnser) SetWorkHandler(workHandlerFunc func(tcp *gtcp.TcpContext) error) {
@@ -141,9 +146,7 @@ func (a *TcpAnser) Write(tcp *gtcp.TcpContext) {
 	tcp.GetConn().Write(data, int32(len(data)))
 }
 
-
-
-func (a *TcpAnser) getTcp(baseConn *base.Conn)*gtcp.TcpContext{
+func (a *TcpAnser) getTcp(baseConn *base.Conn) *gtcp.TcpContext {
 	tcp := a.tcpPool.Get().(*gtcp.TcpContext)
 	tcp.SetConn(baseConn)
 	a.contextMap[tcp.GetId()] = tcp
