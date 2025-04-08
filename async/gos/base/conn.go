@@ -27,11 +27,6 @@ type ConnBuffer struct {
 	Index int32
 }
 
-type ConnResult struct {
-	N   int32
-	Err error
-}
-
 type Conn struct {
 	// 連線物件編號
 	id int32

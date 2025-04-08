@@ -93,14 +93,14 @@ func (a *Asker) Init() error {
 }
 
 func (a *Asker) Connect() (int32, error) {
+	if a.nConn >= a.maxConn {
+		return -1, fmt.Errorf("連線數量已達上限(%d)", a.maxConn)
+	}
 	// 註冊連線通道
 	netConn, err := net.DialTCP("tcp", nil, a.addr)
 	if err != nil {
 		log.Error("Failed to connect, err: %+v", err)
 		return -1, errors.Wrapf(err, "Failed to connect to %s:%d.", a.addr.IP, a.addr.Port)
-	}
-	if a.nConn >= a.maxConn {
-		return -1, fmt.Errorf("連線數量已達上限(%d)", a.maxConn)
 	}
 	baseConn := a.GetConn(netConn)
 	a.connCh <- baseConn

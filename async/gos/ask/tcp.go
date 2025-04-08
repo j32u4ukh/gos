@@ -18,15 +18,35 @@ type TcpAsker struct {
 	order           binary.ByteOrder
 	tcpPool         *sync.Pool
 	workHandlerFunc func(tcp *gtcp.TcpContext) error
+	// 自我介紹數據
+	introductionData []byte
+	// 心跳包數據
+	heartbeatData []byte
+	// 心跳包間隔時間
+	heartbeatLifetime time.Duration
+	// 心跳包數據長度
+	heartbeatLength int32
 }
 
-func NewTcpAsker(ip string, port int32, nConnect int32) *TcpAsker {
+func NewTcpAsker(ip string, port int32, nConnect int32, introduction []byte, heartbeat []byte) *TcpAsker {
 	asker := NewAsker(ip, int(port), nConnect)
-	asker.readTimeout = 5000 * time.Millisecond
+	asker.SetReadTimeout(5 * time.Second)
 	a := &TcpAsker{
-		Asker: asker,
-		order: binary.LittleEndian,
+		Asker:             asker,
+		order:             binary.LittleEndian,
+		introductionData:  nil,
+		heartbeatData:     nil,
+		heartbeatLifetime: 1 * time.Second,
 	}
+	// ===== 自我介紹數據 =====
+	a.introductionData = make([]byte, len(introduction))
+	copy(a.introductionData, introduction)
+	log.Debug("a.introductionData: %+v\n", a.introductionData)
+	// ===== 心跳包數據 =====
+	a.heartbeatLength = int32(len(heartbeat))
+	a.heartbeatData = make([]byte, a.heartbeatLength)
+	copy(a.heartbeatData, heartbeat)
+	log.Debug("a.heartbeatData: %+v\n", a.heartbeatData)
 	// ===== 自定義函式 =====
 	a.handlerFunc = a.Handler
 	return a
@@ -62,14 +82,24 @@ func (a *TcpAsker) Handler(baseConn *base.Conn) {
 	tcp.SetCtx(ctx)
 	// 啟動連線的處理協程
 	go baseConn.Handler(ctx)
+	// TODO: introduction
+	if a.introductionData != nil {
+		baseConn.Write(a.introductionData, int32(len(a.introductionData)))
+	}
+	timer := time.NewTimer(a.heartbeatLifetime)
+	defer timer.Stop()
 	var err error
 	for {
 		select {
-		// 上下文結束
-		case <-ctx.Done():
-			return
+		case <-timer.C:
+			// 寫出心跳包數據
+			baseConn.Write(a.heartbeatData, a.heartbeatLength)
+			// 更新下次心跳包時間
+			timer.Reset(a.heartbeatLifetime)
 		// 收到讀取信號
 		case <-tcp.GetConn().ReadCh:
+			// 更新下次心跳包時間
+			timer.Reset(a.heartbeatLifetime)
 			// 讀取並處理封包
 			/*
 				數據包解析錯誤表明客戶端發送的數據格式嚴重異常（如協議不符、惡意數據）。
@@ -89,6 +119,9 @@ func (a *TcpAsker) Handler(baseConn *base.Conn) {
 				log.Error("Error occurred while processing, err: %+v", err)
 				return
 			}
+		// 上下文結束
+		case <-ctx.Done():
+			return
 		}
 	}
 }
