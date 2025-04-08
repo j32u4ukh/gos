@@ -1,0 +1,144 @@
+package reconnect
+
+import (
+	"fmt"
+	"strconv"
+	"time"
+
+	"github.com/j32u4ukh/glog/v2"
+	"github.com/j32u4ukh/gos/define"
+	"github.com/j32u4ukh/gos/sync/gos"
+	"github.com/j32u4ukh/gos/sync/gos/ans"
+	"github.com/j32u4ukh/gos/sync/gos/ask"
+	"github.com/j32u4ukh/gos/sync/gos/base"
+	"github.com/j32u4ukh/gos/utils/log"
+	"github.com/spf13/cobra"
+)
+
+var logger *glog.Logger
+
+// go run . reconnect
+func RegisterCommand(rootCmd *cobra.Command) {
+	taskCmd := &cobra.Command{
+		Use: "reconnect",
+		Run: func(cmd *cobra.Command, args []string) {
+			err := log.SetLogger("reconnect", "log", log.DEBUG)
+			if err != nil {
+				fmt.Printf("取得 Logger 時發生錯誤, err: %+v\n", err)
+				return
+			}
+			defer func() {
+				if r := recover(); r != nil {
+					log.Error("發生非預期錯誤, err: %+v\n", r)
+				}
+				err = log.Close()
+				if err != nil {
+					fmt.Printf("關閉 Logger 時發生錯誤, err: %+v\n", err)
+				}
+			}()
+			log.SetSkip(3)
+			service := Service{StopCh: make(chan bool)}
+			service.Run(args)
+		},
+	}
+	taskCmd.Flags().Int32P("cors", "c", 1, "Use cors")
+	rootCmd.AddCommand(taskCmd)
+}
+
+type Service struct {
+	// 總管整個服務的關閉流程(可能有不同原因會觸發關閉流程)
+	StopCh chan bool
+}
+
+func (s *Service) Run(args []string) {
+	service_type := args[1]
+	var port int = 1023
+
+	if len(args) >= 3 {
+		port, _ = strconv.Atoi(args[2])
+	}
+
+	if service_type == "ans" {
+		s.RunAns(port)
+
+	} else if service_type == "ask" {
+		s.RunAsk("127.0.0.1", port)
+
+	}
+
+	logger.Info("End of gos example.")
+}
+
+func (s *Service) Stop() {
+	s.StopCh <- true
+}
+
+func (s *Service) RunAns(port int) {
+	anser, err := gos.Listen(define.Tcp0, int32(port))
+	logger.Info("Listen to port %d", port)
+
+	if err != nil {
+		logger.Error("ListenError: %+v", err)
+		return
+	}
+
+	mgr := &Mgr{}
+	tcp0Answer := anser.(*ans.Tcp0Anser)
+	tcp0Answer.SetWorkHandler(mgr.Handler)
+	logger.Debug("伺服器初始化完成")
+
+	gos.StartListen()
+	logger.Debug("開始監聽")
+
+	var start time.Time
+	var during, frameTime time.Duration = 0, 200 * time.Millisecond
+
+	for {
+		start = time.Now()
+
+		gos.RunAns()
+
+		during = time.Since(start)
+		if during < frameTime {
+			time.Sleep(frameTime - during)
+		}
+	}
+}
+
+func (s *Service) RunAsk(ip string, port int) {
+	td := base.NewTransData()
+	td.AddInt32(SystemCmd)
+	td.AddInt32(IntroductionService)
+	td.AddString("GOS")
+	td.AddInt32(29)
+	introduction := td.FormData()
+	td.Clear()
+	td.AddInt32(SystemCmd)
+	td.AddInt32(ServerHeartbeatService)
+	heartbeat := td.FormData()
+	asker, err := gos.Bind(0, ip, port, define.Tcp0, base.OnEventsFunc{
+		define.OnConnected: func(any) {
+			logger.Info("onConnect to %s:%d", ip, port)
+		},
+	}, &introduction, &heartbeat)
+
+	if err != nil {
+		logger.Error("BindError: %+v", err)
+		return
+	}
+
+	mgr := NewMgr()
+	tcp0Asker := asker.(*ask.Tcp0Asker)
+	tcp0Asker.SetWorkHandler(mgr.Handler)
+	logger.Debug("伺服器初始化完成")
+
+	err = gos.StartConnect()
+
+	if err != nil {
+		logger.Error("ConnectError: %+v", err)
+		return
+	}
+
+	logger.Debug("開始連線")
+	gos.Run(nil)
+}
