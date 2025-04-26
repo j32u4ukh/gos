@@ -77,6 +77,10 @@ func (a *HttpAnser) InitHandlerFunc() {
 				a.errorHandler(context, StatusInternalServerError, "Internal Server Error")
 			}
 		}(context)
+		// 釋放上一輪的 request/response 狀態，以便接收新的請求資料
+		if context.state == WRITE_RESPONSE || context.state == READ_RESPONSE_FINISH {
+			context.Release()
+		}
 		// HttpContext 讀取數據
 		err := context.Read()
 		if err != nil {
@@ -85,7 +89,6 @@ func (a *HttpAnser) InitHandlerFunc() {
 		if context.state != WRITE_RESPONSE && context.state != READ_RESPONSE_FINISH {
 			return nil
 		}
-		// TODO: 清空 req 中的緩存
 		log.Debug("request:\n%s\n", context.req.String())
 		var splits []string
 		var nSplit int32

@@ -45,7 +45,7 @@ func AnserDemo(args []string) {
 		}
 	}()
 	var mgr *AnserManager = NewAnserManager()
-	var port int32 = 1023
+	var port int32 = 5000
 	err = mgr.Init(port, 10)
 	if err != nil {
 		fmt.Printf("監聽 port %d 失敗\n", port)

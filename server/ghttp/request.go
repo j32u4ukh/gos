@@ -188,16 +188,22 @@ func (r *Request) Bytes() []byte {
 }
 
 func (r *Request) Release() {
+	// 重置 Content 部分
+	r.Content.Release()
+
+	// 重置 Request 自己的欄位
 	r.method = ""
+	r.scheme = ""
 	r.query = ""
-	r.httpProto = DEFAULT_HTTP_PROTO
-	r.bodyLength = 0
-	var key string
-	for key = range r.params {
+
+	// 清空 params
+	for key := range r.params {
 		delete(r.params, key)
 	}
-	for key = range r.header {
-		delete(r.header, key)
+
+	// 清空 values
+	for key := range r.values {
+		delete(r.values, key)
 	}
 }
 

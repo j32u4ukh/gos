@@ -203,9 +203,14 @@ func (c *HttpContext) Json(code int32, obj any) error {
 }
 
 func (c *HttpContext) Release() {
+	// 重置工作模式與狀態
 	c.mode = HTTPMODE_REQUEST
 	c.state = READ_FIRST_LINE
+
+	// 重置底層連線 Context
 	c.Context.Release()
+
+	// 重置請求與回應
 	c.req.Release()
 	c.res.Release()
 }

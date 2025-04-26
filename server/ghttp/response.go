@@ -78,11 +78,10 @@ func (r Response) String() string {
 }
 
 func (r *Response) Release() {
+	// 釋放 Content 的內容（header, body, proto 等）
+	r.Content.Release()
+
+	// 重置 Response 特有欄位
 	r.code = -1
 	r.message = ""
-	r.bodyLength = 0
-	r.body = r.body[:0]
-	for k := range r.header {
-		delete(r.header, k)
-	}
 }

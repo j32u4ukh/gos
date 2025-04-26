@@ -69,3 +69,12 @@ func (c *Content) GetHeader(key string) ([]string, bool) {
 	}
 	return nil, false
 }
+
+func (c *Content) Release() {
+	c.httpProto = DEFAULT_HTTP_PROTO
+	for k := range c.header {
+		delete(c.header, k)
+	}
+	c.bodyLength = 0
+	c.state = READ_FIRST_LINE
+}

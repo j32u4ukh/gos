@@ -30,6 +30,22 @@ func (m *AnserManager) Init(port int32, nConnect int32) error {
 			"msg": "ok",
 		})
 	})
+	router.POST("/", func(c *ghttp.HttpContext) {
+		c.Json(ghttp.StatusOK, ghttp.H{
+			"msg": 123.45,
+		})
+	})
+	abc := router.NewRouter("/abc")
+	abc.GET("/get", func(c *ghttp.HttpContext) {
+		c.Json(ghttp.StatusOK, ghttp.H{
+			"msg": "/abc/get",
+		})
+	})
+	abc.POST("/post", func(c *ghttp.HttpContext) {
+		c.Json(ghttp.StatusOK, ghttp.H{
+			"msg": "/abc/post",
+		})
+	})
 	return nil
 }
 
