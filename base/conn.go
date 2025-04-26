@@ -331,7 +331,6 @@ func (c *Conn) ResetReadBuffer() {
 }
 
 func (c *Conn) Release() {
-	fmt.Println("Conn Release")
 	// 狀態設置為未使用
 	c.state = define.Unused
 	if c.netConn != nil {

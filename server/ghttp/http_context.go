@@ -68,7 +68,12 @@ func (c *HttpContext) readFirstLine(data []byte) ([]byte, bool) {
 	if index != -1 {
 		length := int32(index) + 1
 		// 拆分第一行數據
-		line := strings.TrimRight(string(data[:length]), "\r\n")
+		bs, err := c.GetBuffer().FetchByteArray(uint32(length))
+		if err != nil {
+			return data, false
+		}
+		line := strings.TrimRight(string(bs), "\r\n")
+		data = data[length:]
 		switch c.mode {
 		case HTTPMODE_REQUEST:
 			c.req.parseFirstLine(line)
@@ -81,7 +86,6 @@ func (c *HttpContext) readFirstLine(data []byte) ([]byte, bool) {
 		}
 		// 切換到讀取 Header 階段
 		c.state = READ_HEADER
-		data = data[length:]
 		return data, true
 	}
 	return data, false
@@ -98,7 +102,11 @@ func (c *HttpContext) readHeader(data []byte) ([]byte, bool, error) {
 			break
 		}
 		length = index + 1
-		header = strings.TrimRight(string(data[:length]), "\r\n")
+		bs, err := c.GetBuffer().FetchByteArray(uint32(length))
+		if err != nil {
+			return data, false, errors.Wrap(err, "Failed to read header")
+		}
+		header = strings.TrimRight(string(bs), "\r\n")
 		header = strings.TrimSpace(header)
 		data = data[length:]
 		if header == "" {
@@ -133,8 +141,7 @@ func (c *HttpContext) readHeader(data []byte) ([]byte, bool, error) {
 			// mustHaveFieldNameColon ensures that, per RFC 7230, the field-name is on a single line,
 			// so the first line must contain a colon.
 			// 將讀到的數據從冒號拆分成 key, value
-			value = strings.TrimLeft(value, " \t")
-			value = strings.TrimRight(value, "\r\n")
+			value = strings.TrimSpace(value)
 			content.SetHeader(key, value)
 		} else {
 			return data, false, errors.Errorf("Invalid header line (no colon): %s", header)
@@ -145,21 +152,26 @@ func (c *HttpContext) readHeader(data []byte) ([]byte, bool, error) {
 
 func (c *HttpContext) readBody(data []byte) {
 	var content *Content = c.getContent()
-	if int32(len(data)) >= content.bodyLength {
-		// 將傳入的數據，加入工作緩存中
-		log.Debug("Body 數據: %s", string(data[:content.bodyLength]))
-		content.SetBody(data[:content.bodyLength])
-		// 等待數據寫出
-		switch c.mode {
-		case HTTPMODE_REQUEST:
-			// Body 讀完，準備寫出 Response
-			c.state = WRITE_RESPONSE
-		case HTTPMODE_RESPONSE:
-			// Body 讀完，進入等待下一次處理階段
-			c.state = READ_RESPONSE_FINISH
-		}
-		log.Debug("State: READ_BODY -> %s", c.state)
+	if int32(len(data)) < content.bodyLength {
+		// 資料不足，等待下一個封包
+		return
 	}
+	bs, err := c.GetBuffer().FetchByteArray(uint32(content.bodyLength))
+	if err != nil {
+		return
+	}
+	// 將傳入的數據，加入工作緩存中
+	content.SetBody(bs)
+	// 等待數據寫出
+	switch c.mode {
+	case HTTPMODE_REQUEST:
+		// Body 讀完，準備寫出 Response
+		c.state = WRITE_RESPONSE
+	case HTTPMODE_RESPONSE:
+		// Body 讀完，進入等待下一次處理階段
+		c.state = READ_RESPONSE_FINISH
+	}
+	log.Debug("State: READ_BODY -> %s", c.state)
 }
 
 func (c *HttpContext) getContent() *Content {

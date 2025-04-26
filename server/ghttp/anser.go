@@ -58,7 +58,7 @@ func (a *HttpAnser) Init() error {
 
 // 監聽連線並註冊
 func (a *HttpAnser) Listen() {
-	a.SetWorkHandler()
+	a.InitHandlerFunc()
 	a.Anser.Listen()
 }
 
@@ -67,7 +67,7 @@ func (a *HttpAnser) GetRouter() *Router {
 }
 
 // 由外部定義 workHandler，定義如何處理工作
-func (a *HttpAnser) SetWorkHandler() {
+func (a *HttpAnser) InitHandlerFunc() {
 	a.SetHandlerFunc(func(baseConn *base.Conn) error {
 		cid := baseConn.GetId()
 		context := a.GetContext(cid, baseConn)
@@ -85,7 +85,8 @@ func (a *HttpAnser) SetWorkHandler() {
 		if context.state != WRITE_RESPONSE && context.state != READ_RESPONSE_FINISH {
 			return nil
 		}
-		log.Debug("request:\n%s", context.req.String())
+		// TODO: 清空 req 中的緩存
+		log.Debug("request:\n%s\n", context.req.String())
 		var splits []string
 		var nSplit int32
 		if context.req.query == "" || context.req.query == "/" {
