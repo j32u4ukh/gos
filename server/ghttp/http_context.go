@@ -114,7 +114,8 @@ func (c *HttpContext) readHeader(data []byte) ([]byte, bool, error) {
 				content.bodyLength = int32(length)
 				// 切換到讀取 Body 階段
 				c.state = READ_BODY
-				log.Debug("State: READ_HEADER -> READ_BODY")
+				log.Debug("State: READ_HEADER -> READ_BODY(length: %d)", length)
+				return data, len(data) >= length, nil
 			} else {
 				// 無 Body，進入下一階段：等待寫入或接收回應
 				switch c.mode {
