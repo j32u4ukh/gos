@@ -1,25 +1,63 @@
 package httpserver
 
-// import (
-// 	"github.com/j32u4ukh/gos/server/ghttp"
-// )
+import (
+	"encoding/json"
+	"fmt"
 
-// type AskerManager struct {
-// 	asker      *ghttp.HttpAsker
-// 	contextMap map[int32]*ghttp.HttpContext
-// }
+	"github.com/j32u4ukh/gos/server/ghttp"
+)
 
-// func NewAskerManager() *AskerManager {
-// 	return &AskerManager{
-// 		contextMap: make(map[int32]*ghttp.HttpContext),
-// 	}
-// }
+func Get1Demo() {
+	client := ghttp.NewHttpAsker()
+	response, err := client.Get("localhost:5000", nil, nil)
+	if err != nil {
+		fmt.Printf("送出 Get 請求時發生錯誤, err: %+v\n", err)
+		return
+	}
+	fmt.Printf("response:\n%s", response.String())
+}
 
-// func (m *AskerManager) Init(ip string, port int32) error {
-// 	m.asker = ghttp.NewHttpAsker(ip, port)
-// 	// err := m.asker.Init(nil, nil)
-// 	// if err != nil {
-// 	// 	return errors.Wrap(err, "Failed to init http server")
-// 	// }
-// 	return nil
-// }
+func Get2Demo() {
+	client := ghttp.NewHttpAsker()
+	response, err := client.Get("localhost:5000/abc/get/", nil, nil)
+	if err != nil {
+		fmt.Printf("送出 Get 請求時發生錯誤, err: %+v\n", err)
+		return
+	}
+	fmt.Printf("response:\n%s", response.String())
+}
+
+
+
+func Post1Demo() {
+	client := ghttp.NewHttpAsker()
+	response, err := client.Post("localhost:5000", nil, nil)
+	if err != nil {
+		fmt.Printf("送出 Post 請求時發生錯誤, err: %+v\n", err)
+		return
+	}
+	fmt.Printf("response:\n%s", response.String())
+}
+
+
+
+
+func Post2Demo() {
+	client := ghttp.NewHttpAsker()
+	body := map[string]any{
+		"name": "Tom",
+		"age": 32,
+		"height": 187.3,
+	}
+	data, err := json.Marshal(body)
+	if err != nil {
+		fmt.Printf("Marshal data 時發生錯誤, err: %+v\n", err)
+		return
+	}
+	response, err := client.Post("localhost:5000/abc/post/", data, nil)
+	if err != nil {
+		fmt.Printf("送出 Post 請求時發生錯誤, err: %+v\n", err)
+		return
+	}
+	fmt.Printf("response:\n%s", response.String())
+}

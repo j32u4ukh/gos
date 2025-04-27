@@ -19,7 +19,7 @@ func NewHttpAsker() *HttpAsker {
 	return &HttpAsker{}
 }
 
-func (a *HttpAsker) Get(uri string, params map[string]string) (*Response, error) {
+func (a *HttpAsker) Get(uri string, params map[string]string, header Header) (*Response, error) {
 	ask, err := newAsker(uri)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to build http asker")
@@ -29,6 +29,34 @@ func (a *HttpAsker) Get(uri string, params map[string]string) (*Response, error)
 		if err != nil {
 			return errors.Wrap(err, "Faild to make a http connection")
 		}
+		for k, v := range header {
+			req.SetHeader(k, v...)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to send get request")
+	}
+	return response, nil
+}
+
+func (a *HttpAsker) Post(uri string, body []byte, header Header) (*Response, error) {
+	if !strings.Contains(uri, "://") {
+		uri = "http://" + uri
+	}
+	ask, err := newAsker(uri)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to build http asker")
+	}
+	response, err := ask.send(func(req *Request) error {
+		err := req.SetRequest(METHOD_POST, uri, nil)
+		if err != nil {
+			return errors.Wrap(err, "Faild to make a http connection")
+		}
+		for k, v := range header {
+			req.SetHeader(k, v...)
+		}
+		req.SetBody(body)
 		return nil
 	})
 	if err != nil {
@@ -44,13 +72,9 @@ type asker struct {
 }
 
 func newAsker(uri string) (*asker, error) {
-	u := uri
-	if !strings.Contains(uri, "://") {
-		u = "http://" + uri
-	}
-	fmt.Printf("newAsker | uri: %s\n", u)
+	fmt.Printf("newAsker | uri: %s\n", uri)
 	// 解析 URL
-	parsedUrl, err := url.Parse(u)
+	parsedUrl, err := url.Parse(uri)
 	if err != nil {
 		return nil, errors.New("Invalid URL: " + err.Error())
 	}

@@ -2,9 +2,9 @@ package httpserver
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/j32u4ukh/gos/log"
-	"github.com/j32u4ukh/gos/server/ghttp"
 	"github.com/spf13/cobra"
 )
 
@@ -68,11 +68,21 @@ func AskerDemo(args []string) {
 			return
 		}
 	}()
-	client := ghttp.NewHttpAsker()
-	response, err := client.Get("localhost:5000", nil)
-	if err != nil {
-		fmt.Printf("送出 Get 請求時發生錯誤, err: %+v\n", err)
-		return
+	fmt.Printf("args: %+v\n", args)
+	var demo string = "GET1"
+	if len(args) > 0 {
+		demo = strings.ToUpper(args[0])
 	}
-	fmt.Printf("response:\n%s", response.String())
+	switch demo {
+	case "POST1":
+		Post1Demo()
+	case "POST2":
+		Post2Demo()
+	case "GET2":
+		Get2Demo()
+	case "GET1":
+		fallthrough
+	default:
+		Get1Demo()
+	}
 }

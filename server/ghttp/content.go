@@ -31,8 +31,8 @@ func (c *Content) SetHttpProto(httpProto string) {
 	c.httpProto = httpProto
 }
 
-func (c *Content) SetHeader(key string, value string) {
-	c.header[key] = append(c.header[key], value)
+func (c *Content) SetHeader(key string, values ...string) {
+	c.header[key] = append(c.header[key], values...)
 }
 
 func (c *Content) setDefaultHeader(key string, defaultValue string) {
