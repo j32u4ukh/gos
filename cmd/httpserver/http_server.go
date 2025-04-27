@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/j32u4ukh/gos/log"
+	"github.com/j32u4ukh/gos/server/ghttp"
 	"github.com/spf13/cobra"
 )
 
@@ -32,7 +33,7 @@ func RegisterCommand(rootCmd *cobra.Command) {
 }
 
 func AnserDemo(args []string) {
-	err := log.SetLogger("tcp-ans", "log", log.DEBUG)
+	err := log.SetLogger("http-ans", "log", log.DEBUG)
 	if err != nil {
 		fmt.Printf("設置日誌失敗, err: %+v\n", err)
 		return
@@ -55,24 +56,23 @@ func AnserDemo(args []string) {
 }
 
 func AskerDemo(args []string) {
-	// err := log.SetLogger("tcp-ask", "log", log.DEBUG)
-	// if err != nil {
-	// 	fmt.Printf("設置日誌失敗, err: %+v\n", err)
-	// 	return
-	// }
-	// defer func() {
-	// 	err = log.Close()
-	// 	if err != nil {
-	// 		fmt.Printf("關閉日誌時發生錯誤, err: %+v\n", err)
-	// 		return
-	// 	}
-	// }()
-	// var mgr *Manager = NewManager()
-	// var port int32 = 1023
-	// err = mgr.InitAsker(port, 10)
-	// if err != nil {
-	// 	fmt.Printf("127.0.0.1:%d 連線失敗\n", port)
-	// 	return
-	// }
-	// mgr.Run("ask")
+	err := log.SetLogger("http-ask", "log", log.DEBUG)
+	if err != nil {
+		fmt.Printf("設置日誌失敗, err: %+v\n", err)
+		return
+	}
+	defer func() {
+		err = log.Close()
+		if err != nil {
+			fmt.Printf("關閉日誌時發生錯誤, err: %+v\n", err)
+			return
+		}
+	}()
+	client := ghttp.NewHttpAsker()
+	response, err := client.Get("localhost:5000", nil)
+	if err != nil {
+		fmt.Printf("送出 Get 請求時發生錯誤, err: %+v\n", err)
+		return
+	}
+	fmt.Printf("response:\n%s", response.String())
 }

@@ -14,6 +14,7 @@ import (
 
 type HttpAnser struct {
 	*core.Anser
+	*Server
 	router *Router
 
 	// key1: Method(Get/Post); key2: node number of EndPoint; value: []*EndPoint
@@ -24,8 +25,8 @@ type HttpAnser struct {
 	// 個數與 Anser 的 nConnect 相同，因此可利用 Conn 中的 id 作為索引值，來存取,
 	// 由於 Context 是使用 Conn 的 id 作為索引值，因此可以不用從第一個開始使用，結束使用後也不需要對順序進行調整
 	// ==================================================
-	contextMap  map[int32]*HttpContext
 	contextPool sync.Pool
+	contextMap  map[int32]*HttpContext
 }
 
 func NewHttpAnser(port int32, nConnect int32) *HttpAnser {
@@ -37,12 +38,7 @@ func NewHttpAnser(port int32, nConnect int32) *HttpAnser {
 			Handlers: HandlerChain{},
 		},
 		endpoints: &EndPointHandlers{},
-		contextPool: sync.Pool{New: func() any {
-			context := NewHttpContext()
-			context.setHttpMode(HTTPMODE_REQUEST)
-			return context
-		}},
-		contextMap: make(map[int32]*HttpContext),
+		Server:    NewServer(HTTPMODE_REQUEST),
 	}
 	a.router.endpoints = a.endpoints
 	return a
@@ -66,7 +62,7 @@ func (a *HttpAnser) GetRouter() *Router {
 	return a.router
 }
 
-// 由外部定義 workHandler，定義如何處理工作
+// 由外部定義 HandlerFunc，定義如何處理工作
 func (a *HttpAnser) InitHandlerFunc() {
 	a.SetHandlerFunc(func(baseConn *base.Conn) error {
 		cid := baseConn.GetId()
@@ -77,7 +73,7 @@ func (a *HttpAnser) InitHandlerFunc() {
 				a.errorHandler(context, StatusInternalServerError, "Internal Server Error")
 			}
 		}(context)
-		// 釋放上一輪的 request/response 狀態，以便接收新的請求資料
+		// 釋放上一輪的 request 狀態，以便接收新的請求資料
 		if context.state == WRITE_RESPONSE || context.state == READ_RESPONSE_FINISH {
 			context.Release()
 		}
@@ -157,19 +153,6 @@ func (a *HttpAnser) errorHandler(c *HttpContext, code int32, msg string) {
 		"error": msg,
 	})
 	a.Send(c)
-}
-
-func (a *HttpAnser) GetContext(cid int32, baseConn *base.Conn) *HttpContext {
-	var context *HttpContext
-	var ok bool
-	if context, ok = a.contextMap[cid]; !ok {
-		context = a.contextPool.Get().(*HttpContext)
-		a.contextMap[cid] = context
-	}
-	if baseConn != nil {
-		context.Conn = baseConn
-	}
-	return context
 }
 
 func (a *HttpAnser) Send(c *HttpContext) {
